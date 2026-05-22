@@ -27,19 +27,17 @@ async def search(search_params: SearchParams) -> SearchResults:
     Search for products.
     """
     logger.info("Running Yandex Market parser")
-    yandex_market_results = await asyncio.to_thread(run_yandex_market_parser, search_params.query)
+    yandex_market_task = asyncio.to_thread(run_yandex_market_parser, search_params.query)
 
     logger.info("Running Wildberries parser")
-    wildberries_results = await asyncio.to_thread(run_wildberries_parser, search_params.query)
+    wildberries_task = asyncio.to_thread(run_wildberries_parser, search_params.query)
 
     logger.info("Running Ozon parser")
-    ozon_results = await asyncio.to_thread(run_ozon_parser, search_params.query)
+    ozon_task = asyncio.to_thread(run_ozon_parser, search_params.query)
+
+    results = await asyncio.gather(yandex_market_task, wildberries_task, ozon_task)
 
     return SearchResults(
         original_params=search_params,
-        sources=[
-            yandex_market_results,
-            wildberries_results,
-            ozon_results,
-        ],
+        sources=results,
     )
