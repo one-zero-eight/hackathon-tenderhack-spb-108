@@ -94,7 +94,6 @@ class WhoogleSearchAdapter:
         query: str,
         limit: int,
         search_type: str = "",
-        near: str = "",
     ) -> dict[str, str]:
         if limit < 1:
             return {}
@@ -107,8 +106,7 @@ class WhoogleSearchAdapter:
             page = self._fetch_page(
                 query=query,
                 start=start,
-                search_type=search_type,
-                near=near,
+                search_type=search_type
             )
             if not page.results:
                 break
