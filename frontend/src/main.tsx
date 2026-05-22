@@ -1,21 +1,21 @@
-import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
-import {createRouter, RouterProvider} from '@tanstack/react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createRouter, RouterProvider } from '@tanstack/react-router'
 import ReactDOM from 'react-dom/client'
-import {routeTree} from './routeTree.gen'
+import { routeTree } from './routeTree.gen'
 import './styles.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: Infinity,
-    },
-  },
+      staleTime: Infinity
+    }
+  }
 })
 
 const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
-  scrollRestoration: true,
+  scrollRestoration: true
 })
 
 declare module '@tanstack/react-router' {
@@ -30,7 +30,7 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router}/>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   )
 }
