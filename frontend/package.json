@@ -9,7 +9,9 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "gen:api": "openapi-typescript --root-types --enum"
+    "gen:api": "openapi-typescript --root-types --enum",
+    "check": "prettier --check .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
@@ -34,6 +36,9 @@
     "openapi-fetch": "^0.17.0",
     "openapi-react-query": "^0.5.4",
     "openapi-typescript": "^7.13.0",
+    "prettier-plugin-css-order": "^2.2.0",
+    "prettier-plugin-organize-attributes": "^1.0.0",
+    "prettier-plugin-organize-imports": "^4.3.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
