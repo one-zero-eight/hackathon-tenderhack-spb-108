@@ -1,0 +1,34 @@
+$schema: https://json-schema.org/draft-07/schema
+$defs:
+  Environment:
+    enum:
+    - development
+    - production
+    title: Environment
+    type: string
+additionalProperties: false
+description: Settings for the application.
+properties:
+  $schema:
+    anyOf:
+    - type: string
+    - type: 'null'
+    default: null
+    title: $Schema
+  environment:
+    $ref: '#/$defs/Environment'
+    default: development
+    description: App environment flag
+  app_root_path:
+    default: ''
+    description: Prefix for the API path (e.g. "/api/v0")
+    title: App Root Path
+    type: string
+  cors_allow_origin_regex:
+    default: .*
+    description: 'Allowed origins for CORS: from which domains requests to the API
+      are allowed. Specify as a regex: `https://.*.innohassle.ru`'
+    title: Cors Allow Origin Regex
+    type: string
+title: Settings
+type: object

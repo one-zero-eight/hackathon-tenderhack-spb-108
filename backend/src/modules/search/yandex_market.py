@@ -1,17 +1,17 @@
 """Yandex Market search parser using cloakbrowser."""
 
-from __future__ import annotations
-
 import html as html_module
 import json
 import re
 from urllib.parse import quote_plus
 
-from common import (
+from src.modules.search.schemas import SearchSource
+
+from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
-    MarketProduct,
     RESULT_PRE_ID,
+    SearchResult,
     append_product,
     build_price_filter,
     extract_pre_content,
@@ -30,7 +30,7 @@ CHECK_CAPTCHA = (
 HEADLESS_ENV = "YANDEX_MARKET_HEADLESS"
 CITY_LR = "2"
 
-_WAIT_ELEMENT_TEMPLATE = r'''var filters = "{\"resale_goods\":\"resale_new\"";
+_WAIT_ELEMENT_TEMPLATE = r"""var filters = "{\"resale_goods\":\"resale_new\"";
 
 if ('__MIN_PRICE__' != '0') {
     filters += ",\"pricefrom\":\"__MIN_PRICE__\"";
@@ -150,7 +150,7 @@ let body = "{\"params\":[{\"text\":\"" + searchText + "\",\"how\":\"dpop\",\"sea
   return false;
 }
 
-return fetchWithRetry();'''
+return fetchWithRetry();"""
 
 _PRODUCT_KEYS = ("titles", "prices", "pictures", "productName", "slug", "skuId", "modelName")
 _PRODUCT_SNIPPET_RE = re.compile(
@@ -211,7 +211,7 @@ def _price_from_snippet(zone: dict) -> str | None:
     return None
 
 
-def _product_from_snippet(zone: dict) -> MarketProduct | None:
+def _product_from_snippet(zone: dict) -> SearchResult | None:
     name = zone.get("title")
     children = zone.get("children")
     wishlist = children.get("wishlist", {}) if isinstance(children, dict) else {}
@@ -232,7 +232,7 @@ def _product_from_snippet(zone: dict) -> MarketProduct | None:
         if rating.get("gradesCount"):
             characteristics["gradesCount"] = str(rating["gradesCount"])
 
-    return MarketProduct(
+    return SearchResult(
         name=str(name).strip(),
         characteristics=characteristics,
         price=_price_from_snippet(zone),
@@ -240,8 +240,8 @@ def _product_from_snippet(zone: dict) -> MarketProduct | None:
     )
 
 
-def _collect_products_from_snippets(html: str) -> list[MarketProduct]:
-    products: list[MarketProduct] = []
+def _collect_products_from_snippets(html: str) -> list[SearchResult]:
+    products: list[SearchResult] = []
     for raw in _PRODUCT_SNIPPET_RE.findall(html):
         try:
             zone = _decode_embedded_zone_json(raw)
@@ -253,8 +253,8 @@ def _collect_products_from_snippets(html: str) -> list[MarketProduct]:
     return products
 
 
-def _collect_products_from_legacy_html(html: str) -> list[MarketProduct]:
-    products: list[MarketProduct] = []
+def _collect_products_from_legacy_html(html: str) -> list[SearchResult]:
+    products: list[SearchResult] = []
     for block in re.finditer(r'"titles"\s*:\s*\{[^}]*"raw"\s*:\s*"([^"]+)"', html):
         name = block.group(1).encode().decode("unicode_escape")
         price_match = re.search(
@@ -266,7 +266,7 @@ def _collect_products_from_legacy_html(html: str) -> list[MarketProduct]:
             html[block.start() : block.start() + 4000],
         )
         products.append(
-            MarketProduct(
+            SearchResult(
                 name=name,
                 characteristics={},
                 price=price_match.group(1) if price_match else None,
@@ -276,7 +276,7 @@ def _collect_products_from_legacy_html(html: str) -> list[MarketProduct]:
     return products
 
 
-def parse_html(html: str) -> list[MarketProduct]:
+def parse_html(html: str) -> list[SearchResult]:
     raw = extract_pre_content(html)
     if raw is not None:
         products = parse_api_payload(raw, product_keys=_PRODUCT_KEYS)
@@ -289,19 +289,26 @@ def parse_html(html: str) -> list[MarketProduct]:
     return _collect_products_from_legacy_html(html)
 
 
-def run_parser(
+def run_yandex_market_parser(
     user_input: str,
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
-) -> list[MarketProduct]:
+) -> SearchSource:
     """Run Yandex Market search and return parsed products."""
-    return run_site_parser(
+    results = run_site_parser(
         site_name=SITE,
         actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
         check_captcha=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
+    )
+    return SearchSource(
+        source_type="yandex_market",
+        source_url="https://market.yandex.ru",
+        source_title="Яндекс Маркет",
+        source_favicon_url=None,
+        results=results,
     )
 
 
@@ -309,5 +316,5 @@ if __name__ == "__main__":
     import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "tasty coffee в зернах"
-    for product in run_parser(query):
-        print(product.model_dump_json(ensure_ascii=False))
+    results = run_yandex_market_parser(query)
+    print(results.model_dump_json(ensure_ascii=False))

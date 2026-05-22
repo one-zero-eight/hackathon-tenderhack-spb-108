@@ -1,7 +1,5 @@
 """Shared utilities for marketplace search parsers."""
 
-from __future__ import annotations
-
 import json
 import logging
 import os
@@ -11,7 +9,8 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 from cloakbrowser import launch_persistent_context
-from pydantic import BaseModel, Field
+
+from src.modules.search.schemas import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +18,6 @@ RESULT_PRE_ID = "d405f4e66468fd64bd88c8f16681286a"
 HTTP_PROXY: str | None = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
 DEFAULT_MIN_PRICE = 0
 DEFAULT_MAX_PRICE = 9_999_999
-
-
-class MarketProduct(BaseModel):
-    name: str
-    characteristics: dict[str, str] = Field(default_factory=dict)
-    price: str | None = None
-    image_link: str | None = None
 
 
 def scripts_dir() -> Path:
@@ -56,7 +48,7 @@ def encode_query(query: str) -> str:
     return quote_plus(query)
 
 
-def append_product(products: list[MarketProduct], item: MarketProduct | None) -> None:
+def append_product(products: list[SearchResult], item: SearchResult | None) -> None:
     if item is None:
         return
     if any(p.name == item.name and p.price == item.price for p in products):
@@ -149,12 +141,12 @@ def run_site_parser(
     *,
     site_name: str,
     actions: list[dict[str, str]],
-    parse_html: Callable[[str], list[MarketProduct]],
+    parse_html: Callable[[str], list[SearchResult]],
     check_captcha: str,
     headless_env: str,
     locale: str = "ru-RU",
     block_images: bool = True,
-) -> list[MarketProduct]:
+) -> list[SearchResult]:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     session_dir, out_dir = site_paths(site_name)
     session_dir.mkdir(parents=True, exist_ok=True)
@@ -296,11 +288,11 @@ def extract_characteristics(obj: dict) -> dict[str, str]:
     return specs
 
 
-def product_from_dict(obj: dict) -> MarketProduct | None:
+def product_from_dict(obj: dict) -> SearchResult | None:
     name = extract_name(obj)
     if not name:
         return None
-    return MarketProduct(
+    return SearchResult(
         name=name,
         characteristics=extract_characteristics(obj),
         price=extract_price(obj),
@@ -311,7 +303,7 @@ def product_from_dict(obj: dict) -> MarketProduct | None:
 def collect_products(
     node: object,
     seen: set[int],
-    out: list[MarketProduct],
+    out: list[SearchResult],
     *,
     product_keys: tuple[str, ...],
 ) -> None:
@@ -334,7 +326,7 @@ def parse_api_payload(
     *,
     product_keys: tuple[str, ...],
     empty_values: frozenset[str] = frozenset({"", "no data", "not found"}),
-) -> list[MarketProduct]:
+) -> list[SearchResult]:
     if raw.strip() in empty_values:
         return []
     if raw.startswith("error:"):
@@ -346,7 +338,7 @@ def parse_api_payload(
         logger.warning("Result is not valid JSON")
         return []
 
-    products: list[MarketProduct] = []
+    products: list[SearchResult] = []
     collect_products(data, set(), products, product_keys=product_keys)
     return products
 
@@ -355,8 +347,8 @@ def parse_result_pre(
     html: str,
     *,
     product_keys: tuple[str, ...],
-    fallback: Callable[[str], list[MarketProduct]] | None = None,
-) -> list[MarketProduct]:
+    fallback: Callable[[str], list[SearchResult]] | None = None,
+) -> list[SearchResult]:
     raw = extract_pre_content(html)
     if raw is not None:
         products = parse_api_payload(raw, product_keys=product_keys)

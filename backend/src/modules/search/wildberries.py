@@ -1,16 +1,15 @@
 """Wildberries search parser using cloakbrowser."""
 
-from __future__ import annotations
-
 import json
-import re
 from urllib.parse import quote
 
-from common import (
+from src.modules.search.schemas import SearchSource
+
+from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
-    MarketProduct,
     RESULT_PRE_ID,
+    SearchResult,
     append_product,
     build_price_filter,
     encode_query,
@@ -21,13 +20,9 @@ from common import (
 )
 
 SITE = "wildberries"
-CHECK_CAPTCHA = (
-    "document.querySelector('#wait_msg') != null"
-    " || document.querySelector('.support-title') != null"
-)
+CHECK_CAPTCHA = "document.querySelector('#wait_msg') != null || document.querySelector('.support-title') != null"
 HEADLESS_ENV = "WILDBERRIES_HEADLESS"
 DEST = "-1198055"
-REFER = "utm_source=cheaper"
 
 _WAIT_QUERY_ID = r"""function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -131,10 +126,7 @@ def _build_actions(
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
     encoded = encode_query(query)
-    search_url = (
-        f"https://www.wildberries.ru/catalog/0/search.aspx"
-        f"?page=1&search={encoded}&{REFER}"
-    )
+    search_url = f"https://www.wildberries.ru/catalog/0/search.aspx?page=1&search={encoded}"
     fetch_script = (
         _WAIT_FETCH_TEMPLATE.replace("__PRE_ID__", RESULT_PRE_ID)
         .replace("__DEST__", DEST)
@@ -161,13 +153,10 @@ def _wb_image_url(product: dict) -> str | None:
     if isinstance(pics, int) and pics > 0:
         pic_idx = 1
     basket = product.get("wh") or 1
-    return (
-        f"https://basket-{basket:02d}.wbbasket.ru/vol{vol}/part{part}/{nm_id}"
-        f"/images/big/{pic_idx}.webp"
-    )
+    return f"https://basket-{basket:02d}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/{pic_idx}.webp"
 
 
-def _product_from_wb(item: dict) -> MarketProduct | None:
+def _product_from_wb(item: dict) -> SearchResult | None:
     name = item.get("name")
     if not name:
         return None
@@ -184,7 +173,7 @@ def _product_from_wb(item: dict) -> MarketProduct | None:
     if item.get("feedbacks"):
         characteristics["feedbacks"] = str(item["feedbacks"])
 
-    return MarketProduct(
+    return SearchResult(
         name=str(name).strip(),
         characteristics=characteristics,
         price=price_str,
@@ -192,8 +181,8 @@ def _product_from_wb(item: dict) -> MarketProduct | None:
     )
 
 
-def _parse_wb_payload(data: object) -> list[MarketProduct]:
-    products: list[MarketProduct] = []
+def _parse_wb_payload(data: object) -> list[SearchResult]:
+    products: list[SearchResult] = []
     if not isinstance(data, dict):
         return products
 
@@ -210,7 +199,7 @@ def _parse_wb_payload(data: object) -> list[MarketProduct]:
     return products
 
 
-def parse_html(html: str) -> list[MarketProduct]:
+def parse_html(html: str) -> list[SearchResult]:
     raw = extract_pre_content(html)
     if raw:
         try:
@@ -227,19 +216,26 @@ def parse_html(html: str) -> list[MarketProduct]:
     return parse_result_pre(html, product_keys=_PRODUCT_KEYS)
 
 
-def run_parser(
+def run_wildberries_parser(
     user_input: str,
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
-) -> list[MarketProduct]:
+) -> SearchSource:
     """Run Wildberries search and return parsed products."""
-    return run_site_parser(
+    results = run_site_parser(
         site_name=SITE,
         actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
         check_captcha=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
+    )
+    return SearchSource(
+        source_type="wildberries",
+        source_url="https://wildberries.ru",
+        source_title="Wildberries",
+        source_favicon_url=None,
+        results=results,
     )
 
 
@@ -247,5 +243,5 @@ if __name__ == "__main__":
     import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "tasty coffee в зернах"
-    for product in run_parser(query):
-        print(product.model_dump_json(ensure_ascii=False))
+    results = run_wildberries_parser(query)
+    print(results.model_dump_json(ensure_ascii=False))

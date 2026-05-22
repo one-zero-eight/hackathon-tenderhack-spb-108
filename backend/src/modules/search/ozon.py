@@ -1,19 +1,19 @@
 """Ozon search parser using cloakbrowser."""
 
-from __future__ import annotations
-
 import json
 import re
 from urllib.parse import quote
 
-from common import (
+from src.modules.search.schemas import SearchSource
+
+from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
-    MarketProduct,
+    SearchResult,
     append_product,
     build_price_filter,
-    encode_query,
     collect_products,
+    encode_query,
     extract_pre_content,
     parse_result_pre,
     product_from_dict,
@@ -32,7 +32,6 @@ CHECK_CAPTCHA = (
     "})()"
 )
 HEADLESS_ENV = "OZON_HEADLESS"
-REFER = "utm_source=cheaper"
 CITY_INFO = ""
 
 _GEO_SCRIPT_TEMPLATE = r"""var cityInfoStr = __CITY_INFO__;
@@ -94,9 +93,7 @@ def _build_actions(
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
     encoded = encode_query(query)
-    search_url = (
-        f"https://www.ozon.ru/search/?text={encoded}&from_global=true&{REFER}"
-    )
+    search_url = f"https://www.ozon.ru/search/?text={encoded}&from_global=true"
     geo_script = _GEO_SCRIPT_TEMPLATE.replace("__CITY_INFO__", json.dumps(CITY_INFO))
     return [
         {"type": "url", "data": search_url},
@@ -107,7 +104,7 @@ def _build_actions(
     ]
 
 
-def _parse_widget_states(data: dict, products: list[MarketProduct]) -> None:
+def _parse_widget_states(data: dict, products: list[SearchResult]) -> None:
     states = data.get("widgetStates")
     if not isinstance(states, dict):
         return
@@ -121,7 +118,7 @@ def _parse_widget_states(data: dict, products: list[MarketProduct]) -> None:
         _parse_ozon_node(state, products)
 
 
-def _parse_ozon_node(node: object, products: list[MarketProduct]) -> None:
+def _parse_ozon_node(node: object, products: list[SearchResult]) -> None:
     if isinstance(node, dict):
         if "items" in node and isinstance(node["items"], list):
             for item in node["items"]:
@@ -136,7 +133,7 @@ def _parse_ozon_node(node: object, products: list[MarketProduct]) -> None:
             _parse_ozon_node(item, products)
 
 
-def _parse_ozon_item(item: object, products: list[MarketProduct]) -> None:
+def _parse_ozon_item(item: object, products: list[SearchResult]) -> None:
     if not isinstance(item, dict):
         return
     parsed = product_from_dict(item)
@@ -164,11 +161,11 @@ def _parse_ozon_item(item: object, products: list[MarketProduct]) -> None:
                 if val:
                     price_str = re.sub(r"\D", "", val) or val
     if name:
-        append_product(products, MarketProduct(name=name, price=price_str, image_link=None))
+        append_product(products, SearchResult(name=name, price=price_str, image_link=None))
 
 
-def _parse_ozon_payload(data: object) -> list[MarketProduct]:
-    products: list[MarketProduct] = []
+def _parse_ozon_payload(data: object) -> list[SearchResult]:
+    products: list[SearchResult] = []
     if not isinstance(data, dict):
         return products
 
@@ -216,7 +213,7 @@ def _extract_body_json(html: str) -> str | None:
     return None
 
 
-def parse_html(html: str) -> list[MarketProduct]:
+def parse_html(html: str) -> list[SearchResult]:
     data = _extract_json_document(html)
     if data:
         ozon_products = _parse_ozon_payload(data)
@@ -237,19 +234,26 @@ def parse_html(html: str) -> list[MarketProduct]:
     return parse_result_pre(html, product_keys=_PRODUCT_KEYS)
 
 
-def run_parser(
+def run_ozon_parser(
     user_input: str,
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
-) -> list[MarketProduct]:
+) -> SearchSource:
     """Run Ozon search and return parsed products."""
-    return run_site_parser(
+    results = run_site_parser(
         site_name=SITE,
         actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
         check_captcha=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
+    )
+    return SearchSource(
+        source_type="ozon",
+        source_url="https://ozon.ru",
+        source_title="Ozon",
+        source_favicon_url=None,
+        results=results,
     )
 
 
@@ -257,5 +261,5 @@ if __name__ == "__main__":
     import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "tasty coffee в зернах"
-    for product in run_parser(query):
-        print(product.model_dump_json(ensure_ascii=False))
+    results = run_ozon_parser(query)
+    print(results.model_dump_json(ensure_ascii=False))
