@@ -1,12 +1,15 @@
 export type Product = {
   title: string
-  image: string
+  image: string | null
   characteristics: string[]
+  price?: string | null
+  url?: string | null
 }
 
 export type MarketplaceGroup = {
   title: string
-  logoUrl: string
+  logoUrl: string | null
+  sourceUrl: string
   products: Product[]
 }
 
@@ -107,6 +110,7 @@ export const marketplaceGroups: MarketplaceGroup[] = [
   {
     title: 'Яндекс.Маркет',
     logoUrl: 'https://www.google.com/s2/favicons?domain=market.yandex.ru&sz=64',
+    sourceUrl: 'https://market.yandex.ru',
     products: [
       {
         title: 'Ноутбук Lenovo IdeaPad Slim 3',
@@ -135,6 +139,7 @@ export const marketplaceGroups: MarketplaceGroup[] = [
   {
     title: 'Ozon',
     logoUrl: 'https://www.google.com/s2/favicons?domain=ozon.ru&sz=64',
+    sourceUrl: 'https://www.ozon.ru',
     products: [
       {
         title: 'Кресло офисное Chairman Ergo',
@@ -167,6 +172,7 @@ export const marketplaceGroups: MarketplaceGroup[] = [
   {
     title: 'Wildberries',
     logoUrl: 'https://www.google.com/s2/favicons?domain=wildberries.ru&sz=64',
+    sourceUrl: 'https://www.wildberries.ru',
     products: [
       {
         title: 'Роутер TP-Link Archer AX23',
@@ -198,6 +204,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'Ситилинк',
     logoUrl: 'https://www.google.com/s2/favicons?domain=citilink.ru&sz=64',
+    sourceUrl: 'https://www.citilink.ru',
     products: [
       {
         title: 'Системный блок iRU Office',
@@ -210,6 +217,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'DNS',
     logoUrl: 'https://www.google.com/s2/favicons?domain=dns-shop.ru&sz=64',
+    sourceUrl: 'https://www.dns-shop.ru',
     products: [
       {
         title: 'Коммутатор TP-Link TL-SG108',
@@ -226,6 +234,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'М.Видео',
     logoUrl: 'https://www.google.com/s2/favicons?domain=mvideo.ru&sz=64',
+    sourceUrl: 'https://www.mvideo.ru',
     products: [
       {
         title: 'Проектор Epson EB-FH52',
@@ -238,6 +247,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'Эльдорадо',
     logoUrl: 'https://www.google.com/s2/favicons?domain=eldorado.ru&sz=64',
+    sourceUrl: 'https://www.eldorado.ru',
     products: [
       {
         title: 'Телевизор LG 55UR78006LK',
@@ -250,6 +260,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'ВсеИнструменты.ру',
     logoUrl: 'https://www.google.com/s2/favicons?domain=vseinstrumenti.ru&sz=64',
+    sourceUrl: 'https://www.vseinstrumenti.ru',
     products: [
       {
         title: 'Набор инструментов Gross 82 предмета',
@@ -266,6 +277,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'Комус',
     logoUrl: 'https://www.google.com/s2/favicons?domain=komus.ru&sz=64',
+    sourceUrl: 'https://www.komus.ru',
     products: [
       {
         title: 'Бумага офисная Ballet Classic A4',
@@ -278,6 +290,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'Леруа Мерлен',
     logoUrl: 'https://www.google.com/s2/favicons?domain=leroymerlin.ru&sz=64',
+    sourceUrl: 'https://leroymerlin.ru',
     products: [
       {
         title: 'Светильник светодиодный офисный',
@@ -290,6 +303,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'Петрович',
     logoUrl: 'https://www.google.com/s2/favicons?domain=petrovich.ru&sz=64',
+    sourceUrl: 'https://petrovich.ru',
     products: [
       {
         title: 'Стеллаж металлический Практик',
@@ -306,6 +320,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'Яндекс Лавка для бизнеса',
     logoUrl: 'https://www.google.com/s2/favicons?domain=lavka.yandex.ru&sz=64',
+    sourceUrl: 'https://lavka.yandex.ru',
     products: [
       {
         title: 'Набор питьевой воды для офиса',
@@ -318,6 +333,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'СберМегаМаркет',
     logoUrl: 'https://www.google.com/s2/favicons?domain=megamarket.ru&sz=64',
+    sourceUrl: 'https://megamarket.ru',
     products: [
       {
         title: 'Кофемашина DeLonghi Magnifica',
@@ -330,6 +346,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'Регард',
     logoUrl: 'https://www.google.com/s2/favicons?domain=regard.ru&sz=64',
+    sourceUrl: 'https://regard.ru',
     products: [
       {
         title: 'ИБП APC Back-UPS 950VA',
@@ -342,6 +359,7 @@ export const otherSourceGroups: MarketplaceGroup[] = [
   {
     title: 'ОнлайнТрейд',
     logoUrl: 'https://www.google.com/s2/favicons?domain=onlinetrade.ru&sz=64',
+    sourceUrl: 'https://www.onlinetrade.ru',
     products: [
       {
         title: 'Док-станция Baseus USB-C',

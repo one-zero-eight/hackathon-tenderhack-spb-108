@@ -1,6 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import ReactDOM from 'react-dom/client'
+
+import { restoreLatestSearchResult } from '@/features/search/cache'
+
 import { routeTree } from './routeTree.gen'
 import './styles.css'
 
@@ -11,6 +14,8 @@ const queryClient = new QueryClient({
     }
   }
 })
+
+restoreLatestSearchResult(queryClient)
 
 const router = createRouter({
   routeTree,
