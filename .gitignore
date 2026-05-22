@@ -257,3 +257,9 @@ Temporary Items
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,linux,jetbrains,intellij,visualstudiocode
+
+# AI agents
+.codex
+.cursor
+.agent
+.claude
