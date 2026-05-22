@@ -1,7 +1,6 @@
 """Shared utilities for marketplace search parsers."""
 
 import json
-import logging
 import os
 import re
 from collections.abc import Callable
@@ -10,9 +9,8 @@ from urllib.parse import quote_plus
 
 from cloakbrowser import launch_persistent_context
 
+from src.logging_ import logger
 from src.modules.search.schemas import SearchResult
-
-logger = logging.getLogger(__name__)
 
 RESULT_PRE_ID = "d405f4e66468fd64bd88c8f16681286a"
 HTTP_PROXY: str | None = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
@@ -147,7 +145,6 @@ def run_site_parser(
     locale: str = "ru-RU",
     block_images: bool = True,
 ) -> list[SearchResult]:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     session_dir, out_dir = site_paths(site_name)
     session_dir.mkdir(parents=True, exist_ok=True)
     headless = headless_from_env(headless_env)
