@@ -151,7 +151,7 @@ export function ProductSourceDetails({
               <div className="grid min-h-[500px] gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {visibleProducts.map((product) => (
                   <ProductCard
-                    key={`${product.title}-${product.productLink ?? ''}`}
+                    key={`${product.name}-${product.product_link ?? ''}`}
                     product={product}
                   />
                 ))}

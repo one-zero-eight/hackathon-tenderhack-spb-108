@@ -1,22 +1,11 @@
-import type { SchemaSearchResults, SourceType } from '@/api/openapi.gen'
-
-export type Product = {
-  title: string
-  image: string | null
-  images: string[]
-  characteristics: string[]
-  productLink?: string | null
-  price?: string | null
-  rating?: string | null
-  reviews?: string | null
-}
+import type { SchemaSearchResult, SchemaSearchResults, SourceType } from '@/api/openapi.gen'
 
 export type MarketplaceGroup = {
   sourceType: SourceType
   title: string
   logoUrl: string
   sourceUrl: string
-  products: Product[]
+  products: SchemaSearchResult[]
 }
 
 export type TypofixSuggestion = {
@@ -31,7 +20,7 @@ export type SearchResultsWithTypofix = SchemaSearchResults & {
 export type SortMode = 'sources' | 'price-asc' | 'price-desc'
 
 export type SearchResultProduct = {
-  product: Product
+  product: SchemaSearchResult
   sourceType: SourceType
   sourceTitle: string
   sourceUrl: string

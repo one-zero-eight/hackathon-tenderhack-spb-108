@@ -1,15 +1,22 @@
+import type { SchemaSearchResult } from '@/api/openapi.gen'
 import { ProductImage } from '@/components/ProductImage'
-import type { Product } from '@/lib/types'
 import { SquareArrowOutUpRight } from 'lucide-react'
 
 const CHARACTERISTICS_PREVIEW_LIMIT = 5
 
-export function ProductCharacteristics({ characteristics }: { characteristics: string[] }) {
-  const hasHiddenCharacteristics = characteristics.length > CHARACTERISTICS_PREVIEW_LIMIT
-  const previewCharacteristics = characteristics.slice(0, CHARACTERISTICS_PREVIEW_LIMIT)
-  const hiddenCharacteristics = characteristics.slice(CHARACTERISTICS_PREVIEW_LIMIT)
+export function ProductCharacteristics({
+  characteristics
+}: {
+  characteristics: SchemaSearchResult['characteristics']
+}) {
+  const characteristicList = Object.entries(characteristics ?? {}).map(
+    ([name, value]) => `${name}: ${value}`
+  )
+  const hasHiddenCharacteristics = characteristicList.length > CHARACTERISTICS_PREVIEW_LIMIT
+  const previewCharacteristics = characteristicList.slice(0, CHARACTERISTICS_PREVIEW_LIMIT)
+  const hiddenCharacteristics = characteristicList.slice(CHARACTERISTICS_PREVIEW_LIMIT)
 
-  if (characteristics.length === 0) {
+  if (characteristicList.length === 0) {
     return null
   }
 
@@ -41,19 +48,25 @@ export function ProductCharacteristics({ characteristics }: { characteristics: s
   )
 }
 
-export function ProductCard({ product, className = '' }: { product: Product; className?: string }) {
+export function ProductCard({
+  product,
+  className = ''
+}: {
+  product: SchemaSearchResult
+  className?: string
+}) {
   return (
     <article className={`overflow-hidden rounded-lg border border-slate-200 bg-white ${className}`}>
-      <ProductImage alt={product.title} src={product.image} />
+      <ProductImage alt={product.name} src={product.image_link ?? null} />
       <div className="flex flex-col gap-3 p-4">
-        {product.productLink ? (
+        {product.product_link ? (
           <a
             className="cursor-pointer flex items-start gap-1.5 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-            href={product.productLink}
+            href={product.product_link}
             rel="noreferrer"
             target="_blank"
           >
-            <span className="line-clamp-2 min-w-0">{product.title}</span>
+            <span className="line-clamp-2 min-w-0">{product.name}</span>
             <SquareArrowOutUpRight
               aria-hidden="true"
               className="mt-1 size-4 shrink-0 text-slate-400"
@@ -61,7 +74,7 @@ export function ProductCard({ product, className = '' }: { product: Product; cla
           </a>
         ) : (
           <h3 className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
-            {product.title}
+            {product.name}
           </h3>
         )}
         {product.price ? (

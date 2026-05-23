@@ -266,9 +266,12 @@ function Home() {
               {sortedProducts.map((item, index) => (
                 <div
                   className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
-                  key={`${item.sourceType}-${item.product.productLink ?? item.product.title}-${index}`}
+                  key={`${item.sourceType}-${item.product.product_link ?? item.product.name}-${index}`}
                 >
-                  <div className="flex items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3" style={getMarketplaceTheme(item.sourceType).summaryStyle}>
+                  <div
+                    className="flex items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3"
+                    style={getMarketplaceTheme(item.sourceType).summaryStyle}
+                  >
                     <div className="flex min-w-0 items-center gap-3">
                       <img
                         alt=""

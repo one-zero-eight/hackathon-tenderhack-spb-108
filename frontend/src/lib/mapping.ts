@@ -9,17 +9,6 @@ export function mapSearchSourceToGroup(source: SchemaSearchSource): MarketplaceG
       source.source_favicon_url ??
       `https://www.google.com/s2/favicons?domain=${source.source_url}&sz=64`,
     sourceUrl: source.source_url,
-    products: source.results.map((result) => ({
-      title: result.name,
-      image: result.image_link ?? null,
-      images: result.image_links ?? [],
-      characteristics: Object.entries(result.characteristics ?? {}).map(
-        ([name, value]) => `${name}: ${value}`
-      ),
-      productLink: result.product_link,
-      price: result.price,
-      rating: result.rating,
-      reviews: result.reviews
-    }))
+    products: source.results
   }
 }
