@@ -8,8 +8,15 @@ from src.logging_ import logger
 from src.modules.search.common import get_browser_context
 from src.modules.search.ozon import run_ozon_parser
 from src.modules.search.parse_from_url import parse_url
-from src.modules.search.schemas import SearchParams, SearchResults, SourceType
+from src.modules.search.schemas import (
+    SearchParams,
+    SearchResults,
+    SearchSource,
+    SourceType,
+    TypofixSuggestion,
+)
 from src.modules.search.timing import TimingRecorder
+from src.modules.search.typofix import queries_differ
 from src.modules.search.wildberries import run_wildberries_parser
 from src.modules.search.yandex_market import run_yandex_market_parser
 
@@ -59,13 +66,19 @@ async def search(search_params: SearchParams) -> SearchResults:
     async with request_timing.stage("fetch_sources"):
         results = await asyncio.gather(*tasks) if tasks else []
 
-    sources = list(results)
+    sources: list[SearchSource] = []
+    typofix_suggestions: list[TypofixSuggestion] = []
+    for source, suggestion in results:
+        sources.append(source)
+        if suggestion and queries_differ(search_params.query, suggestion):
+            typofix_suggestions.append(TypofixSuggestion(source=source.source_type, suggestion=suggestion))
     if search_params.short:
         for source in sources:
             source.results = source.results[:4]
     return SearchResults(
         original_params=search_params,
         sources=sources,
+        typofix_suggestions=typofix_suggestions,
         timing=request_timing.to_request_timing(),
     )
 

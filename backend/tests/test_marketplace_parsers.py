@@ -1,7 +1,14 @@
 import json
+from pathlib import Path
 
+from src.modules.search.common import _merge_typofix_suggestion
 from src.modules.search.ozon import parse_html as parse_ozon_html
 from src.modules.search.ozon import parse_ozon_detail_html
+from src.modules.search.typofix import (
+    parse_ozon_typofix,
+    parse_wildberries_typofix,
+    parse_yandex_market_typofix,
+)
 from src.modules.search.wildberries import parse_html as parse_wb_html
 from src.modules.search.wildberries import parse_wb_detail_html
 from src.modules.search.yandex_market import parse_yandex_detail_html
@@ -83,6 +90,60 @@ class TestWildberries:
         product = parse_wb_html(html)[0]
         assert product.price == "52967"
         assert product.image_link == "https://basket-34.wbbasket.ru/vol7251/part725109/725109772/images/big/1.webp"
+
+
+class TestTypofix:
+    def test_ozon_ihone_example(self):
+        html = example_html("ОПЕЧАТКА телефон ihone - купить на OZON.html")
+        assert parse_ozon_typofix(html) == "телефон iphone"
+
+    def test_wildberries_ihone_example(self):
+        html = example_html(
+            "ОПЕЧАТКА Интернет‑магазин Wildberries_ широкий ассортимент товаров - скидки каждый день!.html"
+        )
+        assert parse_wildberries_typofix(html) == "телефон iphone"
+
+    def test_yandex_market_ihone_example(self):
+        html = example_html("ОПЕЧАТКА Телефон iphone — купить по низкой цене на Яндекс Маркете.html")
+        assert parse_yandex_market_typofix(html) == "телефон iphone"
+
+    def test_ozon_typofix_merge_search_page_over_api(self):
+        search_page = example_html("ОПЕЧАТКА телефон ihone - купить на OZON.html")
+        api_page = Path("src/modules/search/out/ozon/html/step_04.html").read_text(errors="replace")
+        original = "телефон ihone"
+        merged = None
+        for html in (search_page, api_page):
+            merged = _merge_typofix_suggestion(
+                merged,
+                parse_ozon_typofix(html),
+                original,
+            )
+        assert merged == "телефон iphone"
+
+    def test_ozon_typofix_from_api_json(self):
+        payload = {
+            "shared": json.dumps(
+                {
+                    "catalog": {"correctedText": "телефон iphone"},
+                },
+                ensure_ascii=False,
+            ),
+            "widgetStates": {
+                "searchBarDesktop-1": json.dumps(
+                    {"text": "телефон iphone"},
+                    ensure_ascii=False,
+                ),
+            },
+        }
+        html = f"<body>{json.dumps(payload, ensure_ascii=False)}</body>"
+        assert parse_ozon_typofix(html) == "телефон iphone"
+
+    def test_yandex_typofix_from_captured_pre(self):
+        html = (
+            '<pre id="typofix-suggestion">телефон iphone</pre>'
+            '<pre id="d405f4e66468fd64bd88c8f16681286a">{"results":[]}</pre>'
+        )
+        assert parse_yandex_market_typofix(html) == "телефон iphone"
 
 
 class TestOzon:

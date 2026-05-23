@@ -15,6 +15,7 @@ from src.modules.search.schemas import SearchResult, SourceTiming
 from src.modules.search.timing import TimingRecorder
 
 RESULT_PRE_ID = "d405f4e66468fd64bd88c8f16681286a"
+TYPOFIX_PRE_ID = "typofix-suggestion"
 HTTP_PROXY: str | None = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
 DEFAULT_MIN_PRICE = 0
 DEFAULT_MAX_PRICE = 9_999_999
@@ -173,6 +174,21 @@ async def run_action(
         await wait_captcha_solved(page, check_captcha_expr)
 
 
+def _merge_typofix_suggestion(
+    current: str | None,
+    candidate: str | None,
+    original_query: str | None,
+) -> str | None:
+    if not candidate:
+        return current
+    if original_query:
+        from src.modules.search.typofix import queries_differ
+
+        if not queries_differ(original_query, candidate):
+            return current
+    return candidate
+
+
 async def run_site_parser(
     context,
     *,
@@ -182,9 +198,11 @@ async def run_site_parser(
     check_captcha_expr: str,
     headless_env: str,
     enrich_characteristics: Callable | None = None,
+    parse_typofix: Callable[[str], str | None] | None = None,
+    original_query: str | None = None,
     locale: str = "ru-RU",
     block_images: bool = True,
-) -> tuple[list[SearchResult], SourceTiming]:
+) -> tuple[list[SearchResult], SourceTiming, str | None]:
     recorder = TimingRecorder.start()
     _, out_dir = site_paths(site_name)
     headless = headless_from_env(headless_env)
@@ -200,6 +218,7 @@ async def run_site_parser(
                 lambda route: route.abort(),
             )
 
+    typofix_suggestion: str | None = None
     for step, action in enumerate(actions, start=1):
         logger.info("Action %d/%d: %s", step, len(actions), action["type"])
         async with recorder.stage(f"search.{step}_{action['type']}"):
@@ -211,11 +230,23 @@ async def run_site_parser(
                 check_captcha_expr=check_captcha_expr,
                 site_name=site_name,
             )
+            if parse_typofix is not None:
+                typofix_suggestion = _merge_typofix_suggestion(
+                    typofix_suggestion,
+                    parse_typofix(await page_content(page)),
+                    original_query,
+                )
 
     async with recorder.stage("parse_results"):
         html = await page_content(page)
         save_html(out_dir, len(actions) + 1, html)
         products = parse_html(html)
+        if parse_typofix is not None:
+            typofix_suggestion = _merge_typofix_suggestion(
+                typofix_suggestion,
+                parse_typofix(html),
+                original_query,
+            )
     logger.info("Parsed %d products from %s", len(products), site_name)
 
     if enrich_characteristics is not None:
@@ -223,7 +254,7 @@ async def run_site_parser(
             await enrich_characteristics(page, products)
 
     await page.close()
-    return products, recorder.to_source_timing()
+    return products, recorder.to_source_timing(), typofix_suggestion
 
 
 def extract_name(obj: dict) -> str | None:

@@ -11,6 +11,7 @@ from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
     RESULT_PRE_ID,
+    TYPOFIX_PRE_ID,
     SearchResult,
     append_characteristic,
     append_product,
@@ -22,6 +23,7 @@ from .common import (
     run_site_parser,
 )
 from .details import enrich_product_characteristics, specs_from_raw
+from .typofix import parse_yandex_market_typofix
 
 _YANDEX_DETAIL_SPECS_JS = """() => {
   const out = [];
@@ -194,7 +196,26 @@ let body = "{\"params\":[{\"text\":\"" + searchText + "\",\"how\":\"dpop\",\"sea
       const data = await response.text();
 
       if (data) {
+        let typofixSuggestion = '';
+        const typoInState = document.documentElement.innerHTML.match(
+          /"old":"([^"\\\\]+)","new":"([^"\\\\]+)","probablyTypo":true/
+        );
+        if (typoInState) {
+          typofixSuggestion = typoInState[2];
+        } else {
+          const urlText = new URL(document.location.href).searchParams.get('text');
+          if (urlText) {
+            typofixSuggestion = decodeURIComponent(urlText.replace(/\\+/g, ' '));
+          }
+        }
+
         document.body = document.createElement("body");
+        if (typofixSuggestion) {
+          const typoPre = document.createElement('pre');
+          typoPre.id = "__TYPOFIX_PRE_ID__";
+          typoPre.innerText = typofixSuggestion;
+          document.body.append(typoPre);
+        }
   let g = document.createElement('pre');
   g.setAttribute("id", "__PRE_ID__");
         g.innerText = data;
@@ -277,6 +298,7 @@ def _build_actions(
     wait_script = (
         _WAIT_ELEMENT_TEMPLATE.replace("__SEARCH_TEXT__", json.dumps(user_input))
         .replace("__PRE_ID__", RESULT_PRE_ID)
+        .replace("__TYPOFIX_PRE_ID__", TYPOFIX_PRE_ID)
         .replace("__MIN_PRICE__", str(min_price))
         .replace("__MAX_PRICE__", str(max_price))
     )
@@ -461,13 +483,15 @@ async def run_yandex_market_parser(
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
-) -> SearchSource:
+) -> tuple[SearchSource, str | None]:
     """Run Yandex Market search and return parsed products."""
-    results, timing = await run_site_parser(
+    results, timing, typofix = await run_site_parser(
         context,
         site_name=SITE,
         actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
+        parse_typofix=parse_yandex_market_typofix,
+        original_query=user_input,
         check_captcha_expr=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
         enrich_characteristics=_enrich_yandex_characteristics,
@@ -479,7 +503,7 @@ async def run_yandex_market_parser(
         source_favicon_url=None,
         results=results,
         timing=timing,
-    )
+    ), typofix
 
 
 if __name__ == "__main__":

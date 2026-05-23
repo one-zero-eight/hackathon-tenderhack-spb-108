@@ -22,6 +22,7 @@ from .common import (
     run_site_parser,
 )
 from .details import enrich_product_characteristics
+from .typofix import parse_ozon_typofix
 
 SITE = "ozon"
 CHECK_CAPTCHA = (
@@ -430,13 +431,15 @@ async def run_ozon_parser(
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
-) -> SearchSource:
+) -> tuple[SearchSource, str | None]:
     """Run Ozon search and return parsed products."""
-    results, timing = await run_site_parser(
+    results, timing, typofix = await run_site_parser(
         context,
         site_name=SITE,
         actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
+        parse_typofix=parse_ozon_typofix,
+        original_query=user_input,
         check_captcha_expr=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
         enrich_characteristics=_enrich_ozon_characteristics,
@@ -448,7 +451,7 @@ async def run_ozon_parser(
         source_favicon_url=None,
         results=results,
         timing=timing,
-    )
+    ), typofix
 
 
 if __name__ == "__main__":

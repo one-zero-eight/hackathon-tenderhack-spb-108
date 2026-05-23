@@ -69,7 +69,13 @@ class SearchSource(BaseModel):
     timing: SourceTiming | None = None
 
 
+class TypofixSuggestion(BaseModel):
+    source: SourceType
+    suggestion: str
+
+
 class SearchResults(BaseModel):
     original_params: SearchParams
+    typofix_suggestions: list[TypofixSuggestion] = Field(default_factory=list)
     sources: list[SearchSource]
     timing: RequestTiming | None = None
