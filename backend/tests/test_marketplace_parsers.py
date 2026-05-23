@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from src.modules.search.common import RESULT_PRE_ID, _merge_typofix_suggestion, normalize_display_text
 from src.modules.search.ozon import parse_html as parse_ozon_html
 from src.modules.search.ozon import parse_ozon_detail_html
@@ -15,8 +17,8 @@ from src.modules.search.wildberries import (
     parse_wb_detail_html,
 )
 from src.modules.search.wildberries import parse_html as parse_wb_html
+from src.modules.search.yandex_market import collect_products_from_page, parse_yandex_detail_html
 from src.modules.search.yandex_market import parse_html as parse_yandex_html
-from src.modules.search.yandex_market import parse_yandex_detail_html
 from tests.conftest import example_html, fixture_json
 
 
@@ -52,6 +54,29 @@ class TestYandexMarket:
     def test_search_page_has_product_snippets(self):
         html = example_html("Ноутбук Lenovo Thinkbook 16 — купить по низкой цене на Яндекс Маркете.html")
         assert 'data-zone-name="productSnippet"' in html
+        products = parse_yandex_html(html)
+        assert len(products) >= 3
+        with_images = [product for product in products if product.image_link]
+        assert with_images, "expected search snippets to include Yandex Market images"
+        assert all("get-mpic" in product.image_link for product in with_images)
+        assert all(product.image_link.endswith("/orig") for product in with_images)
+        assert all(product.product_link and "/card/" in product.product_link for product in products[:3])
+
+    @pytest.mark.asyncio
+    async def test_collect_products_from_page_fixture(self):
+        from playwright.async_api import async_playwright
+
+        html = example_html("Ноутбук Lenovo Thinkbook 16 — купить по низкой цене на Яндекс Маркете.html")
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch()
+            page = await browser.new_page()
+            await page.set_content(html, wait_until="domcontentloaded")
+            products = await collect_products_from_page(page)
+            await browser.close()
+
+        assert len(products) >= 3
+        assert all(product.image_link and "get-mpic" in product.image_link for product in products[:3])
+        assert all(product.product_link and "/card/" in product.product_link for product in products[:3])
 
 
 class TestWildberries:

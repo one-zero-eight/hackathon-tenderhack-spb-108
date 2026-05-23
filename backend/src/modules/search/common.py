@@ -5,7 +5,7 @@ import html as html_module
 import json
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from urllib.parse import quote_plus, urljoin
 
@@ -296,6 +296,7 @@ async def run_site_parser(
     locale: str = "ru-RU",
     block_images: bool = True,
     setup_page: Callable | None = None,
+    collect_dom_products: Callable[[object], Awaitable[list[SearchResult]]] | None = None,
 ) -> tuple[list[SearchResult], SourceTiming, str | None]:
     recorder = TimingRecorder.start()
     _, out_dir = site_paths(site_name)
@@ -356,6 +357,8 @@ async def run_site_parser(
         html = await page_content(page)
         save_html(out_dir, step + 1, html)
         products = parse_html(html)
+        if not products and collect_dom_products is not None:
+            products = await collect_dom_products(page)
         if parse_typofix is not None:
             typofix_suggestion = _merge_typofix_suggestion(
                 typofix_suggestion,
