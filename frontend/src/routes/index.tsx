@@ -207,7 +207,7 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
                   <div className="flex flex-col gap-3 p-4">
                     {product.productLink ? (
                       <a
-                        className="line-clamp-1 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        className="line-clamp-2 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                         href={product.productLink}
                         rel="noreferrer"
                         target="_blank"
@@ -215,7 +215,7 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
                         {product.title}
                       </a>
                     ) : (
-                      <h3 className="line-clamp-1 text-base font-semibold leading-6 text-slate-950">
+                      <h3 className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
                         {product.title}
                       </h3>
                     )}
@@ -397,7 +397,10 @@ function Home() {
               type="submit"
             >
               {isFetching ? (
-                <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+                <LoaderCircle
+                  aria-hidden="true"
+                  className="size-4 animate-spin"
+                />
               ) : (
                 <Search aria-hidden="true" className="size-4" />
               )}
