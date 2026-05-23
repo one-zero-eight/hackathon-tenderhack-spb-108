@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -103,12 +103,15 @@ function ProductCharacteristics({
 }: {
   characteristics: string[];
 }) {
-  const [showAll, setShowAll] = useState(false);
-  const visibleCharacteristics = showAll
-    ? characteristics
-    : characteristics.slice(0, CHARACTERISTICS_PREVIEW_LIMIT);
   const hasHiddenCharacteristics =
     characteristics.length > CHARACTERISTICS_PREVIEW_LIMIT;
+  const previewCharacteristics = characteristics.slice(
+    0,
+    CHARACTERISTICS_PREVIEW_LIMIT,
+  );
+  const hiddenCharacteristics = characteristics.slice(
+    CHARACTERISTICS_PREVIEW_LIMIT,
+  );
 
   if (characteristics.length === 0) {
     return null;
@@ -117,7 +120,7 @@ function ProductCharacteristics({
   return (
     <div className="flex flex-col gap-2">
       <ul className="space-y-1 text-sm text-slate-600">
-        {visibleCharacteristics.map((characteristic) => (
+        {previewCharacteristics.map((characteristic) => (
           <li
             className="border-l border-slate-200 pl-3 leading-5"
             key={characteristic}
@@ -126,23 +129,27 @@ function ProductCharacteristics({
           </li>
         ))}
       </ul>
-      {!showAll && hasHiddenCharacteristics ? (
-        <button
-          className="self-start text-sm font-medium text-slate-900 underline underline-offset-2 transition hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-          onClick={() => setShowAll(true)}
-          type="button"
-        >
-          Показать все
-        </button>
-      ) : null}
-      {showAll && hasHiddenCharacteristics ? (
-        <button
-          className="self-start text-sm font-medium text-slate-900 underline underline-offset-2 transition hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-          onClick={() => setShowAll(false)}
-          type="button"
-        >
-          Скрыть
-        </button>
+      {hasHiddenCharacteristics ? (
+        <details className="group/characteristics">
+          <summary className="w-fit cursor-pointer list-none text-sm font-medium text-slate-900 underline underline-offset-2 transition marker:hidden hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <span className="group-open/characteristics:hidden">
+              Показать все
+            </span>
+            <span className="hidden group-open/characteristics:inline">
+              Скрыть
+            </span>
+          </summary>
+          <ul className="mt-2 space-y-1 text-sm text-slate-600">
+            {hiddenCharacteristics.map((characteristic) => (
+              <li
+                className="border-l border-slate-200 pl-3 leading-5"
+                key={characteristic}
+              >
+                {characteristic}
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
     </div>
   );
@@ -322,7 +329,7 @@ const marketplaceGroups = exampleSearchResults.sources.map(
 );
 
 function Home() {
-  const [searchInput, setSearchInput] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useState<{
     query: string;
     region: string | null;
@@ -352,11 +359,11 @@ function Home() {
     (sum, group) => sum + group.products.length,
     0,
   );
-  const isSearchDisabled = isFetching || searchInput.trim().length === 0;
+  const isSearchDisabled = isFetching;
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const query = searchInput.trim();
+    const query = searchInputRef.current?.value.trim() ?? "";
 
     if (!query) return;
 
@@ -393,10 +400,10 @@ function Home() {
               />
               <input
                 className="h-11 w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
-                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Введите товар или характеристику"
+                ref={searchInputRef}
+                required
                 type="search"
-                value={searchInput}
               />
             </span>
           </label>
