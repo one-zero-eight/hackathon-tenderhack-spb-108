@@ -432,7 +432,7 @@ async def run_ozon_parser(
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> SearchSource:
     """Run Ozon search and return parsed products."""
-    results = await run_site_parser(
+    results, timing = await run_site_parser(
         context,
         site_name=SITE,
         actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
@@ -447,6 +447,7 @@ async def run_ozon_parser(
         source_title="Ozon",
         source_favicon_url=None,
         results=results,
+        timing=timing,
     )
 
 

@@ -2,12 +2,273 @@
   "original_params": {
     "query": "Ноутбук Lenovo ThinkBook 16",
     "region": null,
-    "source_types": [
-      "wildberries"
-    ],
+    "source_types": null,
     "short": true
   },
   "sources": [
+    {
+      "source_type": "yandex_market",
+      "source_url": "https://market.yandex.ru/search?text=%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA+Lenovo+ThinkBook+16&lr=2&resale_goods=resale_new&cvredirect=1",
+      "source_title": "Яндекс Маркет",
+      "source_favicon_url": null,
+      "results": [
+        {
+          "name": "16\" Ноутбук Lenovo Thinkbook 16, 2560x1600 IPS 120Гц, AMD Ryzen 7 8845H (5.1 ГГц), RAM 24 ГБ DDR5, SSD 1024 ГБ, AMD Radeon 780M, Windows 11 Pro + MS Office Pro, Серый, Русская раскладка",
+          "characteristics": {
+            "Артикул Маркета": "4926170909",
+            "Диагональ экрана": "16\"",
+            "Разрешение экрана": "2560x1600",
+            "Процессор": "AMD Ryzen 7 8845H",
+            "Оперативная память": "24 ГБ",
+            "Бренд": "Lenovo",
+            "Линейка": "ThinkBook",
+            "Тип": "ноутбук",
+            "Операционная система": "Windows 11 Pro",
+            "Обязательные программы предустановлены": "есть",
+            "Линейка процессора": "AMD Ryzen 7",
+            "Частота процессора": "5100",
+            "Количество ядер процессора": "8",
+            "Ядро процессора": "Zen 4",
+            "Тип памяти": "DDR5",
+            "Частота памяти": "4800 МГц",
+            "Частота обновления экрана": "120 Гц",
+            "Тип покрытия экрана": "матовый",
+            "Тип матрицы экрана": "IPS",
+            "Наличие микрофона": "да",
+            "Беспроводные интерфейсы": "Bluetooth, Wi-Fi",
+            "Стандарт Wi-Fi 802.11": "802.11 a/b/g/n/ac/ax",
+            "Версия Bluetooth": "5.3",
+            "Интерфейсы": "Ethernet - RJ-45, Thunderbolt 4, USB 2.0 Type A, USB 3.2 Gen1 Type A x 2, USB 3.2 Gen2 Type-С, выход HDMI, микрофон/наушники Combo",
+            "Функционал USB Type-C": "DisplayPort 1.4, Power Delivery, Thunderbolt 4",
+            "Видеокарта": "AMD Radeon 780M",
+            "Тип видеокарты": "встроенная",
+            "Объем видеопамяти": "SMA",
+            "Тип видеопамяти": "SMA",
+            "Общий объем накопителей SSD": "1 ТБ",
+            "Оптический привод": "нет",
+            "Поддержка карт памяти": "SD",
+            "Количество слотов памяти": "2",
+            "Время автономной работы": "12 ч",
+            "Емкость аккумулятора": "7100 мА·ч",
+            "Емкость аккумулятора (Вт*ч)": "71 Вт·ч",
+            "Подсветка клавиатуры": "да",
+            "Раскладка клавиатуры": "английская/русская",
+            "Устройства позиционирования": "Touchpad",
+            "Разрешение веб-камеры": "1080p",
+            "Размеры (ДхШхТ)": "356x248x16.9 мм",
+            "Вес": "1.9 кг",
+            "Дополнительная информация": "Полностью русифицирован",
+            "Гарантийный срок": "12 мес., Расширенная гарантия 1 (один) год от магазина Techno-torg Laptop (собственный сервисный центр, бесплатная диагностика и ремонт в течение года). Гарантия предъявляется по электронному чеку от Я.Маркет после покупки."
+          },
+          "product_link": "https://market.yandex.ru/card/16-noutbuk-lenovo-thinkbook-16-2560x1600-ips-120gts-amd-ryzen-7-8845h-51-ggts-ram-32-gb-lpddr5kh-ssd-1024-gb-amd-radeon-780m-windows-11-pro--ms-office-pro-seryy-russkaya-raskladka/4926170909",
+          "price": "73238",
+          "image_link": "https://avatars.mds.yandex.net/get-mpic/13315531/2a000001959bb42e331e364c9677f152788a/orig",
+          "rating": "4.9",
+          "reviews": "101",
+          "timing": {
+            "duration_ms": 1821.62,
+            "started_at": "2026-05-23T09:39:40.929292+00:00",
+            "ended_at": "2026-05-23T09:39:42.750902+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 1727.76,
+                "started_at": "2026-05-23T09:39:41.010575+00:00",
+                "ended_at": "2026-05-23T09:39:42.738347+00:00"
+              }
+            ]
+          }
+        },
+        {
+          "name": "16\" Ноутбук Lenovo Thinkbook 16, 2560x1600 IPS 120Гц, AMD Ryzen 7 8845H (5.1 ГГц), RAM 24 ГБ LPDDR5х, SSD 512 ГБ, AMD Radeon 780M, Windows 11 Pro + MS Office Pro, Серый, Русская раскладка",
+          "characteristics": {
+            "Артикул Маркета": "4926170907",
+            "Диагональ экрана": "16\"",
+            "Разрешение экрана": "2560x1600",
+            "Процессор": "AMD Ryzen 7 8845H",
+            "Оперативная память": "24 ГБ",
+            "Бренд": "Lenovo",
+            "Линейка": "ThinkBook",
+            "Тип": "ноутбук",
+            "Операционная система": "Windows 11 Pro",
+            "Обязательные программы предустановлены": "есть",
+            "Линейка процессора": "AMD Ryzen 7",
+            "Частота процессора": "5100",
+            "Количество ядер процессора": "8",
+            "Ядро процессора": "Zen 4",
+            "Тип памяти": "DDR5",
+            "Частота памяти": "4800 МГц",
+            "Частота обновления экрана": "120 Гц",
+            "Тип покрытия экрана": "матовый",
+            "Тип матрицы экрана": "IPS",
+            "Наличие микрофона": "да",
+            "Беспроводные интерфейсы": "Bluetooth, Wi-Fi",
+            "Стандарт Wi-Fi 802.11": "802.11 a/b/g/n/ac/ax",
+            "Версия Bluetooth": "5.3",
+            "Интерфейсы": "Ethernet - RJ-45, Thunderbolt 4, USB 2.0 Type A, USB 3.2 Gen1 Type A x 2, USB 3.2 Gen2 Type-С, выход HDMI, микрофон/наушники Combo",
+            "Функционал USB Type-C": "DisplayPort 1.4, Power Delivery, Thunderbolt 4",
+            "Видеокарта": "AMD Radeon 780M",
+            "Тип видеокарты": "встроенная",
+            "Объем видеопамяти": "SMA",
+            "Тип видеопамяти": "SMA",
+            "Общий объем накопителей SSD": "512 ГБ",
+            "Оптический привод": "нет",
+            "Поддержка карт памяти": "SD",
+            "Количество слотов памяти": "2",
+            "Время автономной работы": "12 ч",
+            "Емкость аккумулятора": "7100 мА·ч",
+            "Емкость аккумулятора (Вт*ч)": "71 Вт·ч",
+            "Подсветка клавиатуры": "да",
+            "Раскладка клавиатуры": "английская/русская",
+            "Устройства позиционирования": "Touchpad",
+            "Разрешение веб-камеры": "1080p",
+            "Размеры (ДхШхТ)": "356x248x16.9 мм",
+            "Вес": "1.9 кг",
+            "Дополнительная информация": "Полностью русифицирован",
+            "Гарантийный срок": "12 мес., Расширенная гарантия 1 (один) год от магазина Techno-torg Laptop (собственный сервисный центр, бесплатная диагностика и ремонт в течение года). Гарантия предъявляется по электронному чеку от Я.Маркет после покупки."
+          },
+          "product_link": "https://market.yandex.ru/card/16-noutbuk-lenovo-thinkbook-16-2560x1600-ips-120gts-amd-ryzen-7-8845h-51-ggts-ram-32-gb-lpddr5kh-ssd-512-gb-amd-radeon-780m-windows-11-pro--ms-office-pro-seryy-russkaya-raskladka/4926170907",
+          "price": "71772",
+          "image_link": "https://avatars.mds.yandex.net/get-mpic/13315531/2a000001959bb42e331e364c9677f152788a/orig",
+          "rating": "4.9",
+          "reviews": "101",
+          "timing": {
+            "duration_ms": 2141.04,
+            "started_at": "2026-05-23T09:39:40.932152+00:00",
+            "ended_at": "2026-05-23T09:39:43.073175+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 2020.65,
+                "started_at": "2026-05-23T09:39:41.017687+00:00",
+                "ended_at": "2026-05-23T09:39:43.038345+00:00"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Ноутбук Lenovo ThinkBook G8 16, 300Н/Ultra 7, SSD512, Intel Arc, Arctic Grey",
+          "characteristics": {
+            "Артикул Маркета": "5166568885",
+            "Диагональ экрана": "16\"",
+            "Разрешение экрана": "1920x1200",
+            "Процессор": "Intel Core Ultra 7 255H",
+            "Оперативная память": "16 ГБ",
+            "Бренд": "Lenovo",
+            "Линейка": "ThinkBook",
+            "Тип": "ноутбук",
+            "Операционная система": "DOS",
+            "Линейка процессора": "Intel Core Ultra 7",
+            "Количество ядер процессора": "12",
+            "Тип памяти": "DDR5",
+            "Частота обновления экрана": "60 Гц",
+            "Тип покрытия экрана": "матовый",
+            "Тип матрицы экрана": "IPS",
+            "Наличие микрофона": "да",
+            "Беспроводные интерфейсы": "Bluetooth, Wi-Fi",
+            "Стандарт Wi-Fi 802.11": "802.11ax",
+            "Версия Bluetooth": "5.3",
+            "Интерфейсы": "Ethernet - RJ-45, Thunderbolt 4, USB 3.2 Gen1 Type A x 2, USB 3.2 Gen2 Type-С, выход HDMI, микрофон/наушники Combo",
+            "Функционал USB Type-C": "Power Delivery",
+            "Видеокарта": "Intel Arc Graphics",
+            "Тип видеокарты": "встроенная",
+            "Общий объем накопителей SSD": "512 ГБ",
+            "Оптический привод": "нет",
+            "Поддержка карт памяти": "SD",
+            "Емкость аккумулятора (Вт*ч)": "45 Вт·ч",
+            "Подсветка клавиатуры": "да",
+            "Раскладка клавиатуры": "английская/русская",
+            "Устройства позиционирования": "Touchpad",
+            "Сканер отпечатков пальцев": "да",
+            "Вес": "1.7 кг",
+            "Гарантийный срок": "12 мес."
+          },
+          "product_link": "https://market.yandex.ru/card/noutbuk-lenovo-thinkbook-g8-16-300nultra-7-ssd512-intel-arc-arctic-grey/5166568885",
+          "price": "88643",
+          "image_link": "https://avatars.mds.yandex.net/get-mpic/18491125/2a0000019c7ba0420515a418a26643a1679a/orig",
+          "rating": null,
+          "reviews": null,
+          "timing": {
+            "duration_ms": 1450.54,
+            "started_at": "2026-05-23T09:39:40.934019+00:00",
+            "ended_at": "2026-05-23T09:39:42.384552+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 1303.96,
+                "started_at": "2026-05-23T09:39:41.021979+00:00",
+                "ended_at": "2026-05-23T09:39:42.325953+00:00"
+              }
+            ]
+          }
+        },
+        {
+          "name": "16\" Ноутбук Lenovo Thinkbook 16, 2560x1600 IPS 120Гц, AMD Ryzen 7 8845H (5.1 ГГц), RAM 24 ГБ LPDDR5х, SSD 2048 ГБ, AMD Radeon 780M, Windows 11 Pro + MS Office Pro, Серый, Русская раскладка",
+          "characteristics": {},
+          "product_link": "https://market.yandex.ru/card/16-noutbuk-lenovo-thinkbook-16-2560x1600-ips-120gts-amd-ryzen-7-8845h-51-ggts-ram-32-gb-lpddr5kh-ssd-2048-gb-amd-radeon-780m-windows-11-pro--ms-office-pro-seryy-russkaya-raskladka/4926170908",
+          "price": "82400",
+          "image_link": "https://avatars.mds.yandex.net/get-mpic/13315531/2a000001959bb42e331e364c9677f152788a/orig",
+          "rating": "4.9",
+          "reviews": "101",
+          "timing": null
+        }
+      ],
+      "timing": {
+        "duration_ms": 10564.36,
+        "started_at": "2026-05-23T09:39:32.528624+00:00",
+        "ended_at": "2026-05-23T09:39:43.092975+00:00",
+        "stages": [
+          {
+            "name": "browser_setup",
+            "duration_ms": 76.51,
+            "started_at": "2026-05-23T09:39:32.528746+00:00",
+            "ended_at": "2026-05-23T09:39:32.605255+00:00"
+          },
+          {
+            "name": "search.1_url",
+            "duration_ms": 1729.74,
+            "started_at": "2026-05-23T09:39:32.605477+00:00",
+            "ended_at": "2026-05-23T09:39:34.335221+00:00"
+          },
+          {
+            "name": "search.2_wait",
+            "duration_ms": 1152.43,
+            "started_at": "2026-05-23T09:39:34.335519+00:00",
+            "ended_at": "2026-05-23T09:39:35.487952+00:00"
+          },
+          {
+            "name": "search.3_url",
+            "duration_ms": 2733.55,
+            "started_at": "2026-05-23T09:39:35.488213+00:00",
+            "ended_at": "2026-05-23T09:39:38.221764+00:00"
+          },
+          {
+            "name": "search.4_wait",
+            "duration_ms": 1633.57,
+            "started_at": "2026-05-23T09:39:38.221945+00:00",
+            "ended_at": "2026-05-23T09:39:39.855517+00:00"
+          },
+          {
+            "name": "search.5_waitElement",
+            "duration_ms": 990.23,
+            "started_at": "2026-05-23T09:39:39.855622+00:00",
+            "ended_at": "2026-05-23T09:39:40.845855+00:00"
+          },
+          {
+            "name": "parse_results",
+            "duration_ms": 82.91,
+            "started_at": "2026-05-23T09:39:40.845940+00:00",
+            "ended_at": "2026-05-23T09:39:40.928857+00:00"
+          },
+          {
+            "name": "enrich_details",
+            "duration_ms": 2144.15,
+            "started_at": "2026-05-23T09:39:40.929178+00:00",
+            "ended_at": "2026-05-23T09:39:43.073329+00:00"
+          }
+        ]
+      }
+    },
     {
       "source_type": "wildberries",
       "source_url": "https://www.wildberries.ru/catalog/0/search.aspx?page=1&search=%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA+Lenovo+ThinkBook+16",
@@ -66,7 +327,20 @@
           "price": "85258",
           "image_link": "https://basket-33.wbbasket.ru/vol6766/part676662/676662279/images/big/1.webp",
           "rating": "0",
-          "reviews": "0"
+          "reviews": "0",
+          "timing": {
+            "duration_ms": 3748.67,
+            "started_at": "2026-05-23T09:39:45.749312+00:00",
+            "ended_at": "2026-05-23T09:39:49.497972+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 3656.68,
+                "started_at": "2026-05-23T09:39:45.814775+00:00",
+                "ended_at": "2026-05-23T09:39:49.471475+00:00"
+              }
+            ]
+          }
         },
         {
           "name": "Lenovo Ноутбук Thinkbook 16 G8 IAL Ul5 225U 16Gb SSD512Gb 16\" IPS W",
@@ -120,7 +394,20 @@
           "price": "75784",
           "image_link": "https://basket-33.wbbasket.ru/vol6766/part676662/676662119/images/big/1.webp",
           "rating": "0",
-          "reviews": "0"
+          "reviews": "0",
+          "timing": {
+            "duration_ms": 3788.91,
+            "started_at": "2026-05-23T09:39:45.750702+00:00",
+            "ended_at": "2026-05-23T09:39:49.539602+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 3542.16,
+                "started_at": "2026-05-23T09:39:45.822077+00:00",
+                "ended_at": "2026-05-23T09:39:49.364246+00:00"
+              }
+            ]
+          }
         },
         {
           "name": "Lenovo Ультрабук ThinkBook 16+ 2025 21TL0002CD Gray",
@@ -170,7 +457,20 @@
           "price": "146447",
           "image_link": "https://basket-40.wbbasket.ru/vol9037/part903747/903747859/images/big/1.webp",
           "rating": "0",
-          "reviews": "0"
+          "reviews": "0",
+          "timing": {
+            "duration_ms": 4059.4,
+            "started_at": "2026-05-23T09:39:45.753750+00:00",
+            "ended_at": "2026-05-23T09:39:49.813143+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 3780.6,
+                "started_at": "2026-05-23T09:39:45.825241+00:00",
+                "ended_at": "2026-05-23T09:39:49.605855+00:00"
+              }
+            ]
+          }
         },
         {
           "name": "Lenovo Ноутбук ThinkBook 16 G7 ARP Ryzen7, 16 512GB, 16\", Без ОС",
@@ -179,9 +479,321 @@
           "price": "52967",
           "image_link": "https://basket-34.wbbasket.ru/vol7251/part725109/725109772/images/big/1.webp",
           "rating": "5",
-          "reviews": "5"
+          "reviews": "5",
+          "timing": null
         }
-      ]
+      ],
+      "timing": {
+        "duration_ms": 17301.04,
+        "started_at": "2026-05-23T09:39:32.530614+00:00",
+        "ended_at": "2026-05-23T09:39:49.831642+00:00",
+        "stages": [
+          {
+            "name": "browser_setup",
+            "duration_ms": 76.6,
+            "started_at": "2026-05-23T09:39:32.530688+00:00",
+            "ended_at": "2026-05-23T09:39:32.607286+00:00"
+          },
+          {
+            "name": "search.1_url",
+            "duration_ms": 1462.86,
+            "started_at": "2026-05-23T09:39:32.607572+00:00",
+            "ended_at": "2026-05-23T09:39:34.070439+00:00"
+          },
+          {
+            "name": "search.2_wait",
+            "duration_ms": 5084.86,
+            "started_at": "2026-05-23T09:39:34.070615+00:00",
+            "ended_at": "2026-05-23T09:39:39.155480+00:00"
+          },
+          {
+            "name": "search.3_waitElement",
+            "duration_ms": 1151.01,
+            "started_at": "2026-05-23T09:39:39.155602+00:00",
+            "ended_at": "2026-05-23T09:39:40.306612+00:00"
+          },
+          {
+            "name": "search.4_wait",
+            "duration_ms": 5077.42,
+            "started_at": "2026-05-23T09:39:40.306714+00:00",
+            "ended_at": "2026-05-23T09:39:45.384134+00:00"
+          },
+          {
+            "name": "search.5_waitElement",
+            "duration_ms": 265.09,
+            "started_at": "2026-05-23T09:39:45.384241+00:00",
+            "ended_at": "2026-05-23T09:39:45.649337+00:00"
+          },
+          {
+            "name": "parse_results",
+            "duration_ms": 99.59,
+            "started_at": "2026-05-23T09:39:45.649393+00:00",
+            "ended_at": "2026-05-23T09:39:45.748985+00:00"
+          },
+          {
+            "name": "enrich_details",
+            "duration_ms": 4063.99,
+            "started_at": "2026-05-23T09:39:45.749229+00:00",
+            "ended_at": "2026-05-23T09:39:49.813216+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "source_type": "ozon",
+      "source_url": "https://www.ozon.ru/search/?text=%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA+Lenovo+ThinkBook+16&from_global=true",
+      "source_title": "Ozon",
+      "source_favicon_url": null,
+      "results": [
+        {
+          "name": "Lenovo ThinkBook 16 G6 IRL Ноутбук 16\", Intel Core Ultra 5 125U, RAM 16 ГБ, SSD 512 ГБ, Intel Arc Graphics, Windows Pro, (21MS0045RU), серый, Русская раскладка",
+          "characteristics": {
+            "Артикул": "3463205841",
+            "Обязательные программы предустановлены": "Не указано",
+            "Процессор": "Intel Core Ultra 5 125U",
+            "Общий объем SSD, ГБ": "512",
+            "Видеокарта": "Intel Arc Graphics",
+            "Операционная система": "Windows Pro",
+            "Диагональ экрана, дюймы": "16",
+            "Оперативная память": "16 ГБ",
+            "Вес, кг": "1.7",
+            "Технология матрицы": "IPS",
+            "Бренд": "Lenovo",
+            "Цвет": "Arctic Grey",
+            "Версия Windows": "Windows 11 Pro",
+            "Модель процессора": "Intel Core Ultra 5",
+            "Бренд процессора": "Intel",
+            "Частота процессора, ГГц": "4.3",
+            "Число ядер процессора": "12",
+            "Форм-фактор RAM": "SO-DIMM",
+            "Тип видеокарты": "Встроенная",
+            "Бренд графического процессора": "Intel",
+            "Тип накопителя": "SSD",
+            "Количество SSD": "1",
+            "Форм-фактор SSD": "M.2",
+            "Разрешение экрана": "1920x1200",
+            "Яркость, кд/м2": "300",
+            "Макс. частота обновления, Гц": "60",
+            "Сенсорный экран": "Нет",
+            "Раскладка клавиатуры": "Русская раскладка",
+            "Гарантия": "12 месяцев",
+            "Страна-изготовитель": "Китай"
+          },
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-16-g6-irl-noutbuk-16-intel-core-ultra-5-125u-ram-16-gb-ssd-512-gb-intel-3463205841/?at=oZt611ZXNTBo1BOMCVqPWmwI7ByOppf7z6noVhK6BVx0",
+          "price": "90248",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-7/8938362139.jpg",
+          "rating": "4.9",
+          "reviews": null,
+          "timing": {
+            "duration_ms": 1241.56,
+            "started_at": "2026-05-23T09:39:43.342766+00:00",
+            "ended_at": "2026-05-23T09:39:44.584314+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 1157.31,
+                "started_at": "2026-05-23T09:39:43.406326+00:00",
+                "ended_at": "2026-05-23T09:39:44.563640+00:00"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Lenovo ThinkBook 16 G6 IRL Ноутбук 16\", Intel Core i5-1335U, RAM 16 ГБ, SSD 512 ГБ, Intel Iris Xe Graphics, Windows Pro, (21KH001QRU), серый, Русская раскладка",
+          "characteristics": {
+            "Артикул": "3463205836",
+            "Обязательные программы предустановлены": "Не указано",
+            "Процессор": "Intel Core i5-1335U",
+            "Общий объем SSD, ГБ": "512",
+            "Видеокарта": "Intel Iris Xe Graphics",
+            "Операционная система": "Windows Pro",
+            "Диагональ экрана, дюймы": "16",
+            "Оперативная память": "16 ГБ",
+            "Вес, кг": "1.7",
+            "Технология матрицы": "IPS",
+            "Бренд": "Lenovo",
+            "Цвет": "Arctic Grey",
+            "Версия Windows": "Windows 11 Pro",
+            "Модель процессора": "Intel Core i5",
+            "Бренд процессора": "Intel",
+            "Частота процессора, ГГц": "4.6",
+            "Число ядер процессора": "10",
+            "Форм-фактор RAM": "SO-DIMM",
+            "Тип видеокарты": "Встроенная",
+            "Бренд графического процессора": "Intel",
+            "Тип накопителя": "SSD",
+            "Количество SSD": "1",
+            "Форм-фактор SSD": "M.2",
+            "Разрешение экрана": "1920x1200",
+            "Яркость, кд/м2": "300",
+            "Сенсорный экран": "Нет",
+            "Раскладка клавиатуры": "Русская раскладка",
+            "Гарантия": "12 месяцев",
+            "Страна-изготовитель": "Китай"
+          },
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-16-g6-irl-noutbuk-16-intel-core-i5-1335u-ram-16-gb-ssd-512-gb-intel-iris-3463205836/?at=NOtwQQXNKcE1gJE3uqxM4WOs6ODw0XTXxgZoxfP7B61M",
+          "price": "87700",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-f/8938362075.jpg",
+          "rating": "4.9",
+          "reviews": null,
+          "timing": {
+            "duration_ms": 1228.46,
+            "started_at": "2026-05-23T09:39:43.344458+00:00",
+            "ended_at": "2026-05-23T09:39:44.572912+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 1148.51,
+                "started_at": "2026-05-23T09:39:43.410590+00:00",
+                "ended_at": "2026-05-23T09:39:44.559106+00:00"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 2026 AMD R7 H260 24 ГБ + 1 ТБ Экран 16\" 2,5K Тонкие и легкие блокноты бесплатный подарок \"Русские наклейки +мышь+Коврик для мыши\" Ноутбук 16\", AMD Ryzen 7 H 260, RAM 24 ГБ, SSD 1024 ГБ, AMD Radeon 780M, Windows Home, светло-серый, Английская раскладка",
+          "characteristics": {
+            "Артикул": "3931864392",
+            "Обязательные программы предустановлены": "Нет",
+            "Процессор": "AMD Ryzen 7 H 260",
+            "Общий объем SSD, ГБ": "1024",
+            "Видеокарта": "AMD Radeon 780M",
+            "Операционная система": "Windows Home",
+            "Диагональ экрана, дюймы": "16",
+            "Оперативная память": "24 ГБ",
+            "Вес, кг": "1.82",
+            "Технология матрицы": "IPS",
+            "Тип памяти": "DDR5",
+            "Модуль связи Bluetooth": "5.3",
+            "Цвет": "ThinkBook 16 2026 R7 H260",
+            "Форм-фактор ноутбука": "Полноразмерный ноутбук",
+            "Версия Windows": "Windows 11 Home",
+            "Модель процессора": "AMD Ryzen 7",
+            "Бренд процессора": "AMD",
+            "Частота процессора, ГГц": "5.1",
+            "Число ядер процессора": "8",
+            "Чипсет": "AMD",
+            "Тип видеокарты": "Встроенная",
+            "Бренд графического процессора": "AMD",
+            "Тип накопителя": "SSD",
+            "Количество SSD": "1",
+            "Форм-фактор SSD": "M.2",
+            "Форм-фактор HDD": "M.2",
+            "Разрешение экрана": "2560x1600",
+            "Макс. частота обновления, Гц": "120",
+            "Сенсорный экран": "Нет",
+            "Конфигурация звука": "Dolby Atmos",
+            "Интерфейсы и разъемы": "HDMI, RJ-45 Ethernet, USB 3.2, USB 4, 3.5 мм",
+            "Картридер": "SD",
+            "Модуль сотовой связи": "Нет",
+            "Число портов HDMI": "1",
+            "Число портов USB Type-A  3.2 Gen 1": "2",
+            "Устройства ручного ввода": "Touchpad, Клавиатура",
+            "Раскладка клавиатуры": "Английская раскладка",
+            "Подсветка клавиатуры": "Да",
+            "Особенности устройств ручного ввода": "Multi-touch",
+            "Слоты RAM-памяти": "2",
+            "Емкость аккумулятора, Втч": "71",
+            "Гарантия": "1 год"
+          },
+          "product_link": "https://www.ozon.ru/product/lenovo-noutbuk-thinkbook-16-2026-amd-r7-h260-24-gb-1-tb-ekran-16-2-5k-tonkie-i-legkie-bloknoty-3931864392/?at=oZt611ZXNT61N4DEURD0267UNz5PByfkDgVGVuwYMM59",
+          "price": "66166",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-s/9788219920.jpg",
+          "rating": "4.9",
+          "reviews": "1 132 отзыва",
+          "timing": {
+            "duration_ms": 1256.71,
+            "started_at": "2026-05-23T09:39:43.346204+00:00",
+            "ended_at": "2026-05-23T09:39:44.602906+00:00",
+            "stages": [
+              {
+                "name": "fetch",
+                "duration_ms": 1166.23,
+                "started_at": "2026-05-23T09:39:43.415035+00:00",
+                "ended_at": "2026-05-23T09:39:44.581285+00:00"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Lenovo Thinkbook 16 Gen 8 21SK0027GQ Ноутбук 16\", RAM 16 ГБ, SSD 512 ГБ, Без системы, (21SK0027GQ), серый",
+          "characteristics": {},
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-16-gen-8-21sk0027gq-noutbuk-16-ram-16-gb-ssd-512-gb-bez-sistemy-21sk0027gq-seryy-2994843859/?at=r2t4zzoAKtQMV1J6tVJZnA3C4m0xypFVwWlX6sg3M3r6",
+          "price": "65889",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-r/8198228979.jpg",
+          "rating": null,
+          "reviews": null,
+          "timing": null
+        }
+      ],
+      "timing": {
+        "duration_ms": 12086.32,
+        "started_at": "2026-05-23T09:39:32.532787+00:00",
+        "ended_at": "2026-05-23T09:39:44.619099+00:00",
+        "stages": [
+          {
+            "name": "browser_setup",
+            "duration_ms": 77.15,
+            "started_at": "2026-05-23T09:39:32.532863+00:00",
+            "ended_at": "2026-05-23T09:39:32.610020+00:00"
+          },
+          {
+            "name": "search.1_url",
+            "duration_ms": 1171.4,
+            "started_at": "2026-05-23T09:39:32.610275+00:00",
+            "ended_at": "2026-05-23T09:39:33.781676+00:00"
+          },
+          {
+            "name": "search.2_wait",
+            "duration_ms": 5088.07,
+            "started_at": "2026-05-23T09:39:33.781778+00:00",
+            "ended_at": "2026-05-23T09:39:38.869860+00:00"
+          },
+          {
+            "name": "search.3_waitElement",
+            "duration_ms": 77.51,
+            "started_at": "2026-05-23T09:39:38.871131+00:00",
+            "ended_at": "2026-05-23T09:39:38.948653+00:00"
+          },
+          {
+            "name": "search.4_url",
+            "duration_ms": 1356,
+            "started_at": "2026-05-23T09:39:38.948970+00:00",
+            "ended_at": "2026-05-23T09:39:40.304970+00:00"
+          },
+          {
+            "name": "search.5_wait",
+            "duration_ms": 3019.59,
+            "started_at": "2026-05-23T09:39:40.305093+00:00",
+            "ended_at": "2026-05-23T09:39:43.324681+00:00"
+          },
+          {
+            "name": "parse_results",
+            "duration_ms": 17.76,
+            "started_at": "2026-05-23T09:39:43.324727+00:00",
+            "ended_at": "2026-05-23T09:39:43.342495+00:00"
+          },
+          {
+            "name": "enrich_details",
+            "duration_ms": 1260.28,
+            "started_at": "2026-05-23T09:39:43.342697+00:00",
+            "ended_at": "2026-05-23T09:39:44.602973+00:00"
+          }
+        ]
+      }
     }
-  ]
+  ],
+  "timing": {
+    "duration_ms": 17303.51,
+    "started_at": "2026-05-23T09:39:32.528284+00:00",
+    "ended_at": "2026-05-23T09:39:49.831786+00:00",
+    "stages": [
+      {
+        "name": "fetch_sources",
+        "duration_ms": 17303.23,
+        "started_at": "2026-05-23T09:39:32.528527+00:00",
+        "ended_at": "2026-05-23T09:39:49.831760+00:00"
+      }
+    ]
+  }
 }

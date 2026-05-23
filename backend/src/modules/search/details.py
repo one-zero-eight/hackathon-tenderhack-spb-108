@@ -1,7 +1,8 @@
 """Fetch product characteristics from detail pages (limited per source)."""
 
+import asyncio
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from src.logging_ import logger
 from src.modules.search.common import (
@@ -10,6 +11,7 @@ from src.modules.search.common import (
     wait_captcha_solved,
 )
 from src.modules.search.schemas import SearchResult
+from src.modules.search.timing import TimingRecorder
 
 DETAIL_CHARACTERISTICS_LIMIT = 3
 
@@ -44,6 +46,50 @@ def specs_from_raw(rows: object) -> dict[str, str]:
     return specs
 
 
+async def _enrich_one_product(
+    context,
+    product: SearchResult,
+    *,
+    fetch_characteristics: Callable[[object, str], Awaitable[dict[str, str]]],
+    check_captcha_expr: str,
+    site_name: str,
+    index: int,
+    total: int,
+) -> None:
+    recorder = TimingRecorder.start()
+    logger.info(
+        "Loading detail page for %s (%d/%d): %s",
+        site_name,
+        index,
+        total,
+        product.name[:60],
+    )
+    detail_page = await context.new_page()
+    try:
+        try:
+            async with recorder.stage("fetch"):
+                specs = await fetch_characteristics(detail_page, product.product_link)
+        except Exception as exc:
+            logger.warning("Detail characteristics failed for %s: %s", product.product_link, exc)
+            product.timing = recorder.to_product_timing()
+            return
+        if await check_captcha(detail_page, check_captcha_expr, site_name):
+            await wait_captcha_solved(detail_page, check_captcha_expr)
+            try:
+                async with recorder.stage("fetch_retry"):
+                    specs = await fetch_characteristics(detail_page, product.product_link)
+            except Exception as exc:
+                logger.warning("Detail retry failed for %s: %s", product.product_link, exc)
+                product.timing = recorder.to_product_timing()
+                return
+        if specs:
+            product.characteristics = specs
+            logger.info("Got %d characteristics for %s", len(specs), product.name[:60])
+    finally:
+        await detail_page.close()
+        product.timing = recorder.to_product_timing()
+
+
 async def enrich_product_characteristics(
     page,
     products: list[SearchResult],
@@ -53,32 +99,22 @@ async def enrich_product_characteristics(
     site_name: str,
     limit: int = DETAIL_CHARACTERISTICS_LIMIT,
 ) -> None:
-    attempted = 0
-    for product in products:
-        if attempted >= limit:
-            break
-        if not product.product_link:
-            continue
-        attempted += 1
-        logger.info(
-            "Loading detail page for %s (%d/%d): %s",
-            site_name,
-            attempted,
-            limit,
-            product.name[:60],
-        )
-        try:
-            specs = await fetch_characteristics(page, product.product_link)
-        except Exception as exc:
-            logger.warning("Detail characteristics failed for %s: %s", product.product_link, exc)
-            continue
-        if await check_captcha(page, check_captcha_expr, site_name):
-            await wait_captcha_solved(page, check_captcha_expr)
-            try:
-                specs = await fetch_characteristics(page, product.product_link)
-            except Exception as exc:
-                logger.warning("Detail retry failed for %s: %s", product.product_link, exc)
-                continue
-        if specs:
-            product.characteristics = specs
-            logger.info("Got %d characteristics for %s", len(specs), product.name[:60])
+    candidates = [p for p in products if p.product_link][:limit]
+    if not candidates:
+        return
+    context = page.context
+    total = len(candidates)
+    await asyncio.gather(
+        *[
+            _enrich_one_product(
+                context,
+                product,
+                fetch_characteristics=fetch_characteristics,
+                check_captcha_expr=check_captcha_expr,
+                site_name=site_name,
+                index=i,
+                total=total,
+            )
+            for i, product in enumerate(candidates, start=1)
+        ]
+    )

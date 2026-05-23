@@ -21,6 +21,34 @@ class SearchParams(BaseModel):
     "Short search. Used for dev purposes, it will return only 4 results from each source."
 
 
+class StageTiming(BaseModel):
+    name: str
+    duration_ms: float
+    started_at: str
+    ended_at: str
+
+
+class ProductTiming(BaseModel):
+    duration_ms: float
+    started_at: str
+    ended_at: str
+    stages: list[StageTiming] = Field(default_factory=list)
+
+
+class SourceTiming(BaseModel):
+    duration_ms: float
+    started_at: str
+    ended_at: str
+    stages: list[StageTiming] = Field(default_factory=list)
+
+
+class RequestTiming(BaseModel):
+    duration_ms: float
+    started_at: str
+    ended_at: str
+    stages: list[StageTiming] = Field(default_factory=list)
+
+
 class SearchResult(BaseModel):
     name: str
     characteristics: dict[str, str] = Field(default_factory=dict)
@@ -29,6 +57,7 @@ class SearchResult(BaseModel):
     image_link: str | None = None
     rating: str | None = None
     reviews: str | None = None
+    timing: ProductTiming | None = None
 
 
 class SearchSource(BaseModel):
@@ -37,8 +66,10 @@ class SearchSource(BaseModel):
     source_title: str
     source_favicon_url: str | None
     results: list[SearchResult]
+    timing: SourceTiming | None = None
 
 
 class SearchResults(BaseModel):
     original_params: SearchParams
     sources: list[SearchSource]
+    timing: RequestTiming | None = None

@@ -11,7 +11,8 @@ from urllib.parse import quote_plus, urljoin
 from cloakbrowser import launch_persistent_context_async
 
 from src.logging_ import logger
-from src.modules.search.schemas import SearchResult
+from src.modules.search.schemas import SearchResult, SourceTiming
+from src.modules.search.timing import TimingRecorder
 
 RESULT_PRE_ID = "d405f4e66468fd64bd88c8f16681286a"
 HTTP_PROXY: str | None = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
@@ -183,38 +184,46 @@ async def run_site_parser(
     enrich_characteristics: Callable | None = None,
     locale: str = "ru-RU",
     block_images: bool = True,
-) -> list[SearchResult]:
+) -> tuple[list[SearchResult], SourceTiming]:
+    recorder = TimingRecorder.start()
     _, out_dir = site_paths(site_name)
     headless = headless_from_env(headless_env)
 
-    page = await context.new_page()
-    if not headless:
-        logger.info("Browser running headful — captcha can be solved manually")
+    async with recorder.stage("browser_setup"):
+        page = await context.new_page()
+        if not headless:
+            logger.info("Browser running headful — captcha can be solved manually")
 
-    if block_images:
-        await page.route(
-            re.compile(r"\.(png|jpg|jpeg|gif|webp|svg|ico)(\?|$)", re.I),
-            lambda route: route.abort(),
-        )
+        if block_images:
+            await page.route(
+                re.compile(r"\.(png|jpg|jpeg|gif|webp|svg|ico)(\?|$)", re.I),
+                lambda route: route.abort(),
+            )
 
     for step, action in enumerate(actions, start=1):
         logger.info("Action %d/%d: %s", step, len(actions), action["type"])
-        await run_action(
-            page,
-            action,
-            step,
-            out_dir=out_dir,
-            check_captcha_expr=check_captcha_expr,
-            site_name=site_name,
-        )
+        async with recorder.stage(f"search.{step}_{action['type']}"):
+            await run_action(
+                page,
+                action,
+                step,
+                out_dir=out_dir,
+                check_captcha_expr=check_captcha_expr,
+                site_name=site_name,
+            )
 
-    html = await page_content(page)
-    save_html(out_dir, len(actions) + 1, html)
-    products = parse_html(html)
+    async with recorder.stage("parse_results"):
+        html = await page_content(page)
+        save_html(out_dir, len(actions) + 1, html)
+        products = parse_html(html)
     logger.info("Parsed %d products from %s", len(products), site_name)
+
     if enrich_characteristics is not None:
-        await enrich_characteristics(page, products)
-    return products
+        async with recorder.stage("enrich_details"):
+            await enrich_characteristics(page, products)
+
+    await page.close()
+    return products, recorder.to_source_timing()
 
 
 def extract_name(obj: dict) -> str | None:

@@ -8,6 +8,7 @@ from src.logging_ import logger
 from src.modules.search.common import get_browser_context
 from src.modules.search.ozon import run_ozon_parser
 from src.modules.search.schemas import SearchParams, SearchResults, SourceType
+from src.modules.search.timing import TimingRecorder
 from src.modules.search.wildberries import run_wildberries_parser
 from src.modules.search.yandex_market import run_yandex_market_parser
 
@@ -29,6 +30,7 @@ async def search(search_params: SearchParams) -> SearchResults:
     """
     logger.info(f"Running search for {search_params}")
 
+    request_timing = TimingRecorder.start()
     context = await get_browser_context()
 
     run_yandex_market = not search_params.source_types or SourceType.yandex_market in search_params.source_types
@@ -36,26 +38,32 @@ async def search(search_params: SearchParams) -> SearchResults:
         logger.info("Running Yandex Market parser")
         yandex_market_task = run_yandex_market_parser(context, search_params.query)
     else:
-        yandex_market_task = asyncio.sleep(0)
+        yandex_market_task = None
 
     run_wildberries = not search_params.source_types or SourceType.wildberries in search_params.source_types
     if run_wildberries:
         logger.info("Running Wildberries parser")
         wildberries_task = run_wildberries_parser(context, search_params.query)
     else:
-        wildberries_task = asyncio.sleep(0)
+        wildberries_task = None
 
     run_ozon = not search_params.source_types or SourceType.ozon in search_params.source_types
     if run_ozon:
         logger.info("Running Ozon parser")
         ozon_task = run_ozon_parser(context, search_params.query)
     else:
-        ozon_task = asyncio.sleep(0)
+        ozon_task = None
 
-    results = await asyncio.gather(yandex_market_task, wildberries_task, ozon_task)
+    tasks = [t for t in (yandex_market_task, wildberries_task, ozon_task) if t is not None]
+    async with request_timing.stage("fetch_sources"):
+        results = await asyncio.gather(*tasks) if tasks else []
 
-    sources = [source for source in results if source is not None]
+    sources = list(results)
     if search_params.short:
         for source in sources:
             source.results = source.results[:4]
-    return SearchResults(original_params=search_params, sources=sources)
+    return SearchResults(
+        original_params=search_params,
+        sources=sources,
+        timing=request_timing.to_request_timing(),
+    )
