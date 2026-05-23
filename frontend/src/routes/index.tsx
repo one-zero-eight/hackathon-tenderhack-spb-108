@@ -7,13 +7,22 @@ import { LoaderCircle, Search } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import exampleSearchResultsRaw from '../../example.json?raw'
 import { $api } from '../api'
-import type { SchemaSearchResults } from '../api/openapi.gen'
+import type { SchemaSearchResults, SearchSourceSource_type } from '../api/openapi.gen'
 import { Button } from '../components/ui/button'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 const exampleSearchResults = JSON.parse(exampleSearchResultsRaw) as SchemaSearchResults
 const marketplaceGroups = exampleSearchResults.sources.map(mapSearchSourceToGroup)
+
+type TypofixSuggestion = {
+  source: SearchSourceSource_type
+  suggestion: string
+}
+
+type SearchResultsWithTypofix = SchemaSearchResults & {
+  typofix_suggestions?: TypofixSuggestion[]
+}
 
 function Home() {
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -41,6 +50,20 @@ function Home() {
   )
   const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup)
   const visibleGroups = apiSourceGroups ?? marketplaceGroups
+  const typofixSuggestions =
+    (searchResults as SearchResultsWithTypofix | undefined)?.typofix_suggestions ?? []
+  const uniqueTypofixSuggestions = [
+    ...new Set(typofixSuggestions.map(({ suggestion }) => suggestion))
+  ]
+  const typofixSuggestionBySource = new Map(
+    typofixSuggestions.map(({ source, suggestion }) => [source, suggestion] as const)
+  )
+  const originalQuery =
+    searchResults?.original_params.query ??
+    searchParams?.query ??
+    searchInputRef.current?.value?.trim() ??
+    ''
+  const hasTypofixSuggestions = typofixSuggestions.length > 0
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
   const isSearchDisabled = isFetching
@@ -108,6 +131,13 @@ function Home() {
           </div>
         </form>
 
+        {hasTypofixSuggestions ? (
+          <p className="text-sm text-slate-600">
+            Возможно, вы имели в виду{' '}
+            {uniqueTypofixSuggestions.map((suggestion) => `"${suggestion}"`).join(', ')}
+          </p>
+        ) : null}
+
         <section className="flex flex-col gap-4" aria-label="Источники товаров">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -126,7 +156,17 @@ function Home() {
           ) : null}
 
           {visibleGroups.map((group) => (
-            <ProductSourceDetails group={group} key={group.title} />
+            <ProductSourceDetails
+              group={group}
+              key={group.title}
+              queryResultLabel={
+                hasTypofixSuggestions
+                  ? `Результат запроса по "${
+                      typofixSuggestionBySource.get(group.sourceType) ?? originalQuery
+                    }"`
+                  : null
+              }
+            />
           ))}
         </section>
       </section>

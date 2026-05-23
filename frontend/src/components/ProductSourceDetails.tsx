@@ -43,7 +43,13 @@ export function ProductCharacteristics({ characteristics }: { characteristics: s
   )
 }
 
-export function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
+export function ProductSourceDetails({
+  group,
+  queryResultLabel
+}: {
+  group: MarketplaceGroup
+  queryResultLabel?: string | null
+}) {
   const [page, setPage] = useState(0)
   const pageCount = Math.ceil(group.products.length / PRODUCTS_PER_PAGE)
   const currentPage = Math.min(page, Math.max(pageCount - 1, 0))
@@ -64,8 +70,11 @@ export function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
             src={group.logoUrl}
           />
           <span className="min-w-0">
-            <span className="block truncate text-base font-semibold text-slate-950">
-              {group.title}
+            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="truncate text-base font-semibold text-slate-950">{group.title}</span>
+              {queryResultLabel ? (
+                <span className="text-xs font-medium text-slate-500">{queryResultLabel}</span>
+              ) : null}
             </span>
           </span>
         </span>

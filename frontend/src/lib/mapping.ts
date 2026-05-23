@@ -3,6 +3,7 @@ import type { MarketplaceGroup } from '@/lib/types'
 
 export function mapSearchSourceToGroup(source: SchemaSearchSource): MarketplaceGroup {
   return {
+    sourceType: source.source_type,
     title: source.source_title,
     logoUrl:
       source.source_favicon_url ??
