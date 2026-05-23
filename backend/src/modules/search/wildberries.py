@@ -119,14 +119,18 @@ def _wb_price_filter_js(
     return json.dumps(build_price_filter("&priceU=[minPrice];[maxPrice]", min_price=min_price, max_price=max_price))
 
 
+def _build_search_url(query: str) -> str:
+    encoded = encode_query(query)
+    return f"https://www.wildberries.ru/catalog/0/search.aspx?page=1&search={encoded}"
+
+
 def _build_actions(
     query: str,
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
-    encoded = encode_query(query)
-    search_url = f"https://www.wildberries.ru/catalog/0/search.aspx?page=1&search={encoded}"
+    search_url = _build_search_url(query)
     fetch_script = (
         _WAIT_FETCH_TEMPLATE.replace("__PRE_ID__", RESULT_PRE_ID)
         .replace("__DEST__", DEST)
@@ -167,17 +171,18 @@ def _product_from_wb(item: dict) -> SearchResult | None:
     price = item.get("salePriceU") or item.get("priceU")
     price_str = str(price // 100) if isinstance(price, int) else None
 
-    characteristics: dict[str, str] = {}
-    if item.get("rating"):
-        characteristics["rating"] = str(item["rating"])
-    if item.get("feedbacks"):
-        characteristics["feedbacks"] = str(item["feedbacks"])
+    rating = str(item["rating"]) if item.get("rating") is not None else None
+    reviews = str(item["feedbacks"]) if item.get("feedbacks") is not None else None
+    nm_id = item.get("id") or item.get("nmId")
+    product_link = f"https://www.wildberries.ru/catalog/{nm_id}/detail.aspx" if nm_id is not None else None
 
     return SearchResult(
         name=str(name).strip(),
-        characteristics=characteristics,
+        product_link=product_link,
         price=price_str,
         image_link=_wb_image_url(item),
+        rating=rating,
+        reviews=reviews,
     )
 
 
@@ -232,7 +237,7 @@ def run_wildberries_parser(
     )
     return SearchSource(
         source_type="wildberries",
-        source_url="https://wildberries.ru",
+        source_url=_build_search_url(user_input),
         source_title="Wildberries",
         source_favicon_url=None,
         results=results,

@@ -5,7 +5,7 @@ import os
 import re
 from collections.abc import Callable
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urljoin
 
 from cloakbrowser import launch_persistent_context
 
@@ -276,13 +276,72 @@ def extract_characteristics(obj: dict) -> dict[str, str]:
             for k, v in block.items():
                 if isinstance(v, str):
                     specs[str(k)] = v
+    return specs
+
+
+def extract_rating(obj: dict) -> str | None:
     rating = obj.get("rating")
-    if isinstance(rating, (int, float, str)):
-        specs["rating"] = str(rating)
+    if isinstance(rating, dict):
+        value = rating.get("rating") or rating.get("value")
+        if value is not None:
+            return str(value)
+        return None
+    if isinstance(rating, (int, float, str)) and str(rating).strip():
+        return str(rating)
     review_rating = obj.get("reviewRating")
     if isinstance(review_rating, (int, float)):
-        specs["rating"] = str(review_rating)
-    return specs
+        return str(review_rating)
+    return None
+
+
+def normalize_product_url(url: str, base_url: str) -> str:
+    url = url.strip()
+    if url.startswith("http"):
+        return url
+    return urljoin(base_url, url)
+
+
+def extract_product_link(obj: dict, *, base_url: str | None = None) -> str | None:
+    action = obj.get("action")
+    if isinstance(action, dict):
+        link = action.get("link")
+        if isinstance(link, str) and link.strip():
+            return normalize_product_url(link, base_url) if base_url else link
+
+    for key in ("productUrl", "product_link", "canonicalUrl", "href"):
+        val = obj.get(key)
+        if isinstance(val, str) and val.strip():
+            if val.startswith("http"):
+                return val
+            if base_url and val.startswith("/"):
+                return urljoin(base_url, val)
+
+    for key in ("url", "link"):
+        val = obj.get(key)
+        if isinstance(val, str) and val.strip():
+            if val.startswith("http"):
+                return val
+            if base_url and val.startswith("/"):
+                return urljoin(base_url, val)
+
+    nm_id = obj.get("id") or obj.get("nmId")
+    if nm_id is not None and str(nm_id).isdigit():
+        return f"https://www.wildberries.ru/catalog/{nm_id}/detail.aspx"
+
+    return None
+
+
+def extract_reviews(obj: dict) -> str | None:
+    rating = obj.get("rating")
+    if isinstance(rating, dict):
+        count = rating.get("gradesCount") or rating.get("reviews") or rating.get("count")
+        if count is not None:
+            return str(count)
+    for key in ("feedbacks", "gradesCount", "reviews", "reviewCount", "reviewsCount"):
+        value = obj.get(key)
+        if value is not None:
+            return str(value)
+    return None
 
 
 def product_from_dict(obj: dict) -> SearchResult | None:
@@ -292,8 +351,11 @@ def product_from_dict(obj: dict) -> SearchResult | None:
     return SearchResult(
         name=name,
         characteristics=extract_characteristics(obj),
+        product_link=extract_product_link(obj),
         price=extract_price(obj),
         image_link=extract_image(obj),
+        rating=extract_rating(obj),
+        reviews=extract_reviews(obj),
     )
 
 

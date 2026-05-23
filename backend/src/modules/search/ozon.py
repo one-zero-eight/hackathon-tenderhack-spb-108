@@ -1,8 +1,9 @@
 """Ozon search parser using cloakbrowser."""
 
+import html as html_lib
 import json
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 from src.modules.search.schemas import SearchSource
 
@@ -16,7 +17,6 @@ from .common import (
     encode_query,
     extract_pre_content,
     parse_result_pre,
-    product_from_dict,
     run_site_parser,
 )
 
@@ -53,7 +53,28 @@ return fetch("https://www.ozon.ru/api/entrypoint-api.bx/page/json/v2?url=%2Fgeo%
   "credentials": "include"
 }).then(() => true).catch(() => true);"""
 
-_PRODUCT_KEYS = ("skuId", "sku", "cellTrackingInfo", "tileImage", "mainState", "status")
+_PRODUCT_KEYS = ("skuId", "sku", "cellTrackingInfo", "tileImage")
+_OZON_BASE_URL = "https://www.ozon.ru"
+_TILE_GRID_PREFIX = "tileGridDesktop"
+
+
+def _decode_product_name(text: str) -> str:
+    decoded = text
+    for _ in range(3):
+        unescaped = html_lib.unescape(decoded)
+        if unescaped == decoded:
+            break
+        decoded = unescaped
+    return decoded.replace("\u2009", " ").strip()
+
+
+def _append_ozon_product(products: list[SearchResult], item: SearchResult) -> None:
+    if item.product_link:
+        if any(p.product_link == item.product_link for p in products):
+            return
+        products.append(item)
+        return
+    append_product(products, item)
 
 
 def _ozon_api_path(
@@ -86,14 +107,18 @@ def _search_api_url(
     return f"https://www.ozon.ru/api/entrypoint-api.bx/page/json/v2?url={api_path}"
 
 
+def _build_search_url(query: str) -> str:
+    encoded = encode_query(query)
+    return f"https://www.ozon.ru/search/?text={encoded}&from_global=true"
+
+
 def _build_actions(
     query: str,
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
-    encoded = encode_query(query)
-    search_url = f"https://www.ozon.ru/search/?text={encoded}&from_global=true"
+    search_url = _build_search_url(query)
     geo_script = _GEO_SCRIPT_TEMPLATE.replace("__CITY_INFO__", json.dumps(CITY_INFO))
     return [
         {"type": "url", "data": search_url},
@@ -108,60 +133,137 @@ def _parse_widget_states(data: dict, products: list[SearchResult]) -> None:
     states = data.get("widgetStates")
     if not isinstance(states, dict):
         return
-    for raw_state in states.values():
-        if not isinstance(raw_state, str):
+    for state_id, raw_state in states.items():
+        if not state_id.startswith(_TILE_GRID_PREFIX) or not isinstance(raw_state, str):
             continue
         try:
             state = json.loads(raw_state)
         except json.JSONDecodeError:
             continue
-        _parse_ozon_node(state, products)
+        _parse_tile_grid_state(state, products)
 
 
-def _parse_ozon_node(node: object, products: list[SearchResult]) -> None:
-    if isinstance(node, dict):
-        if "items" in node and isinstance(node["items"], list):
-            for item in node["items"]:
-                _parse_ozon_item(item, products)
-        if "tiles" in node and isinstance(node["tiles"], list):
-            for tile in node["tiles"]:
-                _parse_ozon_item(tile, products)
-        for value in node.values():
-            _parse_ozon_node(value, products)
-    elif isinstance(node, list):
-        for item in node:
-            _parse_ozon_node(item, products)
+def _parse_tile_grid_state(state: dict, products: list[SearchResult]) -> None:
+    for key in ("items", "tiles"):
+        entries = state.get(key)
+        if not isinstance(entries, list):
+            continue
+        for item in entries:
+            parsed = _parse_ozon_tile(item)
+            if parsed:
+                _append_ozon_product(products, parsed)
 
 
-def _parse_ozon_item(item: object, products: list[SearchResult]) -> None:
-    if not isinstance(item, dict):
-        return
-    parsed = product_from_dict(item)
-    if parsed:
-        append_product(products, parsed)
-        return
+def _extract_tile_name(main_state: list) -> str | None:
+    fallback: str | None = None
+    for block in main_state:
+        if not isinstance(block, dict) or block.get("type") != "textAtom":
+            continue
+        text_atom = block.get("textAtom", {})
+        if not isinstance(text_atom, dict):
+            continue
+        text = text_atom.get("text")
+        if not isinstance(text, str) or not text.strip():
+            continue
+        decoded = _decode_product_name(text)
+        if block.get("id") == "name":
+            return decoded
+        fallback = decoded
+    return fallback
+
+
+def _extract_tile_price(main_state: list) -> str | None:
+    for block in main_state:
+        if not isinstance(block, dict) or block.get("type") != "priceV2":
+            continue
+        prices = block.get("priceV2", {}).get("price", [])
+        if not isinstance(prices, list):
+            continue
+        for entry in prices:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("textStyle") not in (None, "PRICE", "CARD_PRICE"):
+                continue
+            text = entry.get("text")
+            if isinstance(text, str) and text.strip():
+                digits = re.sub(r"\D", "", text)
+                return digits or text.strip()
+        if prices and isinstance(prices[0], dict):
+            text = prices[0].get("text")
+            if isinstance(text, str) and text.strip():
+                digits = re.sub(r"\D", "", text)
+                return digits or text.strip()
+    return None
+
+
+def _extract_tile_image(tile_image: object) -> str | None:
+    if not isinstance(tile_image, dict):
+        return None
+    items = tile_image.get("items")
+    if not isinstance(items, list):
+        return None
+    for entry in items:
+        if not isinstance(entry, dict):
+            continue
+        image = entry.get("image")
+        if isinstance(image, dict):
+            link = image.get("link")
+            if isinstance(link, str) and link.startswith("http"):
+                return link
+    return None
+
+
+def _extract_tile_link(action: object) -> str | None:
+    if not isinstance(action, dict):
+        return None
+    link = action.get("link")
+    if not isinstance(link, str) or not link.strip():
+        return None
+    if link.startswith("http"):
+        return link
+    return urljoin(_OZON_BASE_URL, link)
+
+
+def _parse_ozon_tile(item: object) -> SearchResult | None:
+    if not isinstance(item, dict) or not item.get("sku"):
+        return None
 
     main_state = item.get("mainState")
     if not isinstance(main_state, list):
-        return
+        return None
 
-    name = None
-    price_str = None
+    name = _extract_tile_name(main_state)
+    if not name:
+        return None
+
+    rating: str | None = None
+    reviews: str | None = None
     for block in main_state:
-        if not isinstance(block, dict):
+        if not isinstance(block, dict) or block.get("type") != "labelListV2":
             continue
-        if block.get("type") == "textAtom":
-            text = block.get("textAtom", {}).get("text")
-            if isinstance(text, str):
-                name = text.strip()
-        if block.get("type") == "priceV2":
-            price = block.get("priceV2", {}).get("price", [])
-            if isinstance(price, list) and price:
-                val = price[0].get("text") if isinstance(price[0], dict) else None
-                if val:
-                    price_str = re.sub(r"\D", "", val) or val
-    if name:
-        append_product(products, SearchResult(name=name, price=price_str, image_link=None))
+        labels = block.get("labelListV2", {}).get("items", [])
+        if not isinstance(labels, list):
+            continue
+        for label in labels:
+            if not isinstance(label, dict) or label.get("type") != "text":
+                continue
+            text = label.get("text", {}).get("text", "")
+            if not isinstance(text, str):
+                continue
+            cleaned = html_lib.unescape(text).replace("\xa0", " ").strip()
+            if rating is None and re.fullmatch(r"\d+([.,]\d+)?", cleaned):
+                rating = cleaned
+            elif reviews is None and "отзыв" in cleaned.lower():
+                reviews = cleaned
+
+    return SearchResult(
+        name=name,
+        product_link=_extract_tile_link(item.get("action")),
+        price=_extract_tile_price(main_state),
+        image_link=_extract_tile_image(item.get("tileImage")),
+        rating=rating,
+        reviews=reviews,
+    )
 
 
 def _parse_ozon_payload(data: object) -> list[SearchResult]:
@@ -250,7 +352,7 @@ def run_ozon_parser(
     )
     return SearchSource(
         source_type="ozon",
-        source_url="https://ozon.ru",
+        source_url=_build_search_url(user_input),
         source_title="Ozon",
         source_favicon_url=None,
         results=results,
