@@ -1,9 +1,65 @@
+import { SourceType } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
 import type { MarketplaceGroup } from '@/lib/types'
+import { cn } from '@/lib/utils'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 
 const PRODUCTS_PER_PAGE = 3
+
+export function getMarketplaceTheme(sourceType: SourceType) {
+  switch (sourceType) {
+    case SourceType.ozon:
+      const ozonGradient = 'linear-gradient(135deg, rgb(0 91 255 / 80%), rgb(252 64 55 / 80%))'
+      return {
+        summaryGradient: ozonGradient,
+        summaryStyle: { backgroundImage: ozonGradient },
+        titleClassName: 'text-slate-950',
+        metaClassName: 'text-slate-900',
+        queryClassName: 'text-slate-600',
+        buttonClassName:
+          'border-slate-300 bg-white/90 text-slate-800 hover:bg-white focus:ring-slate-900/10',
+        countClassName: 'border-slate-200 bg-white/70 text-slate-700'
+      }
+    case SourceType.wildberries:
+      const wildberriesGradient =
+        'linear-gradient(135deg, rgb(127 48 227 / 80%), rgb(249 4 121 / 80%))'
+      return {
+        summaryGradient: wildberriesGradient,
+        summaryStyle: { backgroundImage: wildberriesGradient },
+        titleClassName: 'text-white',
+        metaClassName: 'text-white',
+        queryClassName: 'text-white/85',
+        buttonClassName:
+          'border-white/40 bg-white/15 text-white hover:bg-white/25 focus:ring-white/30',
+        countClassName: 'border-white/30 bg-white/15 text-white'
+      }
+    case SourceType.yandex_market:
+      const yandexMarketGradient =
+        'linear-gradient(135deg, rgb(255 204 0 / 80%), rgb(255 0 0 / 80%))'
+      return {
+        summaryGradient: yandexMarketGradient,
+        summaryStyle: { backgroundImage: yandexMarketGradient },
+        titleClassName: 'text-slate-950',
+        metaClassName: 'text-slate-900',
+        queryClassName: 'text-slate-600',
+        buttonClassName:
+          'border-slate-300 bg-white/90 text-slate-800 hover:bg-white focus:ring-slate-900/10',
+        countClassName: 'border-slate-200 bg-white/70 text-slate-700'
+      }
+    default:
+      return {
+        summaryGradient: null,
+        summaryStyle: undefined,
+        titleClassName: 'text-slate-950',
+        metaClassName: 'text-slate-900',
+        queryClassName: 'text-slate-500',
+        buttonClassName:
+          'border-slate-300 bg-white text-slate-800 hover:bg-slate-100 focus:ring-slate-900/10',
+        countClassName: 'border-slate-200 text-slate-600'
+      }
+  }
+}
 
 export function ProductSourceDetails({
   group,
@@ -20,6 +76,7 @@ export function ProductSourceDetails({
     (currentPage + 1) * PRODUCTS_PER_PAGE
   )
   const canPaginate = pageCount > 1
+  const theme = getMarketplaceTheme(group.sourceType)
 
   const minPrice = group.products.reduce(
     (min, product) => {
@@ -32,7 +89,11 @@ export function ProductSourceDetails({
   )
 
   return (
-    <details className="group rounded-lg border border-slate-200 bg-white shadow-sm" open>
+    <details
+      className="group rounded-lg border border-slate-200 bg-white shadow-sm"
+      open
+      style={theme.summaryStyle}
+    >
       <summary className="flex list-none flex-col gap-4 px-4 py-4 marker:hidden sm:flex-row sm:items-center sm:justify-between">
         <span className="flex min-w-0 items-center gap-3 self-stretch sm:self-auto">
           <img
@@ -43,21 +104,28 @@ export function ProductSourceDetails({
           />
           <span className="min-w-0">
             <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="truncate text-base font-semibold text-slate-950">{group.title}</span>
+              <span className={cn('truncate text-base font-semibold', theme.titleClassName)}>
+                {group.title}
+              </span>
               {minPrice !== null && (
-                <span className="text-sm font-medium text-slate-900">
+                <span className={cn('text-sm font-medium', theme.metaClassName)}>
                   от {minPrice.toLocaleString('ru-RU')} ₽
                 </span>
               )}
               {queryResultLabel ? (
-                <span className="text-xs font-medium text-slate-500">{queryResultLabel}</span>
+                <span className={cn('text-xs font-medium', theme.queryClassName)}>
+                  {queryResultLabel}
+                </span>
               ) : null}
             </span>
           </span>
         </span>
         <span className="flex items-center justify-between gap-3 self-stretch sm:shrink-0 sm:self-auto">
           <a
-            className="cursor-pointer rounded-md border border-slate-300 bg-white px-3 py-1.5 text-center text-sm font-medium text-slate-800 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+            className={cn(
+              'cursor-pointer rounded-md border px-3 py-1.5 text-center text-sm font-medium transition focus:outline-none focus:ring-2',
+              theme.buttonClassName
+            )}
             href={group.sourceUrl}
             onClick={(event) => event.stopPropagation()}
             rel="noreferrer"
@@ -65,7 +133,12 @@ export function ProductSourceDetails({
           >
             Перейти на маркетплейс
           </a>
-          <span className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-600">
+          <span
+            className={cn(
+              'rounded-full border px-3 py-1 text-sm backdrop-blur-[2px]',
+              theme.countClassName
+            )}
+          >
             {group.products.length}
           </span>
         </span>

@@ -1,7 +1,7 @@
 import { $api } from '@/api'
 import { SourceType } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
-import { ProductSourceDetails } from '@/components/ProductSourceDetails'
+import { ProductSourceDetails, getMarketplaceTheme } from '@/components/ProductSourceDetails'
 import { ProductSourceSkeletonList } from '@/components/ProductSourceSkeleton'
 import { RegionDropdown } from '@/components/RegionDropdown'
 import { Button } from '@/components/ui/button'
@@ -268,7 +268,7 @@ function Home() {
                   className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
                   key={`${item.sourceType}-${item.product.productLink ?? item.product.title}-${index}`}
                 >
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3" style={getMarketplaceTheme(item.sourceType).summaryStyle}>
                     <div className="flex min-w-0 items-center gap-3">
                       <img
                         alt=""
@@ -281,7 +281,7 @@ function Home() {
                       </span>
                     </div>
                     <a
-                      className="shrink-0 text-sm font-medium text-slate-600 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                      className="shrink-0 text-sm font-medium text-slate-900 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                       href={item.sourceUrl}
                       rel="noreferrer"
                       target="_blank"
