@@ -30,5 +30,10 @@ properties:
       are allowed. Specify as a regex: `https://.*.innohassle.ru`'
     title: Cors Allow Origin Regex
     type: string
+  whoogle_base_url:
+    default: http://127.0.0.1:5000
+    description: Base URL of the Whoogle search instance (e.g. http://127.0.0.1:5000)
+    title: Whoogle Base Url
+    type: string
 title: Settings
 type: object

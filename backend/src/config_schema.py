@@ -24,6 +24,8 @@ class Settings(SettingBaseModel):
     'Prefix for the API path (e.g. "/api/v0")'
     cors_allow_origin_regex: str = ".*"
     "Allowed origins for CORS: from which domains requests to the API are allowed. Specify as a regex: `https://.*.innohassle.ru`"
+    whoogle_base_url: str = "http://127.0.0.1:5000"
+    "Base URL of the Whoogle search instance (e.g. http://127.0.0.1:5000)"
 
     @classmethod
     def from_yaml(cls, path: Path) -> "Settings":

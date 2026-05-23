@@ -1,9 +1,17 @@
-import json
-import sys
+"""Whoogle search adapter (JSON API)."""
+
+import asyncio
+import os
 from typing import Any
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from src.config import settings
+from src.logging_ import logger
+from src.modules.search.parse_from_url import parse_url
+from src.modules.search.schemas import SearchParams, SearchResults
+from src.modules.search.timing import TimingRecorder
 
 
 class WhoogleAdapterError(Exception):
@@ -136,12 +144,15 @@ class WhoogleSearchAdapter:
         query: str,
         start: int = 0,
         search_type: str = "",
+        near: str = "",
     ) -> WhoogleSearchResponse:
         params = {"q": query, "format": "json"}
         if start > 0:
             params["start"] = str(start)
         if search_type:
             params["tbm"] = search_type
+        if near:
+            params["near"] = near
 
         response = self._client.get("/search", params=params)
         payload = response.json()
@@ -176,34 +187,41 @@ class WhoogleSearchAdapter:
             suffix += 1
 
 
-def main() -> int:
-    query = "купить яндекс алису"
-    
-    if not query:
-        print("Search query is required.", file=sys.stderr)
-        return 1
-
-    settings = WhoogleAdapterSettings()
-
-    try:
-        with WhoogleSearchAdapter(settings) as adapter:
-            title_map = adapter.search_title_map(
-                query=query,
-                limit=10,
-            )
-    except WhoogleSearchRedirect as exc:
-        print(json.dumps({"redirect": exc.redirect_url}, ensure_ascii=False, indent=2))
-        return 0
-    except WhoogleAdapterError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    except httpx.HTTPError as exc:
-        print(f"HTTP error: {exc}", file=sys.stderr)
-        return 1
-
-    print(json.dumps(title_map, ensure_ascii=False, indent=2))
-    return 0
+def default_settings() -> WhoogleAdapterSettings:
+    return WhoogleAdapterSettings(
+        base_url=settings.whoogle_base_url,
+        timeout_seconds=float(os.getenv("WHOOGLE_TIMEOUT_SECONDS", "10")),
+    )
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+def search_top_urls(query: str, limit: int = 5) -> list[str]:
+    with WhoogleSearchAdapter(default_settings()) as adapter:
+        title_map = adapter.search_title_map(query=query, limit=limit)
+    return list(title_map.values())
+
+
+async def run_search(query: str, *, limit: int = 5) -> SearchResults:
+    request_timing = TimingRecorder.start()
+
+    async with request_timing.stage("whoogle_search"):
+        urls = await asyncio.to_thread(search_top_urls, query, limit)
+    logger.info("Whoogle returned %d URLs for query %r", len(urls), query)
+
+    if not urls:
+        return SearchResults(
+            original_params=SearchParams(query=query),
+            sources=[],
+            timing=request_timing.to_request_timing(),
+        )
+
+    async with request_timing.stage("parse_sources"):
+        parse_results = await asyncio.gather(*(parse_url(url) for url in urls))
+
+    sources = [source for result in parse_results for source in result.sources]
+    logger.info("Parsed %d sources (%d products total)", len(sources), sum(len(s.results) for s in sources))
+
+    return SearchResults(
+        original_params=SearchParams(query=query),
+        sources=sources,
+        timing=request_timing.to_request_timing(),
+    )

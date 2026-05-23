@@ -3,17 +3,24 @@
 import json
 import os
 import re
+import time
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 os.environ.setdefault("OLLAMA_HOST", "https://api.innohassle.ru/ollama")
 
 import ollama  # noqa: E402
+from ollama import ResponseError
 
+from src.logging_ import logger
 from src.modules.search.schemas import SearchResult
 
 MODEL = os.getenv("MODEL", "frob/nuextract-2.0:latest")
 _CHUNK_MAX_CHARS = int(os.getenv("EXTRACT_CHUNK_MAX_CHARS", "5000"))
 _CHUNK_MAX_PRODUCTS = int(os.getenv("EXTRACT_CHUNK_MAX_PRODUCTS", "3"))
+_RETRY_ATTEMPTS = int(os.getenv("OLLAMA_RETRY_ATTEMPTS", "4"))
+_RETRY_BASE_DELAY = float(os.getenv("OLLAMA_RETRY_BASE_DELAY", "1.0"))
+_RETRYABLE_STATUS = frozenset({429, 502, 503, 504})
 
 _TEMPLATE = {
     "products": [
@@ -133,6 +140,33 @@ def _split_product_chunks(
     return chunks
 
 
+def _ollama_chat(messages: list[dict[str, str]]) -> Any:
+    last_error: Exception | None = None
+    for attempt in range(_RETRY_ATTEMPTS):
+        try:
+            return ollama.chat(model=MODEL, messages=messages)
+        except ResponseError as exc:
+            last_error = exc
+            if exc.status_code not in _RETRYABLE_STATUS or attempt >= _RETRY_ATTEMPTS - 1:
+                raise
+        except (ConnectionError, TimeoutError, OSError) as exc:
+            last_error = exc
+            if attempt >= _RETRY_ATTEMPTS - 1:
+                raise
+        delay = _RETRY_BASE_DELAY * (2**attempt)
+        logger.warning(
+            "Ollama chat failed (attempt %d/%d), retrying in %.1fs: %s",
+            attempt + 1,
+            _RETRY_ATTEMPTS,
+            delay,
+            last_error,
+        )
+        time.sleep(delay)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Ollama chat failed without an exception")
+
+
 def _extract_chunk(markdown: str) -> list[SearchResult]:
     messages = [
         {"role": "template", "content": json.dumps(_TEMPLATE, ensure_ascii=False)},
@@ -140,7 +174,7 @@ def _extract_chunk(markdown: str) -> list[SearchResult]:
         {"role": "examples.output", "content": _EXAMPLE_OUTPUT},
         {"role": "user", "content": markdown},
     ]
-    response = ollama.chat(model=MODEL, messages=messages)
+    response = _ollama_chat(messages)
     payload = _parse_model_json(response.message.content)
     products = payload.get("products") or []
     if not isinstance(products, list):

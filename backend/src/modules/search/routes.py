@@ -17,6 +17,7 @@ from src.modules.search.schemas import (
 )
 from src.modules.search.timing import TimingRecorder
 from src.modules.search.typofix import queries_differ
+from src.modules.search.whoogle import run_search
 from src.modules.search.wildberries import run_wildberries_parser
 from src.modules.search.yandex_market import run_yandex_market_parser
 
@@ -81,6 +82,15 @@ async def search(search_params: SearchParams) -> SearchResults:
         typofix_suggestions=typofix_suggestions,
         timing=request_timing.to_request_timing(),
     )
+
+
+@router.post("/test-search", responses={200: {"description": "Found products"}})
+async def test_search(query: str) -> SearchResults:
+    """
+    Search via Whoogle, then parse products from the top result pages in parallel.
+    """
+    logger.info("Running test search for %r", query)
+    return await run_search(query)
 
 
 @router.post("/test-parse-from-url", responses={200: {"description": "Found products"}})
