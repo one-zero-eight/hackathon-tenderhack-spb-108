@@ -227,20 +227,34 @@ def _extract_tile_link(action: object) -> str | None:
     return urljoin(_OZON_BASE_URL, link)
 
 
+def _parse_ozon_spec_entry(specs: dict[str, str], entry: dict) -> None:
+    title = entry.get("title")
+    if isinstance(title, dict):
+        title_parts = title.get("textRs", [])
+        name = next(
+            (part.get("content") for part in title_parts if isinstance(part, dict) and part.get("content")),
+            None,
+        )
+    else:
+        name = entry.get("name")
+    values = entry.get("values", [])
+    texts = [v.get("text") for v in values if isinstance(v, dict) and v.get("text")]
+    if name and texts:
+        append_characteristic(specs, str(name), ", ".join(texts))
+
+
 def _parse_ozon_characteristic_state(state: dict) -> dict[str, str]:
     specs: dict[str, str] = {}
     for item in state.get("characteristics", []):
         if not isinstance(item, dict):
             continue
-        title_parts = item.get("title", {}).get("textRs", [])
-        name = next(
-            (part.get("content") for part in title_parts if isinstance(part, dict) and part.get("content")),
-            None,
-        )
-        values = item.get("values", [])
-        texts = [v.get("text") for v in values if isinstance(v, dict) and v.get("text")]
-        if name and texts:
-            append_characteristic(specs, name, ", ".join(texts))
+        if "short" in item or "long" in item:
+            for section in ("short", "long"):
+                for entry in item.get(section, []):
+                    if isinstance(entry, dict):
+                        _parse_ozon_spec_entry(specs, entry)
+            continue
+        _parse_ozon_spec_entry(specs, item)
     return specs
 
 
@@ -266,10 +280,26 @@ def _ozon_detail_api_url(product_link: str) -> str:
     return f"{_OZON_BASE_URL}/api/entrypoint-api.bx/page/json/v2?url={quote(path, safe='')}"
 
 
-async def fetch_ozon_detail_characteristics(page, product_link: str) -> dict[str, str]:
-    await page.goto(_ozon_detail_api_url(product_link), wait_until="domcontentloaded", timeout=60_000)
-    await page.wait_for_timeout(1500)
+def _ozon_features_api_url(product_link: str) -> str:
+    path = urlparse(product_link).path.rstrip("/") + "/features/"
+    return f"{_OZON_BASE_URL}/api/entrypoint-api.bx/page/json/v2?url={quote(path, safe='')}"
+
+
+async def _load_ozon_api_specs(page, api_url: str) -> dict[str, str]:
+    await page.goto(api_url, wait_until="domcontentloaded", timeout=30_000)
+    await page.wait_for_timeout(1000)
     return parse_ozon_detail_html(await page_content(page))
+
+
+async def fetch_ozon_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    specs = await _load_ozon_api_specs(page, _ozon_features_api_url(product_link))
+    if len(specs) >= 10:
+        return specs
+    short_specs = await _load_ozon_api_specs(page, _ozon_detail_api_url(product_link))
+    merged = dict(short_specs)
+    for key, value in specs.items():
+        append_characteristic(merged, key, value)
+    return merged
 
 
 async def _enrich_ozon_characteristics(page, products: list[SearchResult]) -> None:

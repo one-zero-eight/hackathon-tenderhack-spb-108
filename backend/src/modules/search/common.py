@@ -1,11 +1,14 @@
 """Shared utilities for marketplace search parsers."""
 
+import asyncio
 import json
 import os
 import re
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import quote_plus, urljoin
+
+from cloakbrowser import launch_persistent_context_async
 
 from src.logging_ import logger
 from src.modules.search.schemas import SearchResult
@@ -14,6 +17,42 @@ RESULT_PRE_ID = "d405f4e66468fd64bd88c8f16681286a"
 HTTP_PROXY: str | None = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
 DEFAULT_MIN_PRICE = 0
 DEFAULT_MAX_PRICE = 9_999_999
+SEARCH_HEADLESS_ENV = "SEARCH_HEADLESS"
+
+
+class _BrowserState:
+    context = None
+
+
+_browser_lock = asyncio.Lock()
+
+
+async def get_browser_context():
+    async with _browser_lock:
+        if _BrowserState.context is not None:
+            return _BrowserState.context
+        session_dir, _ = site_paths("shared")
+        session_dir.mkdir(parents=True, exist_ok=True)
+        headless = headless_from_env(SEARCH_HEADLESS_ENV)
+        if HTTP_PROXY:
+            logger.info("Using HTTP proxy: %s", HTTP_PROXY.split("@")[-1])
+        _BrowserState.context = await launch_persistent_context_async(
+            user_data_dir=session_dir,
+            headless=headless,
+            proxy=HTTP_PROXY,
+            locale="ru-RU",
+        )
+        logger.info("Shared cloakbrowser context started (headless=%s)", headless)
+        return _BrowserState.context
+
+
+async def close_browser_context() -> None:
+    async with _browser_lock:
+        if _BrowserState.context is None:
+            return
+        await _BrowserState.context.close()
+        _BrowserState.context = None
+        logger.info("Shared cloakbrowser context closed")
 
 
 def scripts_dir() -> Path:
@@ -149,36 +188,33 @@ async def run_site_parser(
     headless = headless_from_env(headless_env)
 
     page = await context.new_page()
-    try:
-        if not headless:
-            logger.info("Browser running headful — captcha can be solved manually")
+    if not headless:
+        logger.info("Browser running headful — captcha can be solved manually")
 
-        if block_images:
-            await page.route(
-                re.compile(r"\.(png|jpg|jpeg|gif|webp|svg|ico)(\?|$)", re.I),
-                lambda route: route.abort(),
-            )
+    if block_images:
+        await page.route(
+            re.compile(r"\.(png|jpg|jpeg|gif|webp|svg|ico)(\?|$)", re.I),
+            lambda route: route.abort(),
+        )
 
-        for step, action in enumerate(actions, start=1):
-            logger.info("Action %d/%d: %s", step, len(actions), action["type"])
-            await run_action(
-                page,
-                action,
-                step,
-                out_dir=out_dir,
-                check_captcha_expr=check_captcha_expr,
-                site_name=site_name,
-            )
+    for step, action in enumerate(actions, start=1):
+        logger.info("Action %d/%d: %s", step, len(actions), action["type"])
+        await run_action(
+            page,
+            action,
+            step,
+            out_dir=out_dir,
+            check_captcha_expr=check_captcha_expr,
+            site_name=site_name,
+        )
 
-        html = await page_content(page)
-        save_html(out_dir, len(actions) + 1, html)
-        products = parse_html(html)
-        logger.info("Parsed %d products from %s", len(products), site_name)
-        if enrich_characteristics is not None:
-            await enrich_characteristics(page, products)
-        return products
-    finally:
-        await page.close()
+    html = await page_content(page)
+    save_html(out_dir, len(actions) + 1, html)
+    products = parse_html(html)
+    logger.info("Parsed %d products from %s", len(products), site_name)
+    if enrich_characteristics is not None:
+        await enrich_characteristics(page, products)
+    return products
 
 
 def extract_name(obj: dict) -> str | None:

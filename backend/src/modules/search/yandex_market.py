@@ -12,10 +12,12 @@ from .common import (
     DEFAULT_MIN_PRICE,
     RESULT_PRE_ID,
     SearchResult,
+    append_characteristic,
     append_product,
     build_price_filter,
     extract_pre_content,
     normalize_product_url,
+    page_content,
     parse_api_payload,
     run_site_parser,
 )
@@ -30,15 +32,58 @@ _YANDEX_DETAIL_SPECS_JS = """() => {
     seen.add(key);
     out.push([name, value]);
   };
-  document.querySelectorAll('[data-auto="product-spec"]').forEach(el => {
+
+  document.querySelectorAll('input[type="checkbox"][id^="group-collapse-"]').forEach((cb) => {
+    if (!cb.checked) cb.click();
+  });
+
+  document.querySelectorAll('[data-auto="product-spec"]').forEach((el) => {
     const name = el.innerText.trim();
-    const row = el.closest('div._3rW2x') || el.closest('div');
-    const valueEl = row && row.querySelector('.eXP5k span');
-    const value = valueEl && valueEl.innerText.trim();
-    if (name && value) add(name, value);
+    if (!name) return;
+
+    const row =
+      el.closest('div._3rW2x') ||
+      el.closest('div._2jsum') ||
+      el.closest('div._7_B2r');
+    if (row) {
+      const valueEl =
+        row.querySelector('.eXP5k span') ||
+        row.querySelector('.eXP5k') ||
+        row.querySelector('div._1_zPW') ||
+        row.querySelector('div._19UG7') ||
+        row.querySelector('[data-auto="specLink"]');
+      const value = valueEl?.innerText?.trim();
+      if (value) {
+        add(name, value);
+        return;
+      }
+    }
+
+    let node = el.parentElement;
+    for (let i = 0; i < 8 && node; i++) {
+      if (node.querySelectorAll('[data-auto="product-spec"]').length > 1) {
+        node = node.parentElement;
+        continue;
+      }
+      const copy = node.cloneNode(true);
+      copy.querySelectorAll('[data-auto="product-spec"]').forEach((s) => s.remove());
+      const value = copy.innerText.replace(/\\s+/g, ' ').trim();
+      if (value) {
+        add(name, value);
+        break;
+      }
+      node = node.parentElement;
+    }
   });
   return out;
 }"""
+
+_YANDEX_SPEC_ROW_RE = re.compile(
+    r'<span data-auto="product-spec"[^>]*>([^<]+)</span>.*?'
+    r'(?:<div class="eXP5k">.*?<span>([^<]+)</span>'
+    r'|<div class="_1_zPW">.*?<span>([^<]+)</span>)',
+    re.DOTALL,
+)
 
 SITE = "yandex_market"
 CHECK_CAPTCHA = (
@@ -67,7 +112,7 @@ function delay(ms) {
 }
 
 async function fetchWithRetry() {
-  const delays = [1000, 2000, 4000, 6000, 7000];
+  const delays = [300, 600, 1200, 2000];
   const searchText = __SEARCH_TEXT__;
 
   for (let attempt = 0; attempt <= delays.length; attempt++) {
@@ -177,7 +222,8 @@ _PRODUCT_KEYS = ("titles", "prices", "pictures", "productName", "slug", "skuId",
 _YANDEX_BASE_URL = "https://market.yandex.ru"
 _CARD_PATH_RE = re.compile(r"/card/[a-z0-9][a-z0-9-]*/\d+")
 _PRODUCT_SNIPPET_RE = re.compile(
-    r'data-zone-name=\\"productSnippet\\" data-zone-data=\\"(\{.*?\})\\"',
+    r'data-zone-name=\\"productSnippet\\" data-zone-data=\\"(\{.*?)\\"',
+    re.DOTALL,
 )
 
 
@@ -236,16 +282,21 @@ def _build_actions(
     )
     return [
         {"type": "url", "data": "https://market.yandex.ru"},
-        {"type": "wait", "data": "3000"},
-        {"type": "url", "data": search_url},
-        {"type": "wait", "data": "4000"},
-        {"type": "waitElement", "data": wait_script},
         {"type": "wait", "data": "1000"},
+        {"type": "url", "data": search_url},
+        {"type": "wait", "data": "1500"},
+        {"type": "waitElement", "data": wait_script},
     ]
 
 
 def _decode_embedded_zone_json(raw: str) -> dict:
-    return json.loads(html_module.unescape(html_module.unescape(raw)))
+    decoded = html_module.unescape(html_module.unescape(raw))
+    try:
+        return json.loads(decoded)
+    except json.JSONDecodeError:
+        # Titles like 16" leave invalid \" after HTML unescape (16\\").
+        repaired = re.sub(r'(\d+(?:\.\d+)?)\\+"', r'\1\\"', decoded)
+        return json.loads(repaired)
 
 
 def _price_from_snippet(zone: dict) -> str | None:
@@ -267,11 +318,25 @@ def _price_from_snippet(zone: dict) -> str | None:
     return None
 
 
+def parse_yandex_detail_html(html: str) -> dict[str, str]:
+    specs: dict[str, str] = {}
+    for match in _YANDEX_SPEC_ROW_RE.finditer(html):
+        name = html_module.unescape(match.group(1).strip())
+        value = html_module.unescape((match.group(2) or match.group(3) or "").strip())
+        append_characteristic(specs, name, value)
+    return specs
+
+
 async def fetch_yandex_detail_characteristics(page, product_link: str) -> dict[str, str]:
-    await page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
-    await page.wait_for_timeout(2000)
-    rows = await page.evaluate(_YANDEX_DETAIL_SPECS_JS)
-    return specs_from_raw(rows)
+    await page.goto(product_link, wait_until="domcontentloaded", timeout=30_000)
+    try:
+        await page.wait_for_selector('[data-auto="product-spec"]', timeout=5_000)
+    except Exception:
+        pass
+    specs = specs_from_raw(await page.evaluate(_YANDEX_DETAIL_SPECS_JS))
+    if specs:
+        return specs
+    return parse_yandex_detail_html(await page_content(page))
 
 
 async def _enrich_yandex_characteristics(page, products: list[SearchResult]) -> None:
@@ -376,14 +441,17 @@ def parse_html(html: str) -> list[SearchResult]:
             card_links = {**card_links, **_extract_yandex_card_links(json.loads(raw))}
         except json.JSONDecodeError:
             pass
+
+    snippets = _collect_products_from_snippets(html, card_links)
+    if snippets:
+        return snippets
+
+    if raw is not None:
         products = parse_api_payload(raw, product_keys=_PRODUCT_KEYS)
         if products:
             _attach_card_links(products, card_links)
             return products
 
-    snippets = _collect_products_from_snippets(html, card_links)
-    if snippets:
-        return snippets
     return _collect_products_from_legacy_html(html)
 
 

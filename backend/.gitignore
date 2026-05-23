@@ -2,6 +2,11 @@
 settings.yaml
 static
 
+# CloakBrowser fetch sessions and saved page assets (not test fixtures)
+tests/example_htmls/.ozon-fetch-session/
+tests/example_htmls/.wb-fetch-session/
+tests/example_htmls/**/*_files/
+
 # Created by https://www.toptal.com/developers/gitignore/api/vs,pycharm+all,python,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=vs,pycharm+all,python,macos
 

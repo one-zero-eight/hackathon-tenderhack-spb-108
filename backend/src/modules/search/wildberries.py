@@ -14,11 +14,12 @@ from .common import (
     build_price_filter,
     encode_query,
     extract_pre_content,
+    page_content,
     parse_api_payload,
     parse_result_pre,
     run_site_parser,
 )
-from .details import enrich_product_characteristics, specs_from_raw
+from .details import enrich_product_characteristics, parse_specs_table_html, specs_from_raw
 
 _WB_DETAIL_SPECS_JS = """() => {
   const out = [];
@@ -138,7 +139,254 @@ return fetch(apiUrl, {"headers": headers, "referrer": referrer, "method": "GET",
     return true;
   });"""
 
-_PRODUCT_KEYS = ("name", "salePriceU", "priceU", "brand", "id", "pics")
+_PRODUCT_KEYS = ("name", "salePriceU", "priceU", "brand", "id", "pics", "sizes")
+
+# vol upper bound -> basket-NN.wbbasket.ru (wh in API is warehouse id, not CDN host)
+_WB_BASKET_VOL_LIMITS = (
+    143,
+    287,
+    431,
+    719,
+    1007,
+    1061,
+    1115,
+    1169,
+    1313,
+    1601,
+    1655,
+    1919,
+    2045,
+    2189,
+    2405,
+    2621,
+    2837,
+    3053,
+    3269,
+    3485,
+    3701,
+    3917,
+    4133,
+    4349,
+    4565,
+    4877,
+    5189,
+    5501,
+    5813,
+    6125,
+    6437,
+    6749,
+    7061,
+    7373,
+    7685,
+    7997,
+    8309,
+    8621,
+    8933,
+    9245,
+    9557,
+    9869,
+    10181,
+    10493,
+    10805,
+    11117,
+    11429,
+    11741,
+    12053,
+    12365,
+    12677,
+    12989,
+    13301,
+    13613,
+    13925,
+    14237,
+    14549,
+    14861,
+    15173,
+    15485,
+    15797,
+    16109,
+    16421,
+    16733,
+    17045,
+    17357,
+    17669,
+    17981,
+    18293,
+    18605,
+    18917,
+    19229,
+    19541,
+    19853,
+    20165,
+    20477,
+    20789,
+    21101,
+    21413,
+    21725,
+    22037,
+    22349,
+    22661,
+    22973,
+    23285,
+    23597,
+    23909,
+    24221,
+    24533,
+    24845,
+    25157,
+    25469,
+    25781,
+    26093,
+    26405,
+    26717,
+    27029,
+    27341,
+    27653,
+    27965,
+    28277,
+    28589,
+    28901,
+    29213,
+    29525,
+    29837,
+    30149,
+    30461,
+    30773,
+    31085,
+    31397,
+    31709,
+    32021,
+    32333,
+    32645,
+    32957,
+    33269,
+    33581,
+    33893,
+    34205,
+    34517,
+    34829,
+    35141,
+    35453,
+    35765,
+    36077,
+    36389,
+    36701,
+    37013,
+    37325,
+    37637,
+    37949,
+    38261,
+    38573,
+    38885,
+    39197,
+    39509,
+    39821,
+    40133,
+    40445,
+    40757,
+    41069,
+    41381,
+    41693,
+    42005,
+    42317,
+    42629,
+    42941,
+    43253,
+    43565,
+    43877,
+    44189,
+    44501,
+    44813,
+    45125,
+    45437,
+    45749,
+    46061,
+    46373,
+    46685,
+    46997,
+    47309,
+    47621,
+    47933,
+    48245,
+    48557,
+    48869,
+    49181,
+    49493,
+    49805,
+    50117,
+    50429,
+    50741,
+    51053,
+    51365,
+    51677,
+    51989,
+    52301,
+    52613,
+    52925,
+    53237,
+    53549,
+    53861,
+    54173,
+    54485,
+    54797,
+    55109,
+    55421,
+    55733,
+    56045,
+    56357,
+    56669,
+    56981,
+    57293,
+    57605,
+    57917,
+    58229,
+    58541,
+    58853,
+    59165,
+    59477,
+    59789,
+    60101,
+    60413,
+    60725,
+    61037,
+    61349,
+    61661,
+    61973,
+    62285,
+    62597,
+    62909,
+    63221,
+    63533,
+    63845,
+    64157,
+    64469,
+    64781,
+    65093,
+    65405,
+    65717,
+    66029,
+    66341,
+    66653,
+    66965,
+    67277,
+    67589,
+    67901,
+    68213,
+    68525,
+    68837,
+    69149,
+    69461,
+    69773,
+    70085,
+    70397,
+    70709,
+    71021,
+    71333,
+    71645,
+    71957,
+    72269,
+    72581,
+)
 
 
 def _wb_price_filter_js(
@@ -177,30 +425,65 @@ def _build_actions(
     ]
 
 
+def _wb_basket_host(vol: int) -> str:
+    for index, limit in enumerate(_WB_BASKET_VOL_LIMITS, start=1):
+        if vol <= limit:
+            return f"{index:02d}"
+    return f"{len(_WB_BASKET_VOL_LIMITS) + 1:02d}"
+
+
+def _wb_price_kopecks(item: dict) -> int | None:
+    for key in ("salePriceU", "priceU"):
+        value = item.get(key)
+        if isinstance(value, int):
+            return value
+    sizes = item.get("sizes")
+    if not isinstance(sizes, list):
+        return None
+    prices: list[int] = []
+    for size in sizes:
+        if not isinstance(size, dict):
+            continue
+        price_block = size.get("price")
+        if not isinstance(price_block, dict):
+            continue
+        for key in ("product", "basic"):
+            value = price_block.get(key)
+            if isinstance(value, int):
+                prices.append(value)
+                break
+    return min(prices) if prices else None
+
+
 def _wb_image_url(product: dict) -> str | None:
     nm_id = product.get("id") or product.get("nmId")
-    pics = product.get("pics")
     if not nm_id:
         return None
-    vol = int(nm_id) // 100000
-    part = int(nm_id) // 1000
-    pic_idx = 1
-    if isinstance(pics, int) and pics > 0:
-        pic_idx = 1
-    basket = product.get("wh") or 1
-    return f"https://basket-{basket:02d}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/{pic_idx}.webp"
+    nm_id = int(nm_id)
+    vol = nm_id // 100_000
+    part = nm_id // 1_000
+    host = _wb_basket_host(vol)
+    return f"https://basket-{host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/1.webp"
+
+
+def parse_wb_detail_html(html: str) -> dict[str, str]:
+    return parse_specs_table_html(html)
 
 
 async def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, str]:
-    await page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
-    await page.wait_for_timeout(3000)
+    await page.goto(product_link, wait_until="domcontentloaded", timeout=30_000)
     try:
-        await page.locator("button").filter(has_text="Характеристики").first.click(timeout=10_000)
-        await page.wait_for_timeout(3000)
+        await page.locator("button").filter(has_text="Характеристики").first.click(timeout=5_000)
     except Exception:
         pass
-    rows = await page.evaluate(_WB_DETAIL_SPECS_JS)
-    return specs_from_raw(rows)
+    try:
+        await page.wait_for_selector("th.cellKey--eGe6N, th[class*='cellKey']", timeout=5_000)
+    except Exception:
+        pass
+    specs = specs_from_raw(await page.evaluate(_WB_DETAIL_SPECS_JS))
+    if specs:
+        return specs
+    return parse_wb_detail_html(await page_content(page))
 
 
 async def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None:
@@ -221,7 +504,7 @@ def _product_from_wb(item: dict) -> SearchResult | None:
     if brand:
         name = f"{brand} {name}".strip()
 
-    price = item.get("salePriceU") or item.get("priceU")
+    price = _wb_price_kopecks(item)
     price_str = str(price // 100) if isinstance(price, int) else None
 
     rating = str(item["rating"]) if item.get("rating") is not None else None

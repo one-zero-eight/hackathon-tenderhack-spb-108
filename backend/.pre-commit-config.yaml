@@ -34,8 +34,12 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^tests/example_htmls/
       - id: end-of-file-fixer
+        exclude: ^tests/example_htmls/
       - id: check-added-large-files
+        args: [--maxkb=3000]
+        exclude: ^tests/example_htmls/(\.|.*_files/)
 
   # Local linting
   - repo: local

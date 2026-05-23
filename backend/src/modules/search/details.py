@@ -1,5 +1,6 @@
 """Fetch product characteristics from detail pages (limited per source)."""
 
+import re
 from collections.abc import Callable
 
 from src.logging_ import logger
@@ -11,6 +12,23 @@ from src.modules.search.common import (
 from src.modules.search.schemas import SearchResult
 
 DETAIL_CHARACTERISTICS_LIMIT = 3
+
+_SPECS_TABLE_ROW_RE = re.compile(
+    r'<th class="cellKey[^"]*"[^>]*>.*?cellWrapper[^"]*"[^>]*>([^<]+)</span>.*?</th>\s*'
+    r'<td class="cellValue[^"]*"[^>]*>(.*?)</td>',
+    re.DOTALL,
+)
+
+
+def _strip_html_text(raw: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw)).strip()
+
+
+def parse_specs_table_html(html: str) -> dict[str, str]:
+    specs: dict[str, str] = {}
+    for match in _SPECS_TABLE_ROW_RE.finditer(html):
+        append_characteristic(specs, match.group(1), _strip_html_text(match.group(2)))
+    return specs
 
 
 def specs_from_raw(rows: object) -> dict[str, str]:

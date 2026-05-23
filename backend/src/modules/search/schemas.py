@@ -17,6 +17,8 @@ class SearchParams(BaseModel):
     "Region name. None means all regions"
     source_types: list[SourceType] | None = None
     "Source types to search in. None means all sources, [] means all sources"
+    short: bool = False
+    "Short search. Used for dev purposes, it will return only 4 results from each source."
 
 
 class SearchResult(BaseModel):
