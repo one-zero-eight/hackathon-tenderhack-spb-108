@@ -267,15 +267,15 @@ def _price_from_snippet(zone: dict) -> str | None:
     return None
 
 
-def fetch_yandex_detail_characteristics(page, product_link: str) -> dict[str, str]:
-    page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
-    page.wait_for_timeout(2000)
-    rows = page.evaluate(_YANDEX_DETAIL_SPECS_JS)
+async def fetch_yandex_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    await page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
+    await page.wait_for_timeout(2000)
+    rows = await page.evaluate(_YANDEX_DETAIL_SPECS_JS)
     return specs_from_raw(rows)
 
 
-def _enrich_yandex_characteristics(page, products: list[SearchResult]) -> None:
-    enrich_product_characteristics(
+async def _enrich_yandex_characteristics(page, products: list[SearchResult]) -> None:
+    await enrich_product_characteristics(
         page,
         products,
         fetch_characteristics=fetch_yandex_detail_characteristics,

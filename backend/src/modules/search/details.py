@@ -26,11 +26,11 @@ def specs_from_raw(rows: object) -> dict[str, str]:
     return specs
 
 
-def enrich_product_characteristics(
+async def enrich_product_characteristics(
     page,
     products: list[SearchResult],
     *,
-    fetch_characteristics: Callable[[object, str], dict[str, str]],
+    fetch_characteristics: Callable,
     check_captcha_expr: str,
     site_name: str,
     limit: int = DETAIL_CHARACTERISTICS_LIMIT,
@@ -50,14 +50,14 @@ def enrich_product_characteristics(
             product.name[:60],
         )
         try:
-            specs = fetch_characteristics(page, product.product_link)
+            specs = await fetch_characteristics(page, product.product_link)
         except Exception as exc:
             logger.warning("Detail characteristics failed for %s: %s", product.product_link, exc)
             continue
-        if check_captcha(page, check_captcha_expr, site_name):
-            wait_captcha_solved(page, check_captcha_expr)
+        if await check_captcha(page, check_captcha_expr, site_name):
+            await wait_captcha_solved(page, check_captcha_expr)
             try:
-                specs = fetch_characteristics(page, product.product_link)
+                specs = await fetch_characteristics(page, product.product_link)
             except Exception as exc:
                 logger.warning("Detail retry failed for %s: %s", product.product_link, exc)
                 continue

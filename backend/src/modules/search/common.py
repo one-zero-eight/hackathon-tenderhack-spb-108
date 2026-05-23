@@ -141,7 +141,7 @@ async def run_site_parser(
     parse_html: Callable[[str], list[SearchResult]],
     check_captcha_expr: str,
     headless_env: str,
-    enrich_characteristics: Callable[[object, list[SearchResult]], None] | None = None,
+    enrich_characteristics: Callable | None = None,
     locale: str = "ru-RU",
     block_images: bool = True,
 ) -> list[SearchResult]:
@@ -175,7 +175,7 @@ async def run_site_parser(
         products = parse_html(html)
         logger.info("Parsed %d products from %s", len(products), site_name)
         if enrich_characteristics is not None:
-            enrich_characteristics(page, products)
+            await enrich_characteristics(page, products)
         return products
     finally:
         await page.close()

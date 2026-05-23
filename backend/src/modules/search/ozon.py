@@ -266,14 +266,14 @@ def _ozon_detail_api_url(product_link: str) -> str:
     return f"{_OZON_BASE_URL}/api/entrypoint-api.bx/page/json/v2?url={quote(path, safe='')}"
 
 
-def fetch_ozon_detail_characteristics(page, product_link: str) -> dict[str, str]:
-    page.goto(_ozon_detail_api_url(product_link), wait_until="domcontentloaded", timeout=60_000)
-    page.wait_for_timeout(1500)
-    return parse_ozon_detail_html(page_content(page))
+async def fetch_ozon_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    await page.goto(_ozon_detail_api_url(product_link), wait_until="domcontentloaded", timeout=60_000)
+    await page.wait_for_timeout(1500)
+    return parse_ozon_detail_html(await page_content(page))
 
 
-def _enrich_ozon_characteristics(page, products: list[SearchResult]) -> None:
-    enrich_product_characteristics(
+async def _enrich_ozon_characteristics(page, products: list[SearchResult]) -> None:
+    await enrich_product_characteristics(
         page,
         products,
         fetch_characteristics=fetch_ozon_detail_characteristics,

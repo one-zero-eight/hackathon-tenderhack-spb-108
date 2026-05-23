@@ -191,20 +191,20 @@ def _wb_image_url(product: dict) -> str | None:
     return f"https://basket-{basket:02d}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/{pic_idx}.webp"
 
 
-def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, str]:
-    page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
-    page.wait_for_timeout(3000)
+async def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    await page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
+    await page.wait_for_timeout(3000)
     try:
-        page.locator("button").filter(has_text="Характеристики").first.click(timeout=10_000)
-        page.wait_for_timeout(3000)
+        await page.locator("button").filter(has_text="Характеристики").first.click(timeout=10_000)
+        await page.wait_for_timeout(3000)
     except Exception:
         pass
-    rows = page.evaluate(_WB_DETAIL_SPECS_JS)
+    rows = await page.evaluate(_WB_DETAIL_SPECS_JS)
     return specs_from_raw(rows)
 
 
-def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None:
-    enrich_product_characteristics(
+async def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None:
+    await enrich_product_characteristics(
         page,
         products,
         fetch_characteristics=fetch_wb_detail_characteristics,
