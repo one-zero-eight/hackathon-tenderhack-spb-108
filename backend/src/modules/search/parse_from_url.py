@@ -1,46 +1,104 @@
 """Fetch a catalog page by URL, convert to markdown, and extract products."""
 
 import asyncio
-
-from pydefuddle import defuddle
+import re
+from hashlib import sha256
+from pathlib import Path
+from urllib.parse import urlparse
 
 from src.logging_ import logger
-from src.modules.search.common import open_browser_page, page_content
+from src.modules.search.common import open_browser_page, page_content, scripts_dir, site_paths
 from src.modules.search.extract_product_infos import extract_product_infos
+from src.modules.search.markdown_urls import compress_markdown_urls, save_url_map
 from src.modules.search.schemas import SearchParams, SearchResult, SearchResults, SearchSource, SourceType
 from src.modules.search.timing import TimingRecorder
+from src.modules.search.turndown_markdown import page_to_markdown
 
 
-async def fetch_page_html(url: str) -> str:
+async def fetch_page_content(url: str) -> tuple[str, str, str, str | None]:
     page = await open_browser_page()
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
-        return await page_content(page)
+        # await page.wait_for_timeout(5000)
+        html = await page_content(page)
+        markdown, title, favicon = await page_to_markdown(page, url)
+        return html, markdown, title, favicon
     finally:
-        await page.close()
+        # await page.close()
+        pass
 
 
-def html_to_markdown(html: str, url: str) -> tuple[str, str, str | None]:
-    result = defuddle(html, url=url)
-    title = (result.title or result.site_title or url).strip()
-    return result.markdown or "", title, result.favicon or None
+def _url_file_stem(url: str) -> str:
+    parsed = urlparse(url)
+    host = re.sub(r"[^\w.-]", "_", parsed.netloc or "unknown")
+    return f"{host}_{sha256(url.encode()).hexdigest()[:10]}"
+
+
+def _save_parse_artifacts(
+    url: str,
+    html: str,
+    markdown: str,
+    *,
+    compressed_markdown: str | None = None,
+    url_map: dict[str, str] | None = None,
+) -> None:
+    _, html_dir = site_paths("runet")
+    md_dir: Path = scripts_dir() / "out" / "runet" / "md"
+    stem = _url_file_stem(url)
+    html_dir.mkdir(parents=True, exist_ok=True)
+    md_dir.mkdir(parents=True, exist_ok=True)
+    html_path = html_dir / f"{stem}.html"
+    md_path = md_dir / f"{stem}.md"
+    html_path.write_text(html, encoding="utf-8")
+    md_path.write_text(markdown, encoding="utf-8")
+    logger.info("Saved HTML to %s", html_path)
+    logger.info("Saved markdown to %s", md_path)
+    if compressed_markdown is not None:
+        compressed_path = md_dir / f"{stem}.compressed.md"
+        compressed_path.write_text(compressed_markdown, encoding="utf-8")
+        logger.info("Saved compressed markdown to %s", compressed_path)
+    if url_map:
+        map_path = md_dir / f"{stem}.urls.json"
+        save_url_map(map_path, url_map)
+        logger.info("Saved URL map (%d entries) to %s", len(url_map), map_path)
 
 
 async def parse_url(url: str) -> SearchResults:
     request_timing = TimingRecorder.start()
 
     async with request_timing.stage("fetch_page"):
-        html = await fetch_page_html(url)
-    logger.info("Fetched %d bytes of HTML from %s", len(html), url)
+        html, markdown, source_title, favicon = await fetch_page_content(url)
+    logger.info("%s Fetched %d bytes of HTML", url, len(html))
+    logger.info("%s Turndown produced %d chars of markdown", url, len(markdown))
 
-    async with request_timing.stage("defuddle"):
-        markdown, source_title, favicon = await asyncio.to_thread(html_to_markdown, html, url)
-    logger.info("Defuddle produced %d chars of markdown", len(markdown))
+    url_map: dict[str, str] = {}
+    markdown_for_llm = markdown
+    if markdown:
+        markdown_for_llm, url_map = compress_markdown_urls(markdown)
+        logger.info(
+            "%s Compressed markdown for LLM: %d -> %d chars (%d URLs)",
+            url,
+            len(markdown),
+            len(markdown_for_llm),
+            len(url_map),
+        )
+    _save_parse_artifacts(
+        url,
+        html,
+        markdown,
+        compressed_markdown=markdown_for_llm if url_map else None,
+        url_map=url_map or None,
+    )
 
-    if len(markdown):
+    if markdown_for_llm:
         async with request_timing.stage("extract_products"):
-            products: list[SearchResult] = await asyncio.to_thread(extract_product_infos, markdown, url)
-        logger.info("Extracted %d products from %s", len(products), url)
+            products: list[SearchResult] = await asyncio.to_thread(
+                extract_product_infos,
+                markdown_for_llm,
+                url,
+                url_map,
+            )
+        logger.info("%s Extracted %d products", url, len(products))
     else:
         products = []
 

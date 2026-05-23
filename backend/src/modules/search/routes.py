@@ -86,7 +86,7 @@ async def search(search_params: SearchParams) -> SearchResults:
         tasks.append(run_yandex_market_parser(None, search_query, region=search_params.region))
     if run_runet:
         logger.info("Running Runet (Whoogle) parser for %r", search_query)
-        tasks.append(run_runet_parser(search_query))
+        tasks.append(run_runet_parser(search_query, region=search_params.region))
 
     if tasks:
         async with request_timing.stage("fetch_sources"):

@@ -195,12 +195,23 @@ def search_top_urls(query: str, limit: int = 5) -> list[str]:
     return list(title_map.values())
 
 
-async def run_runet_parser(query: str, *, limit: int = 5) -> tuple[list[SearchSource], None]:
+async def run_runet_parser(
+    query: str,
+    *,
+    limit: int = 5,
+    region: str | None = None,
+) -> tuple[list[SearchSource], None]:
     recorder = TimingRecorder.start()
 
+    whoogle_search_query = query
+    if "купить" not in query:
+        whoogle_search_query = "купить " + whoogle_search_query
+    if region:
+        whoogle_search_query = whoogle_search_query + " " + region
+
     async with recorder.stage("whoogle_search"):
-        urls = await asyncio.to_thread(search_top_urls, query, limit)
-    logger.info("Whoogle returned %d URLs for query %r", len(urls), query)
+        urls = await asyncio.to_thread(search_top_urls, whoogle_search_query, limit)
+    logger.info("Whoogle returned %d URLs for query %r", len(urls), whoogle_search_query)
 
     if not urls:
         return [], None
