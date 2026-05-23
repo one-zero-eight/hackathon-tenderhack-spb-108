@@ -59,6 +59,13 @@ export function ProductSourceDetails({
   )
   const canPaginate = pageCount > 1
 
+  const minPrice = group.products.reduce((min, product) => {
+    if (!product.price) return min
+    const price = Number.parseInt(product.price.replace(/\D/g, ''), 10)
+    if (Number.isNaN(price)) return min
+    return min === null ? price : Math.min(min, price)
+  }, null as number | null)
+
   return (
     <details className="group rounded-lg border border-slate-200 bg-white shadow-sm" open>
       <summary className="flex cursor-pointer list-none flex-col gap-4 px-4 py-4 marker:hidden sm:flex-row sm:items-center sm:justify-between">
@@ -72,6 +79,11 @@ export function ProductSourceDetails({
           <span className="min-w-0">
             <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="truncate text-base font-semibold text-slate-950">{group.title}</span>
+              {minPrice !== null && (
+                <span className="text-sm font-medium text-slate-900">
+                  от {minPrice.toLocaleString('ru-RU')} ₽
+                </span>
+              )}
               {queryResultLabel ? (
                 <span className="text-xs font-medium text-slate-500">{queryResultLabel}</span>
               ) : null}

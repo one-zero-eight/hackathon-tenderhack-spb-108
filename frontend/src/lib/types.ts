@@ -1,4 +1,4 @@
-import type { SearchSourceSource_type } from '@/api/openapi.gen'
+import type { SourceType } from '@/api/openapi.gen'
 
 export type Product = {
   title: string
@@ -11,7 +11,7 @@ export type Product = {
 }
 
 export type MarketplaceGroup = {
-  sourceType: SearchSourceSource_type
+  sourceType: SourceType
   title: string
   logoUrl: string
   sourceUrl: string
