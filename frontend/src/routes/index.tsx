@@ -12,9 +12,6 @@ import { Button } from '../components/ui/button'
 
 export const Route = createFileRoute('/')({ component: Home })
 
-const exampleSearchResults = JSON.parse(exampleSearchResultsRaw) as SchemaSearchResults
-const marketplaceGroups = exampleSearchResults.sources.map(mapSearchSourceToGroup)
-
 const MARKETPLACE_SOURCE_TYPES = [
   SourceType.yandex_market,
   SourceType.wildberries,
@@ -62,7 +59,7 @@ function Home() {
     }
   )
   const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup)
-  const visibleGroups = apiSourceGroups ?? marketplaceGroups
+  const visibleGroups = apiSourceGroups ?? []
   const typofixSuggestions =
     (searchResults as SearchResultsWithTypofix | undefined)?.typofix_suggestions ?? []
   const uniqueTypofixSuggestions = [
