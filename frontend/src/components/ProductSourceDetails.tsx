@@ -110,7 +110,7 @@ export function ProductSourceDetails({
         {group.products.length > 0 ? (
           <div className="flex flex-col gap-4">
             <div className="relative">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid min-h-[500px] gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {visibleProducts.map((product) => (
                   <article
                     className="overflow-hidden rounded-lg border border-slate-200 bg-white"
@@ -155,22 +155,30 @@ export function ProductSourceDetails({
               {canPaginate && currentPage > 0 && (
                 <button
                   aria-label="Назад"
-                  className="absolute -left-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-10 sm:-left-5"
-                  onClick={() => setPage((current) => Math.max(current - 1, 0))}
+                  className="absolute -left-3 top-[160px] flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-20 sm:-left-6"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setPage((current) => Math.max(current - 1, 0))
+                  }}
                   type="button"
                 >
-                  <ChevronLeft className="size-6 text-slate-900" />
+                  <ChevronLeft className="size-8 text-slate-900" />
                 </button>
               )}
 
               {canPaginate && currentPage < pageCount - 1 && (
                 <button
                   aria-label="Вперёд"
-                  className="absolute -right-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-10 sm:-right-5"
-                  onClick={() => setPage((current) => Math.min(current + 1, pageCount - 1))}
+                  className="absolute -right-3 top-[160px] flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-20 sm:-right-6"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setPage((current) => Math.min(current + 1, pageCount - 1))
+                  }}
                   type="button"
                 >
-                  <ChevronRight className="size-6 text-slate-900" />
+                  <ChevronRight className="size-8 text-slate-900" />
                 </button>
               )}
             </div>
