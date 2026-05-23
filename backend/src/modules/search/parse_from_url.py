@@ -38,9 +38,12 @@ async def parse_url(url: str) -> SearchResults:
         markdown, source_title, favicon = await asyncio.to_thread(html_to_markdown, html, url)
     logger.info("Defuddle produced %d chars of markdown", len(markdown))
 
-    async with request_timing.stage("extract_products"):
-        products: list[SearchResult] = await asyncio.to_thread(extract_product_infos, markdown, url)
-    logger.info("Extracted %d products from %s", len(products), url)
+    if len(markdown):
+        async with request_timing.stage("extract_products"):
+            products: list[SearchResult] = await asyncio.to_thread(extract_product_infos, markdown, url)
+        logger.info("Extracted %d products from %s", len(products), url)
+    else:
+        products = []
 
     return SearchResults(
         original_params=SearchParams(query=url),
