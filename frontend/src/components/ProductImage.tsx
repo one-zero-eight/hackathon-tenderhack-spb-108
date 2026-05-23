@@ -1,6 +1,9 @@
 import { ImageOff } from 'lucide-react'
 import { useEffect, useState, type MouseEvent } from 'react'
 
+const MAX_GALLERY_IMAGES = 6
+const DOT_SHIFT_PX = 6
+
 export function ProductImage({
   primarySrc,
   gallerySrcs,
@@ -10,21 +13,26 @@ export function ProductImage({
   gallerySrcs: string[]
   alt: string
 }) {
+  const visibleGallerySrcs = gallerySrcs.slice(0, MAX_GALLERY_IMAGES)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const [failedSrcs, setFailedSrcs] = useState<string[]>([])
+  const [isHovered, setIsHovered] = useState(false)
 
   useEffect(() => {
     setActiveIndex(null)
     setFailedSrcs([])
+    setIsHovered(false)
   }, [primarySrc, gallerySrcs])
 
   const activeGallerySrc =
-    activeIndex !== null && gallerySrcs[activeIndex] ? gallerySrcs[activeIndex] : null
+    activeIndex !== null && visibleGallerySrcs[activeIndex] ? visibleGallerySrcs[activeIndex] : null
   const safePrimarySrc = primarySrc && !failedSrcs.includes(primarySrc) ? primarySrc : null
   const safeActiveGallerySrc =
     activeGallerySrc && !failedSrcs.includes(activeGallerySrc) ? activeGallerySrc : null
   const displayedSrc = safeActiveGallerySrc ?? safePrimarySrc
-  const hasGallery = gallerySrcs.length > 0
+  const hasGallery = visibleGallerySrcs.length > 0
+  const indicatorOffset =
+    activeIndex === null ? 0 : ((visibleGallerySrcs.length - 1) / 2 - activeIndex) * DOT_SHIFT_PX
 
   const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
     if (!hasGallery) return
@@ -34,14 +42,20 @@ export function ProductImage({
 
     const relativeX = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width)
     const nextIndex = Math.min(
-      gallerySrcs.length - 1,
-      Math.floor((relativeX / bounds.width) * gallerySrcs.length)
+      visibleGallerySrcs.length - 1,
+      Math.floor((relativeX / bounds.width) * visibleGallerySrcs.length)
     )
 
     setActiveIndex((currentIndex) => (currentIndex === nextIndex ? currentIndex : nextIndex))
   }
 
+  const handleMouseEnter = () => {
+    if (!hasGallery) return
+    setIsHovered(true)
+  }
+
   const handleMouseLeave = () => {
+    setIsHovered(false)
     setActiveIndex(null)
   }
 
@@ -56,7 +70,8 @@ export function ProductImage({
 
   return (
     <div
-      className="h-80 w-full bg-white"
+      className="group relative h-80 w-full overflow-hidden bg-white"
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseMove={handleMouseMove}
     >
@@ -71,6 +86,30 @@ export function ProductImage({
         }}
         src={displayedSrc}
       />
+      {hasGallery ? (
+        <div
+          className={`pointer-events-none absolute inset-x-0 bottom-3 flex justify-center transition-opacity duration-200 ${
+            isHovered ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <div
+            className="flex items-center gap-2 rounded-full bg-black/10 px-3 py-1.5 backdrop-blur-sm transition-transform duration-200"
+            style={{
+              transform: `translateX(${indicatorOffset}px)`
+            }}
+          >
+            {visibleGallerySrcs.map((src, index) => (
+              <span
+                aria-hidden="true"
+                className={`block rounded-full bg-white transition-all duration-200 ${
+                  activeIndex === index ? 'h-2.5 w-2.5 scale-125 opacity-100' : 'h-2 w-2 opacity-80'
+                }`}
+                key={src}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
