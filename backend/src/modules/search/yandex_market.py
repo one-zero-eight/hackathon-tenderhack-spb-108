@@ -23,6 +23,7 @@ from .common import (
     run_site_parser,
 )
 from .details import enrich_product_characteristics, specs_from_raw
+from .region_geo import get_city_geo, make_yandex_setup_page
 from .typofix import parse_yandex_market_typofix
 
 _YANDEX_DETAIL_SPECS_JS = """() => {
@@ -96,7 +97,6 @@ CHECK_CAPTCHA = (
     " || document.getElementsByClassName('CheckboxCaptcha').length == 1"
 )
 HEADLESS_ENV = "YANDEX_MARKET_HEADLESS"
-CITY_LR = "2"
 
 _WAIT_ELEMENT_TEMPLATE = r"""var filters = "{\"resale_goods\":\"resale_new\"";
 
@@ -275,15 +275,17 @@ def _yandex_product_link(zone: dict, card_links: dict[str, str]) -> str | None:
 def _build_search_url(
     user_input: str,
     *,
+    geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> str:
     encoded = quote_plus(user_input)
     min_filter = build_price_filter("&pricefrom=[minPrice]", min_price=min_price, max_price=max_price)
     max_filter = build_price_filter("&priceto=[maxPrice]", min_price=min_price, max_price=max_price)
+    lr = f"&lr={geo.yandex_lr}" if geo else ""
     return (
         f"https://market.yandex.ru/search?text={encoded}"
-        f"&lr={CITY_LR}&resale_goods=resale_new&cvredirect=1"
+        f"{lr}&resale_goods=resale_new&cvredirect=1"
         f"{min_filter}{max_filter}"
     )
 
@@ -291,10 +293,11 @@ def _build_search_url(
 def _build_actions(
     user_input: str,
     *,
+    geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
-    search_url = _build_search_url(user_input, min_price=min_price, max_price=max_price)
+    search_url = _build_search_url(user_input, geo=geo, min_price=min_price, max_price=max_price)
     wait_script = (
         _WAIT_ELEMENT_TEMPLATE.replace("__SEARCH_TEXT__", json.dumps(user_input))
         .replace("__PRE_ID__", RESULT_PRE_ID)
@@ -481,24 +484,27 @@ async def run_yandex_market_parser(
     context,
     user_input: str,
     *,
+    region: str | None = None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> tuple[SearchSource, str | None]:
     """Run Yandex Market search and return parsed products."""
+    geo = get_city_geo(region)
     results, timing, typofix = await run_site_parser(
         context,
         site_name=SITE,
-        actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
+        actions=_build_actions(user_input, geo=geo, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
         parse_typofix=parse_yandex_market_typofix,
         original_query=user_input,
         check_captcha_expr=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
         enrich_characteristics=_enrich_yandex_characteristics,
+        setup_page=make_yandex_setup_page(geo) if geo else None,
     )
     return SearchSource(
         source_type="yandex_market",
-        source_url=_build_search_url(user_input, min_price=min_price, max_price=max_price),
+        source_url=_build_search_url(user_input, geo=geo, min_price=min_price, max_price=max_price),
         source_title="Яндекс Маркет",
         source_favicon_url=None,
         results=results,

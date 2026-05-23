@@ -14,7 +14,7 @@ class SearchParams(BaseModel):
     query: str
     "User search input"
     region: str | None = None
-    "Region name. None means all regions"
+    "Regional capital city name (from regions.ts). None — no geo override"
     source_types: list[SourceType] | None = None
     "Source types to search in. None means all sources, [] means all sources"
     short: bool = False

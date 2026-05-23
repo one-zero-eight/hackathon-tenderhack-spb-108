@@ -8,6 +8,7 @@ from src.logging_ import logger
 from src.modules.search.common import get_browser_context
 from src.modules.search.ozon import run_ozon_parser
 from src.modules.search.parse_from_url import parse_url
+from src.modules.search.region_geo import get_city_geo
 from src.modules.search.schemas import (
     SearchParams,
     SearchResults,
@@ -38,6 +39,8 @@ async def search(search_params: SearchParams) -> SearchResults:
     Search for products.
     """
     logger.info(f"Running search for {search_params}")
+    if search_params.region and get_city_geo(search_params.region) is None:
+        logger.warning("Unknown region city %r — geo override skipped", search_params.region)
 
     request_timing = TimingRecorder.start()
     context = await get_browser_context()
@@ -45,21 +48,21 @@ async def search(search_params: SearchParams) -> SearchResults:
     run_yandex_market = not search_params.source_types or SourceType.yandex_market in search_params.source_types
     if run_yandex_market:
         logger.info("Running Yandex Market parser")
-        yandex_market_task = run_yandex_market_parser(context, search_params.query)
+        yandex_market_task = run_yandex_market_parser(context, search_params.query, region=search_params.region)
     else:
         yandex_market_task = None
 
     run_wildberries = not search_params.source_types or SourceType.wildberries in search_params.source_types
     if run_wildberries:
         logger.info("Running Wildberries parser")
-        wildberries_task = run_wildberries_parser(context, search_params.query)
+        wildberries_task = run_wildberries_parser(context, search_params.query, region=search_params.region)
     else:
         wildberries_task = None
 
     run_ozon = not search_params.source_types or SourceType.ozon in search_params.source_types
     if run_ozon:
         logger.info("Running Ozon parser")
-        ozon_task = run_ozon_parser(context, search_params.query)
+        ozon_task = run_ozon_parser(context, search_params.query, region=search_params.region)
     else:
         ozon_task = None
 

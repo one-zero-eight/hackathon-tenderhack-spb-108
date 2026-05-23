@@ -22,6 +22,12 @@ from .common import (
     run_site_parser,
 )
 from .details import enrich_product_characteristics
+from .region_geo import (
+    get_city_geo,
+    ozon_geo_url,
+    ozon_map_viewport_body,
+    ozon_pick_pvz_script,
+)
 from .typofix import parse_ozon_typofix
 
 SITE = "ozon"
@@ -36,11 +42,25 @@ CHECK_CAPTCHA = (
     "})()"
 )
 HEADLESS_ENV = "OZON_HEADLESS"
-CITY_INFO = ""
+
+_SAVE_PVZ_SCRIPT = r"""const btn = [...document.querySelectorAll('button')].find(
+  b => /сохран/i.test(b.innerText)
+);
+if (btn) {
+  btn.click();
+  return true;
+}
+return false;"""
 
 _GEO_SCRIPT_TEMPLATE = r"""var cityInfoStr = __CITY_INFO__;
 var cityInfo = cityInfoStr.split('/');
 
+if (cityInfo.length == 1) {
+  var ppMatch = location.pathname.match(/\/geo\/[^/]+\/(\d+)\//);
+  if (ppMatch) {
+    cityInfo.push(ppMatch[1]);
+  }
+}
 if (cityInfo.length == 1) {
     return Promise.resolve(true);
 }
@@ -51,7 +71,7 @@ return fetch("https://www.ozon.ru/api/entrypoint-api.bx/page/json/v2?url=%2Fgeo%
     "content-type": "application/json",
     "cookie": document.cookie
   },
-  "body": "{\"geolocation\":{\"coords\":{},\"isAvailable\":false},\"form\":{},\"map\":{\"viewport\":{\"leftBottom\":{\"latitude\":54.70878018455491,\"longitude\":20.523989796638492},\"rightTop\":{\"latitude\":54.71124707185298,\"longitude\":20.534600615501407}},\"zoom\":17,\"previousCoordinates\":null},\"mapInfo\":{\"geoSessionId\":\"ac3d569a-3dd5-4e65-a5ea-d99b34577b6e\",\"preferredGeoProviders\":{\"suggest\":[\"maps_selfsuggest\",\"yandex\"],\"geocode\":[\"maps_selfsuggest\",\"yandex\"],\"revGeocode\":[\"maps_selfsuggest\",\"yandex\"]}}}",
+  "body": __MAP_BODY__,
   "method": "POST",
   "mode": "cors",
   "credentials": "include"
@@ -119,18 +139,63 @@ def _build_search_url(query: str) -> str:
 def _build_actions(
     query: str,
     *,
+    geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
     search_url = _build_search_url(query)
-    geo_script = _GEO_SCRIPT_TEMPLATE.replace("__CITY_INFO__", json.dumps(CITY_INFO))
-    return [
-        {"type": "url", "data": search_url},
-        {"type": "wait", "data": "5000"},
-        {"type": "waitElement", "data": geo_script, "wait_for": ""},
-        {"type": "url", "data": _search_api_url(query, min_price=min_price, max_price=max_price)},
-        {"type": "wait", "data": "3000"},
-    ]
+    actions: list[dict[str, str]] = []
+
+    if geo and geo.ozon_slug:
+        geo_url = ozon_geo_url(geo)
+        if geo_url:
+            actions.extend(
+                [
+                    {"type": "url", "data": geo_url},
+                    {"type": "wait", "data": "3000"},
+                ]
+            )
+            if not geo.ozon_pp:
+                actions.extend(
+                    [
+                        {
+                            "type": "script",
+                            "data": ozon_pick_pvz_script(geo),
+                            "expects_navigation": "true",
+                        },
+                        {"type": "wait", "data": "2000"},
+                    ]
+                )
+            actions.extend(
+                [
+                    {
+                        "type": "script",
+                        "data": _SAVE_PVZ_SCRIPT,
+                        "expects_navigation": "false",
+                    },
+                    {"type": "wait", "data": "2000"},
+                ]
+            )
+
+    city_info = geo.ozon_slug if geo and geo.ozon_slug else ""
+    map_body = json.dumps(ozon_map_viewport_body(geo)) if geo else "{}"
+    geo_script = _GEO_SCRIPT_TEMPLATE.replace("__CITY_INFO__", json.dumps(city_info)).replace("__MAP_BODY__", map_body)
+
+    actions.extend(
+        [
+            {"type": "url", "data": search_url},
+            {"type": "wait", "data": "5000"},
+        ]
+    )
+    if geo and geo.ozon_slug:
+        actions.append({"type": "waitElement", "data": geo_script, "wait_for": ""})
+    actions.extend(
+        [
+            {"type": "url", "data": _search_api_url(query, min_price=min_price, max_price=max_price)},
+            {"type": "wait", "data": "3000"},
+        ]
+    )
+    return actions
 
 
 def _parse_widget_states(data: dict, products: list[SearchResult]) -> None:
@@ -429,14 +494,16 @@ async def run_ozon_parser(
     context,
     user_input: str,
     *,
+    region: str | None = None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> tuple[SearchSource, str | None]:
     """Run Ozon search and return parsed products."""
+    geo = get_city_geo(region)
     results, timing, typofix = await run_site_parser(
         context,
         site_name=SITE,
-        actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
+        actions=_build_actions(user_input, geo=geo, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
         parse_typofix=parse_ozon_typofix,
         original_query=user_input,

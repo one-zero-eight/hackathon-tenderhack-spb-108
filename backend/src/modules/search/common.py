@@ -202,6 +202,7 @@ async def run_site_parser(
     original_query: str | None = None,
     locale: str = "ru-RU",
     block_images: bool = True,
+    setup_page: Callable | None = None,
 ) -> tuple[list[SearchResult], SourceTiming, str | None]:
     recorder = TimingRecorder.start()
     _, out_dir = site_paths(site_name)
@@ -211,6 +212,9 @@ async def run_site_parser(
         page = await context.new_page()
         if not headless:
             logger.info("Browser running headful — captcha can be solved manually")
+
+        if setup_page is not None:
+            await setup_page(page)
 
         if block_images:
             await page.route(

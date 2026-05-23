@@ -20,6 +20,7 @@ from .common import (
     run_site_parser,
 )
 from .details import enrich_product_characteristics, parse_specs_table_html, specs_from_raw
+from .region_geo import get_city_geo, make_wb_setup_page
 from .typofix import parse_wildberries_typofix
 
 _WB_DETAIL_SPECS_JS = """() => {
@@ -74,7 +75,6 @@ _DISMISS_BLOCKING_DRAWER_JS = f"() => {{ {_DISMISS_BLOCKING_DRAWER_STMTS} }}"
 SITE = "wildberries"
 CHECK_CAPTCHA = "document.querySelector('#wait_msg') != null || document.querySelector('.support-title') != null"
 HEADLESS_ENV = "WILDBERRIES_HEADLESS"
-DEST = "-1198055"
 
 _WAIT_QUERY_ID = r"""function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -125,8 +125,8 @@ var priceFilter = __PRICE_FILTER_JS__;
 
 const queryId = document.querySelector('#queryId');
 const powToken = document.querySelector('#powToken') ? document.querySelector('#powToken').textContent : null;
-const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&dest=__DEST__&hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=__QUERY_ENC__&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false";
-const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?search=__QUERY_ENC__";
+const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&__DEST_PARAM__hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=__QUERY_ENC__&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false";
+const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?__DEST_PARAM__search=__QUERY_ENC__";
 
 let headers;
 if (queryId && queryId.textContent != '' && powToken) {
@@ -418,21 +418,28 @@ def _wb_price_filter_js(
     return json.dumps(build_price_filter("&priceU=[minPrice];[maxPrice]", min_price=min_price, max_price=max_price))
 
 
-def _build_search_url(query: str) -> str:
+def _dest_query(geo) -> str:
+    return f"dest={geo.wb_dest}&" if geo else ""
+
+
+def _build_search_url(query: str, *, geo=None) -> str:
     encoded = encode_query(query)
-    return f"https://www.wildberries.ru/catalog/0/search.aspx?page=1&search={encoded}"
+    dest = _dest_query(geo)
+    return f"https://www.wildberries.ru/catalog/0/search.aspx?page=1&{dest}search={encoded}"
 
 
 def _build_actions(
     query: str,
     *,
+    geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
-    search_url = _build_search_url(query)
+    search_url = _build_search_url(query, geo=geo)
+    dest_param = _dest_query(geo)
     fetch_script = (
         _WAIT_FETCH_TEMPLATE.replace("__PRE_ID__", RESULT_PRE_ID)
-        .replace("__DEST__", DEST)
+        .replace("__DEST_PARAM__", dest_param)
         .replace("__QUERY_ENC__", quote(query))
         .replace("__PRICE_FILTER_JS__", _wb_price_filter_js(min_price, max_price))
     )
@@ -604,24 +611,27 @@ async def run_wildberries_parser(
     context,
     user_input: str,
     *,
+    region: str | None = None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> tuple[SearchSource, str | None]:
     """Run Wildberries search and return parsed products."""
+    geo = get_city_geo(region)
     results, timing, typofix = await run_site_parser(
         context,
         site_name=SITE,
-        actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
+        actions=_build_actions(user_input, geo=geo, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
         parse_typofix=parse_wildberries_typofix,
         original_query=user_input,
         check_captcha_expr=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
         enrich_characteristics=_enrich_wb_characteristics,
+        setup_page=make_wb_setup_page(geo) if geo else None,
     )
     return SearchSource(
         source_type="wildberries",
-        source_url=_build_search_url(user_input),
+        source_url=_build_search_url(user_input, geo=geo),
         source_title="Wildberries",
         source_favicon_url=None,
         results=results,
