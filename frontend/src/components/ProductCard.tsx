@@ -57,7 +57,11 @@ export function ProductCard({
 }) {
   return (
     <article className={`overflow-hidden rounded-lg border border-slate-200 bg-white ${className}`}>
-      <ProductImage alt={product.name} src={product.image_link ?? null} />
+      <ProductImage
+        alt={product.name}
+        gallerySrcs={product.image_links ?? []}
+        primarySrc={product.image_link ?? null}
+      />
       <div className="flex flex-col gap-3 p-4">
         {product.product_link ? (
           <a
