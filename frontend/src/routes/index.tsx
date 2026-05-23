@@ -7,7 +7,7 @@ import { LoaderCircle, Search } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import exampleSearchResultsRaw from '../../example.json?raw'
 import { $api } from '../api'
-import type { SchemaSearchResults, SearchSourceSource_type } from '../api/openapi.gen'
+import { type SchemaSearchResults, SourceType } from '../api/openapi.gen'
 import { Button } from '../components/ui/button'
 
 export const Route = createFileRoute('/')({ component: Home })
@@ -15,8 +15,18 @@ export const Route = createFileRoute('/')({ component: Home })
 const exampleSearchResults = JSON.parse(exampleSearchResultsRaw) as SchemaSearchResults
 const marketplaceGroups = exampleSearchResults.sources.map(mapSearchSourceToGroup)
 
+const MARKETPLACE_SOURCE_TYPES = [
+  SourceType.yandex_market,
+  SourceType.wildberries,
+  SourceType.ozon
+] as const
+
+function sourceTypesForRunetSearch(extendedRunetSearch: boolean): SourceType[] | null {
+  return extendedRunetSearch ? null : [...MARKETPLACE_SOURCE_TYPES]
+}
+
 type TypofixSuggestion = {
-  source: SearchSourceSource_type
+  source: SourceType
   suggestion: string
 }
 
@@ -29,8 +39,10 @@ function Home() {
   const [searchParams, setSearchParams] = useState<{
     query: string
     region: string | null
+    source_types: SourceType[] | null
   } | null>(null)
   const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS)
+  const [extendedRunetSearch, setExtendedRunetSearch] = useState(false)
   const {
     data: searchResults,
     error,
@@ -41,7 +53,8 @@ function Home() {
     {
       body: searchParams ?? {
         query: '',
-        region: null
+        region: null,
+        source_types: sourceTypesForRunetSearch(extendedRunetSearch)
       }
     },
     {
@@ -76,7 +89,8 @@ function Home() {
 
     setSearchParams({
       query,
-      region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion]
+      region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
+      source_types: sourceTypesForRunetSearch(extendedRunetSearch)
     })
   }
 
@@ -115,7 +129,26 @@ function Home() {
 
           <RegionDropdown onSelect={setSelectedRegion} selectedRegion={selectedRegion} />
 
-          <div className="flex flex-col justify-end">
+          <div className="flex flex-col justify-end gap-3">
+            <label className="flex cursor-pointer items-center justify-between gap-3">
+              <span className="text-sm font-medium text-slate-700">Расширенный поиск по Рунету</span>
+              <span className="relative inline-flex h-6 w-11 shrink-0">
+                <input
+                  checked={extendedRunetSearch}
+                  className="peer sr-only"
+                  onChange={(event) => setExtendedRunetSearch(event.target.checked)}
+                  type="checkbox"
+                />
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-slate-200 transition peer-focus-visible:ring-2 peer-focus-visible:ring-slate-900/10 peer-checked:bg-slate-900"
+                />
+                <span
+                  aria-hidden="true"
+                  className="absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition peer-checked:translate-x-5"
+                />
+              </span>
+            </label>
             <Button
               className="h-11 w-full gap-2 px-4 text-sm md:min-w-32"
               disabled={isSearchDisabled}

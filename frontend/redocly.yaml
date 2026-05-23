@@ -1,5 +1,6 @@
 apis:
   api:
-    root: https://spb.arbul.ru/api/openapi.json
+    #    root: https://spb.arbul.ru/api/openapi.json
+    root: http://localhost:8000/openapi.json
     x-openapi-ts:
       output: ./src/api/openapi.gen.ts

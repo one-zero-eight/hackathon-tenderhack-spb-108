@@ -24,6 +24,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search/test-search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Search
+         * @description Search via Whoogle, then parse products from the top result pages in parallel.
+         */
+        post: operations["test_search_search_test_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search/test-parse-from-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parse From Url
+         * @description Fetch a page by URL, extract catalog markdown, and parse products.
+         */
+        post: operations["parse_from_url_search_test_parse_from_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -33,12 +73,41 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ProductTiming */
+        ProductTiming: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Started At */
+            started_at: string;
+            /** Ended At */
+            ended_at: string;
+            /** Stages */
+            stages?: components["schemas"]["StageTiming"][];
+        };
+        /** RequestTiming */
+        RequestTiming: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Started At */
+            started_at: string;
+            /** Ended At */
+            ended_at: string;
+            /** Stages */
+            stages?: components["schemas"]["StageTiming"][];
+        };
         /** SearchParams */
         SearchParams: {
             /** Query */
             query: string;
             /** Region */
-            region: string | null;
+            region?: string | null;
+            /** Source Types */
+            source_types?: components["schemas"]["SourceType"][] | null;
+            /**
+             * Short
+             * @default false
+             */
+            short: boolean;
         };
         /** SearchResult */
         SearchResult: {
@@ -48,24 +117,30 @@ export interface components {
             characteristics?: {
                 [key: string]: string;
             };
+            /** Product Link */
+            product_link?: string | null;
             /** Price */
-            price: string | null;
+            price?: string | null;
             /** Image Link */
-            image_link: string | null;
+            image_link?: string | null;
+            /** Rating */
+            rating?: string | null;
+            /** Reviews */
+            reviews?: string | null;
+            timing?: components["schemas"]["ProductTiming"] | null;
         };
         /** SearchResults */
         SearchResults: {
             original_params: components["schemas"]["SearchParams"];
+            /** Typofix Suggestions */
+            typofix_suggestions?: components["schemas"]["TypofixSuggestion"][];
             /** Sources */
             sources: components["schemas"]["SearchSource"][];
+            timing?: components["schemas"]["RequestTiming"] | null;
         };
         /** SearchSource */
         SearchSource: {
-            /**
-             * Source Type
-             * @enum {string}
-             */
-            source_type: SearchSourceSource_type;
+            source_type: components["schemas"]["SourceType"];
             /** Source Url */
             source_url: string;
             /** Source Title */
@@ -74,6 +149,40 @@ export interface components {
             source_favicon_url: string | null;
             /** Results */
             results: components["schemas"]["SearchResult"][];
+            timing?: components["schemas"]["SourceTiming"] | null;
+        };
+        /** SourceTiming */
+        SourceTiming: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Started At */
+            started_at: string;
+            /** Ended At */
+            ended_at: string;
+            /** Stages */
+            stages?: components["schemas"]["StageTiming"][];
+        };
+        /**
+         * SourceType
+         * @enum {string}
+         */
+        SourceType: SourceType;
+        /** StageTiming */
+        StageTiming: {
+            /** Name */
+            name: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Started At */
+            started_at: string;
+            /** Ended At */
+            ended_at: string;
+        };
+        /** TypofixSuggestion */
+        TypofixSuggestion: {
+            source: components["schemas"]["SourceType"];
+            /** Suggestion */
+            suggestion: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -96,10 +205,15 @@ export interface components {
     pathItems: never;
 }
 export type SchemaHttpValidationError = components['schemas']['HTTPValidationError'];
+export type SchemaProductTiming = components['schemas']['ProductTiming'];
+export type SchemaRequestTiming = components['schemas']['RequestTiming'];
 export type SchemaSearchParams = components['schemas']['SearchParams'];
 export type SchemaSearchResult = components['schemas']['SearchResult'];
 export type SchemaSearchResults = components['schemas']['SearchResults'];
 export type SchemaSearchSource = components['schemas']['SearchSource'];
+export type SchemaSourceTiming = components['schemas']['SourceTiming'];
+export type SchemaStageTiming = components['schemas']['StageTiming'];
+export type SchemaTypofixSuggestion = components['schemas']['TypofixSuggestion'];
 export type SchemaValidationError = components['schemas']['ValidationError'];
 export type $defs = Record<string, never>;
 export interface operations {
@@ -136,8 +250,70 @@ export interface operations {
             };
         };
     };
+    test_search_search_test_search_post: {
+        parameters: {
+            query: {
+                query: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Found products */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResults"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parse_from_url_search_test_parse_from_url_post: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Found products */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResults"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
 }
-export enum SearchSourceSource_type {
+export enum SourceType {
     yandex_market = "yandex_market",
     wildberries = "wildberries",
     ozon = "ozon",
