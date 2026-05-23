@@ -35,16 +35,17 @@ def enrich_product_characteristics(
     site_name: str,
     limit: int = DETAIL_CHARACTERISTICS_LIMIT,
 ) -> None:
-    enriched = 0
+    attempted = 0
     for product in products:
-        if enriched >= limit:
+        if attempted >= limit:
             break
         if not product.product_link:
             continue
+        attempted += 1
         logger.info(
             "Loading detail page for %s (%d/%d): %s",
             site_name,
-            enriched + 1,
+            attempted,
             limit,
             product.name[:60],
         )
@@ -62,5 +63,4 @@ def enrich_product_characteristics(
                 continue
         if specs:
             product.characteristics = specs
-            enriched += 1
             logger.info("Got %d characteristics for %s", len(specs), product.name[:60])

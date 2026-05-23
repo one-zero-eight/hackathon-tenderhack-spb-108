@@ -38,7 +38,9 @@ export interface components {
             /** Query */
             query: string;
             /** Region */
-            region: string | null;
+            region?: string | null;
+            /** Source Types */
+            source_types?: components["schemas"]["SourceType"][] | null;
         };
         /** SearchResult */
         SearchResult: {
@@ -48,10 +50,16 @@ export interface components {
             characteristics?: {
                 [key: string]: string;
             };
+            /** Product Link */
+            product_link?: string | null;
             /** Price */
-            price: string | null;
+            price?: string | null;
             /** Image Link */
-            image_link: string | null;
+            image_link?: string | null;
+            /** Rating */
+            rating?: string | null;
+            /** Reviews */
+            reviews?: string | null;
         };
         /** SearchResults */
         SearchResults: {
@@ -61,11 +69,7 @@ export interface components {
         };
         /** SearchSource */
         SearchSource: {
-            /**
-             * Source Type
-             * @enum {string}
-             */
-            source_type: SearchSourceSource_type;
+            source_type: components["schemas"]["SourceType"];
             /** Source Url */
             source_url: string;
             /** Source Title */
@@ -75,6 +79,11 @@ export interface components {
             /** Results */
             results: components["schemas"]["SearchResult"][];
         };
+        /**
+         * SourceType
+         * @enum {string}
+         */
+        SourceType: SourceType;
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -137,7 +146,7 @@ export interface operations {
         };
     };
 }
-export enum SearchSourceSource_type {
+export enum SourceType {
     yandex_market = "yandex_market",
     wildberries = "wildberries",
     ozon = "ozon",

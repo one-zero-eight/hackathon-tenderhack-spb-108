@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronDown, Search } from "lucide-react";
+import { $api } from "../api";
+import type { SchemaSearchSource } from "../api/openapi.gen";
 
 export const Route = createFileRoute("/")({ component: Home });
 
 type Product = {
   title: string;
-  image: string;
+  image: string | null;
   characteristics: string[];
+  productLink?: string | null;
+  price?: string | null;
+  rating?: string | null;
+  reviews?: string | null;
 };
 
 type MarketplaceGroup = {
@@ -17,9 +23,10 @@ type MarketplaceGroup = {
 };
 
 const OTHER_SOURCES_STEP = 10;
+const ALL_REGIONS = "Все регионы";
 
 const regions = [
-  "Все регионы",
+  ALL_REGIONS,
   "Алтайский край",
   "Амурская область",
   "Архангельская область",
@@ -507,16 +514,48 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
                 className="overflow-hidden rounded-lg border border-slate-200 bg-white"
                 key={product.title}
               >
-                <img
-                  alt={product.title}
-                  className="h-44 w-full object-cover"
-                  loading="lazy"
-                  src={product.image}
-                />
+                {product.image ? (
+                  <img
+                    alt={product.title}
+                    className="h-44 w-full object-cover"
+                    loading="lazy"
+                    src={product.image}
+                  />
+                ) : (
+                  <div className="flex h-44 items-center justify-center bg-slate-100 text-sm text-slate-500">
+                    Нет изображения
+                  </div>
+                )}
                 <div className="flex flex-col gap-3 p-4">
-                  <h3 className="text-base font-semibold leading-6 text-slate-950">
-                    {product.title}
-                  </h3>
+                  {product.productLink ? (
+                    <a
+                      className="text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                      href={product.productLink}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {product.title}
+                    </a>
+                  ) : (
+                    <h3 className="text-base font-semibold leading-6 text-slate-950">
+                      {product.title}
+                    </h3>
+                  )}
+                  {product.price ? (
+                    <p className="text-sm font-medium text-slate-900">
+                      {product.price}
+                    </p>
+                  ) : null}
+                  {product.rating || product.reviews ? (
+                    <p className="text-sm text-slate-600">
+                      {[
+                        product.rating ? `Рейтинг: ${product.rating}` : null,
+                        product.reviews,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : null}
                   <ul className="space-y-1 text-sm text-slate-600">
                     {product.characteristics.map((characteristic) => (
                       <li
@@ -541,23 +580,75 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
   );
 }
 
+function mapSearchSourceToGroup(source: SchemaSearchSource): MarketplaceGroup {
+  return {
+    title: source.source_title,
+    logoUrl:
+      source.source_favicon_url ??
+      `https://www.google.com/s2/favicons?domain=${source.source_url}&sz=64`,
+    products: source.results.map((result) => ({
+      title: result.name,
+      image: result.image_link ?? null,
+      characteristics: Object.entries(result.characteristics ?? {}).map(
+        ([name, value]) => `${name}: ${value}`,
+      ),
+      productLink: result.product_link,
+      price: result.price,
+      rating: result.rating,
+      reviews: result.reviews,
+    })),
+  };
+}
+
 function Home() {
-  const [selectedRegion, setSelectedRegion] = useState("Все регионы");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchParams, setSearchParams] = useState<{
+    query: string;
+    region: string | null;
+  } | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState(ALL_REGIONS);
   const [visibleOtherSources, setVisibleOtherSources] =
     useState(OTHER_SOURCES_STEP);
+  const { data: searchResults, error, isFetching } = $api.useQuery(
+    "post",
+    "/search/search",
+    {
+      body: searchParams ?? {
+        query: "",
+        region: null,
+      },
+    },
+    {
+      enabled: searchParams !== null,
+    },
+  );
+  const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup);
+  const visibleGroups = apiSourceGroups ?? marketplaceGroups;
+  const otherGroups = apiSourceGroups ? [] : otherSourceGroups;
 
-  const visibleOtherSourceGroups = otherSourceGroups.slice(
+  const visibleOtherSourceGroups = otherGroups.slice(
     0,
     visibleOtherSources,
   );
   const hiddenOtherSourcesCount = Math.max(
-    otherSourceGroups.length - visibleOtherSources,
+    otherGroups.length - visibleOtherSources,
     0,
   );
   const totalProducts = [
-    ...marketplaceGroups,
-    ...otherSourceGroups,
+    ...visibleGroups,
+    ...otherGroups,
   ].reduce((sum, group) => sum + group.products.length, 0);
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchInput.trim();
+
+    if (!query) return;
+
+    setSearchParams({
+      query,
+      region: selectedRegion === ALL_REGIONS ? null : selectedRegion,
+    });
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
@@ -570,9 +661,10 @@ function Home() {
           </div>
         </header>
 
-        <section
+        <form
           aria-label="Фильтры каталога"
           className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_320px]"
+          onSubmit={handleSearchSubmit}
         >
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-slate-700">
@@ -585,8 +677,10 @@ function Home() {
               />
               <input
                 className="h-11 w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Введите товар или характеристику"
                 type="search"
+                value={searchInput}
               />
             </span>
           </label>
@@ -595,7 +689,7 @@ function Home() {
             onSelect={setSelectedRegion}
             selectedRegion={selectedRegion}
           />
-        </section>
+        </form>
 
         <section className="flex flex-col gap-4" aria-label="Источники товаров">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -606,17 +700,27 @@ function Home() {
               <p className="text-sm text-slate-600">Регион: {selectedRegion}</p>
             </div>
             <p className="text-sm text-slate-500">
-              Найдено товаров: {totalProducts}
+              {isFetching
+                ? "Идёт поиск..."
+                : `Найдено товаров: ${totalProducts}`}
             </p>
           </div>
 
-          {marketplaceGroups.map((group) => (
+          {error ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Не удалось выполнить поиск. Попробуйте ещё раз.
+            </p>
+          ) : null}
+
+          {visibleGroups.map((group) => (
             <ProductSourceDetails group={group} key={group.title} />
           ))}
 
-          <h2 className="pt-3 text-xl font-semibold text-slate-950">
-            Другие источники
-          </h2>
+          {otherGroups.length > 0 ? (
+            <h2 className="pt-3 text-xl font-semibold text-slate-950">
+              Другие источники
+            </h2>
+          ) : null}
 
           {visibleOtherSourceGroups.map((group) => (
             <ProductSourceDetails group={group} key={group.title} />
