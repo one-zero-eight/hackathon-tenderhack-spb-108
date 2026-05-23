@@ -8,7 +8,12 @@ import type {
   SchemaSearchResults,
   SchemaSearchSource,
 } from "../api/openapi.gen";
-import { regions, ALL_REGIONS } from "@/lib/regions";
+import {
+  regions,
+  ALL_REGIONS,
+  regionCapitalByName,
+  type RegionName,
+} from "@/lib/regions";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -36,8 +41,8 @@ function RegionDropdown({
   selectedRegion,
   onSelect,
 }: {
-  selectedRegion: string;
-  onSelect: (region: string) => void;
+  selectedRegion: RegionName;
+  onSelect: (region: RegionName) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -311,7 +316,7 @@ function Home() {
     query: string;
     region: string | null;
   } | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState(ALL_REGIONS);
+  const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS);
   const {
     data: searchResults,
     error,
@@ -346,7 +351,7 @@ function Home() {
 
     setSearchParams({
       query,
-      region: selectedRegion === ALL_REGIONS ? null : selectedRegion,
+      region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
     });
   };
 
