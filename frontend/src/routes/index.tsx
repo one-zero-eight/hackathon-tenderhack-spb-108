@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, LoaderCircle, Search } from "lucide-react";
+import {
+  ChevronDown,
+  LoaderCircle,
+  Search,
+  SquareArrowOutUpRight,
+} from "lucide-react";
 import { $api } from "../api";
 import exampleSearchResultsRaw from "../../example.json?raw";
 import { Button } from "../components/ui/button";
@@ -212,12 +217,18 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
                   <div className="flex flex-col gap-3 p-4">
                     {product.productLink ? (
                       <a
-                        className="line-clamp-2 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        className="flex items-start gap-1.5 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                         href={product.productLink}
                         rel="noreferrer"
                         target="_blank"
                       >
-                        {product.title}
+                        <span className="line-clamp-2 min-w-0">
+                          {product.title}
+                        </span>
+                        <SquareArrowOutUpRight
+                          aria-hidden="true"
+                          className="mt-1 size-4 shrink-0 text-slate-400"
+                        />
                       </a>
                     ) : (
                       <h3 className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">

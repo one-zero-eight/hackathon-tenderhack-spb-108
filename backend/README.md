@@ -28,7 +28,7 @@ This is the FastAPI ASGI application.
    ```
 3. Start development server (and read logs in the terminal):
    ```bash
-   uv run -m src.api --reload
+   uv run -m src.api
    ```
    > Follow the provided instructions (if needed).
 4. Open in the browser: http://localhost:8000
