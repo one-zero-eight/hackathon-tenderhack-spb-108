@@ -394,18 +394,20 @@ def parse_html(html: str) -> list[SearchResult]:
     return parse_result_pre(html, product_keys=_PRODUCT_KEYS)
 
 
-def run_ozon_parser(
+async def run_ozon_parser(
+    context,
     user_input: str,
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> SearchSource:
     """Run Ozon search and return parsed products."""
-    results = run_site_parser(
+    results = await run_site_parser(
+        context,
         site_name=SITE,
         actions=_build_actions(user_input, min_price=min_price, max_price=max_price),
         parse_html=parse_html,
-        check_captcha=CHECK_CAPTCHA,
+        check_captcha_expr=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
         enrich_characteristics=_enrich_ozon_characteristics,
     )

@@ -7,8 +7,6 @@ from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import quote_plus, urljoin
 
-from cloakbrowser import launch_persistent_context
-
 from src.logging_ import logger
 from src.modules.search.schemas import SearchResult
 
@@ -62,16 +60,16 @@ def save_html(out_dir: Path, step: int, html: str) -> Path:
     return path
 
 
-def page_content(page) -> str:
+async def page_content(page) -> str:
     for attempt in range(6):
         try:
-            return page.content()
+            return await page.content()
         except Exception as exc:
             if "navigating" not in str(exc).lower() or attempt >= 5:
                 raise
-            page.wait_for_load_state("domcontentloaded", timeout=15_000)
-            page.wait_for_timeout(500)
-    return page.content()
+            await page.wait_for_load_state("domcontentloaded", timeout=15_000)
+            await page.wait_for_timeout(500)
+    return await page.content()
 
 
 def extract_pre_content(html: str, pre_id: str = RESULT_PRE_ID) -> str | None:
@@ -85,8 +83,8 @@ def extract_pre_content(html: str, pre_id: str = RESULT_PRE_ID) -> str | None:
     return None
 
 
-def check_captcha(page, expression: str, site_name: str) -> bool:
-    detected = page.evaluate(f"() => Boolean({expression})")
+async def check_captcha(page, expression: str, site_name: str) -> bool:
+    detected = await page.evaluate(f"() => Boolean({expression})")
     if detected:
         logger.warning("Captcha on %s — solve it in the browser window", site_name)
     else:
@@ -94,12 +92,12 @@ def check_captcha(page, expression: str, site_name: str) -> bool:
     return detected
 
 
-def wait_captcha_solved(page, expression: str, timeout_ms: int = 300_000) -> None:
-    page.wait_for_function(f"() => !({expression})", timeout=timeout_ms)
+async def wait_captcha_solved(page, expression: str, timeout_ms: int = 300_000) -> None:
+    await page.wait_for_function(f"() => !({expression})", timeout=timeout_ms)
     logger.info("Captcha cleared, continuing")
 
 
-def run_action(
+async def run_action(
     page,
     action: dict[str, str],
     step: int,
@@ -113,76 +111,66 @@ def run_action(
     wait_for = action.get("wait_for", f"pre#{RESULT_PRE_ID}")
 
     if action_type == "url":
-        page.goto(data, wait_until="domcontentloaded", timeout=60_000)
+        await page.goto(data, wait_until="domcontentloaded", timeout=60_000)
     elif action_type == "wait":
-        page.wait_for_timeout(int(data))
+        await page.wait_for_timeout(int(data))
     elif action_type == "waitElement":
-        page.evaluate(f"async () => {{ {data} }}")
+        await page.evaluate(f"async () => {{ {data} }}")
         if wait_for:
-            page.wait_for_selector(wait_for, timeout=90_000)
+            await page.wait_for_selector(wait_for, timeout=90_000)
     elif action_type == "script":
         if action.get("expects_navigation", "true") == "true":
-            with page.expect_navigation(wait_until="domcontentloaded", timeout=60_000):
-                page.evaluate(f"() => {{ {data} }}")
+            async with page.expect_navigation(wait_until="domcontentloaded", timeout=60_000):
+                await page.evaluate(f"() => {{ {data} }}")
         else:
-            page.evaluate(f"() => {{ {data} }}")
-        page.wait_for_load_state("domcontentloaded", timeout=60_000)
+            await page.evaluate(f"() => {{ {data} }}")
+        await page.wait_for_load_state("domcontentloaded", timeout=60_000)
     else:
         raise ValueError(f"Unknown action type: {action_type}")
 
-    save_html(out_dir, step, page_content(page))
-    if check_captcha(page, check_captcha_expr, site_name):
-        wait_captcha_solved(page, check_captcha_expr)
+    save_html(out_dir, step, await page_content(page))
+    if await check_captcha(page, check_captcha_expr, site_name):
+        await wait_captcha_solved(page, check_captcha_expr)
 
 
-def run_site_parser(
+async def run_site_parser(
+    context,
     *,
     site_name: str,
     actions: list[dict[str, str]],
     parse_html: Callable[[str], list[SearchResult]],
-    check_captcha: str,
+    check_captcha_expr: str,
     headless_env: str,
     enrich_characteristics: Callable[[object, list[SearchResult]], None] | None = None,
     locale: str = "ru-RU",
     block_images: bool = True,
 ) -> list[SearchResult]:
-    session_dir, out_dir = site_paths(site_name)
-    session_dir.mkdir(parents=True, exist_ok=True)
+    _, out_dir = site_paths(site_name)
     headless = headless_from_env(headless_env)
 
-    if HTTP_PROXY:
-        logger.info("Using HTTP proxy: %s", HTTP_PROXY.split("@")[-1])
-
-    context = launch_persistent_context(
-        user_data_dir=session_dir,
-        headless=headless,
-        proxy=HTTP_PROXY,
-        locale=locale,
-    )
-
+    page = await context.new_page()
     try:
-        page = context.pages[0] if context.pages else context.new_page()
         if not headless:
             logger.info("Browser running headful — captcha can be solved manually")
 
         if block_images:
-            page.route(
+            await page.route(
                 re.compile(r"\.(png|jpg|jpeg|gif|webp|svg|ico)(\?|$)", re.I),
                 lambda route: route.abort(),
             )
 
         for step, action in enumerate(actions, start=1):
             logger.info("Action %d/%d: %s", step, len(actions), action["type"])
-            run_action(
+            await run_action(
                 page,
                 action,
                 step,
                 out_dir=out_dir,
-                check_captcha_expr=check_captcha,
+                check_captcha_expr=check_captcha_expr,
                 site_name=site_name,
             )
 
-        html = page_content(page)
+        html = await page_content(page)
         save_html(out_dir, len(actions) + 1, html)
         products = parse_html(html)
         logger.info("Parsed %d products from %s", len(products), site_name)
@@ -190,7 +178,7 @@ def run_site_parser(
             enrich_characteristics(page, products)
         return products
     finally:
-        context.close()
+        await page.close()
 
 
 def extract_name(obj: dict) -> str | None:
