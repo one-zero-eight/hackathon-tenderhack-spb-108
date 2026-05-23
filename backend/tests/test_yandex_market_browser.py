@@ -18,8 +18,8 @@ from src.modules.search.yandex_market import (
     SITE,
     _build_actions,
     _build_search_url,
+    collect_products_from_page,
     fetch_yandex_detail_characteristics,
-    parse_html,
     run_site_parser,
 )
 
@@ -94,13 +94,14 @@ async def _run_ym_search(context, query: str, *, region: str | None = None):
         context,
         site_name=SITE,
         actions=_build_actions(query, geo=geo),
-        parse_html=parse_html,
+        parse_html=lambda _: [],
         parse_typofix=lambda html: parse_yandex_market_typofix(html, original=query),
         original_query=query,
         check_captcha_expr=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
         enrich_characteristics=None,
         setup_page=make_yandex_setup_page(geo) if geo else None,
+        collect_dom_products=collect_products_from_page,
     )
 
 

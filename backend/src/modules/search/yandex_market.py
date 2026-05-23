@@ -1,27 +1,23 @@
 """Yandex Market search parser using cloakbrowser."""
 
+import asyncio
 import html as html_module
 import json
 import re
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import quote_plus
 
+from src.logging_ import logger
 from src.modules.search.schemas import SearchSource
 
 from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
-    RESULT_PRE_ID,
-    TYPOFIX_PRE_ID,
     SearchResult,
     append_characteristic,
     append_product,
     build_price_filter,
-    extract_image,
-    extract_pre_content,
     normalize_display_text,
     normalize_product_url,
-    page_content,
-    parse_api_payload,
     run_site_parser,
 )
 from .details import enrich_product_characteristics, specs_from_raw
@@ -191,26 +187,11 @@ async function waitForCorrectedQuery(originalSearchText) {
   return resolved;
 }
 
-function writePayload(originalSearchText, searchText, payload) {
-  document.body = document.createElement("body");
-  if (normalizeQuery(searchText) !== normalizeQuery(originalSearchText)) {
-    const typoPre = document.createElement("pre");
-    typoPre.id = "__TYPOFIX_PRE_ID__";
-    typoPre.innerText = searchText;
-    document.body.append(typoPre);
-  }
-  const resultPre = document.createElement("pre");
-  resultPre.id = "__PRE_ID__";
-  resultPre.innerText = payload;
-  document.body.append(resultPre);
-}
-
 async function fetchWithRetry() {
-  const delays = [300, 600, 1200, 2000];
   const originalSearchText = __SEARCH_TEXT__;
 
   await waitForUrlStable();
-  const searchText = await waitForCorrectedQuery(originalSearchText);
+  await waitForCorrectedQuery(originalSearchText);
 
   const resetBtn = document.querySelector('[data-auto="reset-filters"]');
   if (resetBtn) {
@@ -223,193 +204,59 @@ async function fetchWithRetry() {
     }
   }
 
-  if (hasProductSnippets()) {
-    return true;
-  }
-
-  for (let attempt = 0; attempt < 8; attempt++) {
-    if (
-      document.querySelector('[data-apiary-widget-name="@search/Url"] noframes') ||
-      document.querySelectorAll('[data-zone-name="productSnippet"]').length > 0
-    ) {
-      break;
+  const delays = [300, 600, 1200, 2000, 3000];
+  for (const ms of delays) {
+    if (hasProductSnippets()) {
+      return true;
     }
-    await delay(300);
+    await delay(ms);
   }
-
-  if (hasProductSnippets()) {
-    return true;
-  }
-
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
-    try {
-      const noframes = document.querySelector('[data-apiary-widget-name="@search/Url"] noframes');
-      if (!noframes) {
-        if (hasProductSnippets()) {
-          return true;
-        }
-        if (attempt < delays.length) {
-          await delay(delays[attempt]);
-          continue;
-        }
-        writePayload(originalSearchText, searchText, "no data");
-        return true;
-      }
-
-      const state = JSON.parse(noframes.textContent);
-      const pageToken = state.collections.backendState
-        ? state.collections.backendState["page-token"]
-        : null;
-      const inState = state.collections.backendState
-        ? state.collections.backendState["internal-state"]
-        : null;
-
-      function extractMarketFrontGlueFromHTML(html) {
-        const match = html.match(/"marketFrontGlue"\\s*:\\s*"([^"]+)"/);
-        return match ? match[1] : null;
-      }
-
-      function extractUserSkFromHTML(html) {
-        const match = html.match(/"sk"\\s*:\\s*"([^"]+)"/);
-        return match ? match[1] : null;
-      }
-
-      function extractVersionFromHTML(html) {
-        const match = html.match(/"version"\\s*:\\s*"([^"]+)"/);
-        return match ? match[1] : null;
-      }
-
-      const htmlString = document.head.innerHTML;
-      const glue = extractMarketFrontGlueFromHTML(htmlString);
-      const sk = extractUserSkFromHTML(htmlString);
-      const version = extractVersionFromHTML(htmlString);
-      const url_string = document.location.href;
-      const url = new URL(url_string);
-      const rs = url.searchParams.get("rs") || "";
-
-      const body = JSON.stringify({
-        params: [{
-          text: searchText,
-          how: "dpop",
-          searchPlace: "__standalone__",
-          page: 1,
-          withResults: true,
-          rs: rs,
-          isLocalOffersFirst: false,
-          noSearchResults: false,
-          omitFilters: false,
-          viewtype: "list",
-          prevTotal: 166,
-          isDeliveryFilterChange: false,
-          searchPlaceAction: "filter",
-          urlParams: {},
-          filters: filterObj,
-          backendState: {
-            "internal-state": inState || "",
-            "page-token": pageToken || "",
-            rs: rs,
-            madv_state: ""
-          }
-        }],
-        path: document.location.pathname + document.location.search
-      });
-
-      const response = await fetch(
-        "https://market.yandex.ru/api/resolve/?r=src/resolvers/search/resolvePoorRemoteSearch:resolvePoorRemoteSearch",
-        {
-          headers: {
-            accept: "*/*",
-            "accept-language": "ru-RU,ru;q=0.9",
-            "cache-control": "no-cache",
-            "content-type": "application/json",
-            pragma: "no-cache",
-            priority: "u=1, i",
-            "sec-ch-ua": "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": "\"macOS\"",
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-            cookie: document.cookie,
-            sk: sk,
-            "x-market-app-version": version,
-            "x-market-core-service": "<UNKNOWN>",
-            "x-market-front-glue": glue,
-            "x-market-page-id": "market:search",
-            "x-requested-with": "XMLHttpRequest",
-            "x-retpath-y": url_string
-          },
-          body: body,
-          method: "POST",
-          mode: "cors",
-          credentials: "include"
-        }
-      );
-      const data = await response.text();
-      if (data && data.length > 100) {
-        writePayload(originalSearchText, searchText, data);
-        return true;
-      }
-
-      if (hasProductSnippets()) {
-        return true;
-      }
-
-      if (attempt < delays.length) {
-        await delay(delays[attempt]);
-      }
-    } catch (error) {
-      if (hasProductSnippets()) {
-        return true;
-      }
-      if (attempt < delays.length) {
-        await delay(delays[attempt]);
-      }
-    }
-  }
-
-  if (hasProductSnippets()) {
-    return true;
-  }
-
-  writePayload(originalSearchText, searchText, "no data");
   return true;
 }
 
 return await fetchWithRetry();"""
 
-_PRODUCT_KEYS = ("titles", "prices", "pictures", "productName", "slug", "skuId", "modelName")
 _YANDEX_BASE_URL = "https://market.yandex.ru"
 _CARD_PATH_RE = re.compile(r"/card/[a-z0-9][a-z0-9-]*/\d+")
-_PRODUCT_SNIPPET_RE = re.compile(
-    r'data-zone-name=\\"productSnippet\\" data-zone-data=\\"(\{.*?)\\"',
-    re.DOTALL,
-)
-_YANDEX_MPIC_URL_RE = re.compile(
-    r"https://avatars\.mds\.yandex\.net/get-mpic/\d+/[0-9a-f]+/[^\s\"'<>]+",
-    re.IGNORECASE,
-)
-_YANDEX_CARD_HREF_RE = re.compile(
-    r'href="(?:https://market\.yandex\.ru)?(/card/[^"?]+)',
-    re.IGNORECASE,
-)
-_YANDEX_CARD_HREF_ESCAPED_RE = re.compile(
-    r'href=\\"(?:https://market\\.yandex\\.ru)?(/card/[^"?\\]+)',
-    re.IGNORECASE,
-)
-_YANDEX_CARD_PATH_RE = re.compile(r"/card/[a-z0-9][a-z0-9-]*/\d+", re.IGNORECASE)
-
-_YANDEX_DETAIL_IMAGE_JS = """() => {
-  const og = document.querySelector('meta[property="og:image"]');
-  if (og?.content?.startsWith('http')) return og.content;
-  const img = document.querySelector(
-    '[data-auto="gallery"] img, [data-zone-name="productGallery"] img, img[src*="get-mpic"]'
-  );
-  if (img?.src?.startsWith('http')) return img.src;
-  const match = document.documentElement.innerHTML.match(
-    /https:\\/\\/avatars\\.mds\\.yandex\\.net\\/get-mpic\\/\\d+\\/[0-9a-f]+\\/orig/i
-  );
-  return match ? match[0] : null;
+_YANDEX_COLLECT_GALLERY_MPIC_JS = """(root) => {
+  const urls = [];
+  const seen = new Set();
+  const addImg = (img) => {
+    if (!img) return;
+    for (const attr of ["src", "data-src"]) {
+      const src = img.getAttribute(attr);
+      if (!src || !src.includes("get-mpic/") || src.includes("get-marketcms/")) continue;
+      const base = src.match(
+        /(https:\\/\\/avatars\\.mds\\.yandex\\.net\\/get-mpic\\/\\d+\\/[0-9a-f]+)/i
+      );
+      if (!base) continue;
+      const key = base[1].toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      urls.push(base[1] + "/orig");
+      return;
+    }
+  };
+  const galleries =
+    root?.matches?.('[data-zone-name="pictureGallery"]')
+      ? [root]
+      : [...(root?.querySelectorAll?.('[data-zone-name="pictureGallery"]') || [])];
+  const targets = galleries.length ? galleries : root ? [root] : [];
+  const selectors = [
+    '[data-auto="media-viewer-gallery"] img',
+    '[data-zone-name="picture"] img',
+    '[data-auto="media-viewer-thumbnails"] img',
+    '[data-auto="thumbnail"] img',
+  ];
+  for (const gallery of targets) {
+    if (!gallery?.querySelectorAll) continue;
+    for (const selector of selectors) {
+      for (const img of gallery.querySelectorAll(selector)) {
+        addImg(img);
+      }
+    }
+  }
+  return urls;
 }"""
 
 
@@ -427,135 +274,469 @@ def _normalize_yandex_image_url(url: str) -> str:
     return url
 
 
-def _extract_yandex_image_from_part(part: str) -> str | None:
-    matches = _YANDEX_MPIC_URL_RE.findall(part)
-    if not matches:
+_YANDEX_MPIC_BASE_RE = re.compile(
+    r"(https://avatars\.mds\.yandex\.net/get-mpic/\d+/[0-9a-f]+)",
+    re.IGNORECASE,
+)
+
+
+def _is_yandex_product_image_url(url: str) -> bool:
+    return "get-mpic/" in url.casefold() and "get-marketcms/" not in url.casefold()
+
+
+def _yandex_mpic_base_key(url: str) -> str | None:
+    match = _YANDEX_MPIC_BASE_RE.match(_normalize_yandex_image_url(url))
+    return match.group(1).lower() if match else None
+
+
+def _split_yandex_product_images(urls: list[str]) -> tuple[str | None, list[str]]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        if not isinstance(url, str) or not url.startswith("http"):
+            continue
+        if not _is_yandex_product_image_url(url):
+            continue
+        normalized = _normalize_yandex_image_url(url)
+        key = _yandex_mpic_base_key(normalized)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique.append(normalized)
+    if not unique:
+        return None, []
+    return unique[0], unique[1:]
+
+
+def _merge_yandex_image_urls(product: SearchResult, urls: list[str]) -> None:
+    primary, gallery = _split_yandex_product_images(
+        [
+            *([product.image_link] if product.image_link else []),
+            *product.image_links,
+            *urls,
+        ]
+    )
+    if primary:
+        product.image_link = primary
+    if gallery:
+        product.image_links = gallery
+
+
+_SERP_LIST_SELECTOR = '[data-auto="SerpList"]'
+_MAX_SERP_LIST_PAGES = 2
+_ORGANIC_SNIPPET_IN_SERP = 'article[data-auto="searchOrganic"] [data-zone-name="productSnippet"]'
+_SNIPPET_SELECTOR = f"{_SERP_LIST_SELECTOR} {_ORGANIC_SNIPPET_IN_SERP}"
+_SPONSORED_INCUT_ZONE = "madvIncut"
+_TITLE_SELECTOR = '[data-auto="snippet-title"]'
+_SNIPPET_SPEC_SKIP_PREFIXES = (
+    "рейтинг товара",
+    "оценок:",
+    "цена с",
+    "по клику",
+    "пвз",
+    "пэй",
+    "в корзину",
+    "послезавтра",
+    "купили",
+)
+_PRICE_SELECTORS = (
+    '[data-auto="snippet-price-current"]',
+    '[data-auto="snippet-price"]',
+    '[data-auto="price-current"]',
+)
+_CARD_LINK_SELECTOR = 'a[href*="/card/"]'
+_PICTURE_GALLERY_SELECTOR = '[data-zone-name="pictureGallery"]'
+_PLACEHOLDER_NAMES = frozenset({"product", "товар"})
+_SEARCH_SCROLL_BUDGET_SEC = 2.0
+_SEARCH_SCROLL_STEP_PAUSE_MS = 350
+_SEARCH_SCROLL_WHEEL_DELTA_Y = 700
+_SEARCH_SETTLE_TIMEOUT_SEC = 3.0
+_SEARCH_SETTLE_POLL_MS = 250
+_SEARCH_SETTLE_STABLE_POLLS = 3
+_ORGANIC_ARTICLE_SELECTOR = 'article[data-auto="searchOrganic"]'
+
+_YANDEX_SCROLL_AND_WAIT_JS = f"""async () => {{
+  const scrollBudgetMs = {int(_SEARCH_SCROLL_BUDGET_SEC * 1000)};
+  const settleBudgetMs = {int(_SEARCH_SETTLE_TIMEOUT_SEC * 1000)};
+  const stepPx = {_SEARCH_SCROLL_WHEEL_DELTA_Y};
+  const pauseMs = {_SEARCH_SCROLL_STEP_PAUSE_MS};
+  const stablePollsNeeded = {_SEARCH_SETTLE_STABLE_POLLS};
+  const pollMs = {_SEARCH_SETTLE_POLL_MS};
+  const maxSerpLists = {_MAX_SERP_LIST_PAGES};
+  const serpListSelector = '{_SERP_LIST_SELECTOR}';
+  const organicSelector = '{_ORGANIC_ARTICLE_SELECTOR}';
+  const organicSnippetSelector = '{_ORGANIC_SNIPPET_IN_SERP}';
+
+  const countSerpLists = () => document.querySelectorAll(serpListSelector).length;
+  const countSnippetsInScope = () => {{
+    const lists = [...document.querySelectorAll(serpListSelector)].slice(0, maxSerpLists);
+    if (!lists.length) {{
+      return document.querySelectorAll(organicSnippetSelector).length;
+    }}
+    return lists.reduce(
+      (total, list) => total + list.querySelectorAll(organicSnippetSelector).length,
+      0
+    );
+  }};
+
+  const findScrollRoot = () => {{
+    const anchors = [
+      document.querySelector(organicSelector),
+      document.querySelector('[data-zone-name="main"]'),
+      document.querySelector('[data-zone-name="productSnippet"]'),
+    ].filter(Boolean);
+    for (const anchor of anchors) {{
+      let el = anchor;
+      while (el && el !== document.documentElement) {{
+        const style = getComputedStyle(el);
+        const scrollable =
+          /(auto|scroll)/.test(style.overflowY) || /(auto|scroll)/.test(style.overflow);
+        if (scrollable && el.scrollHeight > el.clientHeight + 80) {{
+          return el;
+        }}
+        el = el.parentElement;
+      }}
+    }}
+    return document.scrollingElement || document.documentElement;
+  }};
+
+  const dispatchWheel = (target, deltaY) => {{
+    if (!target) return;
+    const event = new WheelEvent("wheel", {{
+      deltaY,
+      deltaMode: 0,
+      bubbles: true,
+      cancelable: true,
+    }});
+    target.dispatchEvent(event);
+  }};
+
+  const scrollStep = () => {{
+    const roots = new Set(
+      [
+        document.scrollingElement,
+        document.documentElement,
+        document.body,
+        document.querySelector('[data-zone-name="main"]'),
+        findScrollRoot(),
+      ].filter(Boolean)
+    );
+    for (const root of roots) {{
+      root.scrollBy(0, stepPx);
+      root.dispatchEvent(new Event("scroll", {{ bubbles: true }}));
+      dispatchWheel(root, stepPx);
+    }}
+    window.scrollBy(0, stepPx);
+    window.dispatchEvent(new Event("scroll"));
+    dispatchWheel(window, stepPx);
+    const articles = document.querySelectorAll(organicSelector);
+    const last = articles[articles.length - 1];
+    if (last) {{
+      last.scrollIntoView({{ block: "end", inline: "nearest", behavior: "instant" }});
+    }}
+  }};
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const scrollDeadline = Date.now() + scrollBudgetMs;
+  while (Date.now() < scrollDeadline) {{
+    scrollStep();
+    if (countSerpLists() >= maxSerpLists) {{
+      break;
+    }}
+    await sleep(Math.min(pauseMs, Math.max(0, scrollDeadline - Date.now())));
+  }}
+
+  if (countSerpLists() === 0) {{
+    return countSnippetsInScope();
+  }}
+
+  let prevSnippets = countSnippetsInScope();
+  let prevSerpLists = countSerpLists();
+  let stablePolls = 0;
+  let settleDeadline = Date.now() + settleBudgetMs;
+  while (Date.now() < settleDeadline) {{
+    await sleep(pollMs);
+    const serpLists = countSerpLists();
+    const snippets = countSnippetsInScope();
+    if (snippets > prevSnippets || serpLists > prevSerpLists) {{
+      prevSnippets = snippets;
+      prevSerpLists = serpLists;
+      stablePolls = 0;
+      settleDeadline = Math.max(settleDeadline, Date.now() + pollMs * 4);
+      if (serpLists < maxSerpLists) {{
+        scrollStep();
+      }}
+      continue;
+    }}
+    stablePolls += 1;
+    if (stablePolls >= stablePollsNeeded) {{
+      break;
+    }}
+  }}
+
+  return countSnippetsInScope();
+}}"""
+
+
+def _yandex_product_key(product_link: str | None) -> str | None:
+    if not product_link:
         return None
-    for url in matches:
-        if "/orig" in url:
-            return _normalize_yandex_image_url(url)
-    return _normalize_yandex_image_url(matches[0])
-
-
-def _extract_yandex_card_link_from_part(part: str) -> str | None:
-    match = _YANDEX_CARD_HREF_RE.search(part) or _YANDEX_CARD_HREF_ESCAPED_RE.search(part)
+    match = _CARD_PATH_RE.search(product_link)
     if match:
-        return normalize_product_url(match.group(1), _YANDEX_BASE_URL)
-    path_match = _YANDEX_CARD_PATH_RE.search(part)
-    if path_match:
-        return normalize_product_url(path_match.group(0), _YANDEX_BASE_URL)
+        return match.group(0).rsplit("/", 1)[-1]
+    return product_link.split("?", 1)[0].rstrip("/")
+
+
+def _is_placeholder_name(name: str | None) -> bool:
+    if not name:
+        return True
+    return name.strip().casefold() in _PLACEHOLDER_NAMES
+
+
+def _parse_yandex_price_text(text: str) -> str | None:
+    match = re.search(r"([\d\s\u00a0\u2009\u202f]+)\s*₽", text)
+    if not match:
+        return None
+    digits = re.sub(r"\D", "", match.group(1))
+    return digits or None
+
+
+def _normalize_yandex_price(price: str | None) -> str | None:
+    if price is None:
+        return None
+    if not isinstance(price, str):
+        return str(price)
+    cleaned = price.strip()
+    if not cleaned:
+        return None
+    digits = re.sub(r"\D", "", cleaned)
+    return digits or None
+
+
+def _yandex_product_rank(product: SearchResult) -> tuple[int, int, int]:
+    name_score = 0 if _is_placeholder_name(product.name) else len(product.name)
+    price_score = 1 if product.price else 0
+    image_score = 1 if product.image_link else 0
+    return (name_score, price_score, image_score)
+
+
+def _merge_yandex_product(dst: SearchResult, src: SearchResult) -> None:
+    if _yandex_product_rank(src) > _yandex_product_rank(dst):
+        if not _is_placeholder_name(src.name):
+            dst.name = src.name
+        if src.price:
+            dst.price = src.price
+    elif not _is_placeholder_name(src.name) and _is_placeholder_name(dst.name):
+        dst.name = src.name
+    if not dst.price and src.price:
+        dst.price = src.price
+    _merge_yandex_image_urls(
+        dst,
+        [
+            *([src.image_link] if src.image_link else []),
+            *(src.image_links or []),
+        ],
+    )
+    if not dst.rating and src.rating:
+        dst.rating = src.rating
+    if not dst.reviews and src.reviews:
+        dst.reviews = src.reviews
+    for name, value in src.characteristics.items():
+        if name not in dst.characteristics:
+            dst.characteristics[name] = value
+
+
+def _dedupe_yandex_products(products: list[SearchResult]) -> list[SearchResult]:
+    by_key: dict[str, SearchResult] = {}
+    orphans: list[SearchResult] = []
+    for product in products:
+        product.price = _normalize_yandex_price(product.price)
+        key = _yandex_product_key(product.product_link)
+        if not key:
+            append_product(orphans, product)
+            continue
+        existing = by_key.get(key)
+        if existing is None:
+            by_key[key] = product
+            continue
+        _merge_yandex_product(existing, product)
+    merged = list(by_key.values()) + orphans
+    return sorted(merged, key=_yandex_product_rank, reverse=True)
+
+
+async def _read_snippet_title(snippet) -> str | None:
+    title = snippet.locator(_TITLE_SELECTOR).first
+    if await title.count() > 0:
+        for value in (
+            await title.get_attribute("title"),
+            await title.inner_text(),
+        ):
+            if isinstance(value, str) and value.strip():
+                return normalize_display_text(html_module.unescape(value.strip()))
+
+    link = snippet.locator(_CARD_LINK_SELECTOR).first
+    if await link.count() > 0:
+        for attr in ("aria-label", "title"):
+            value = await link.get_attribute(attr)
+            if isinstance(value, str) and value.strip():
+                return normalize_display_text(html_module.unescape(value.strip()))
+
+    for selector in ("h3", "h2", '[data-auto="snippet-title"] span'):
+        node = snippet.locator(selector).first
+        if await node.count() > 0:
+            value = await node.inner_text()
+            if isinstance(value, str) and value.strip():
+                return normalize_display_text(html_module.unescape(value.strip()))
     return None
 
 
-_SNIPPET_SELECTOR = '[data-zone-name="productSnippet"]'
-_TITLE_SELECTOR = '[data-auto="snippet-title"]'
-_PRICE_SELECTOR = '[data-auto="snippet-price-current"]'
-_CARD_LINK_SELECTOR = 'a[href*="/card/"]'
-_IMAGE_SELECTOR = 'img[src*="get-mpic"]'
+def _parse_snippet_spec_lines(text: str) -> dict[str, str]:
+    specs: dict[str, str] = {}
+    for line in text.splitlines():
+        normalized = normalize_display_text(html_module.unescape(line.strip()))
+        if not normalized or ":" not in normalized:
+            continue
+        lowered = normalized.casefold()
+        if "₽" in normalized or any(lowered.startswith(prefix) for prefix in _SNIPPET_SPEC_SKIP_PREFIXES):
+            continue
+        name, _, value = normalized.partition(":")
+        name = name.strip()
+        value = value.strip()
+        if name and value:
+            append_characteristic(specs, name, value)
+    return specs
+
+
+async def _read_snippet_characteristics(snippet) -> dict[str, str]:
+    text = await snippet.inner_text()
+    return _parse_snippet_spec_lines(text)
+
+
+async def _read_snippet_price(snippet) -> str | None:
+    for selector in _PRICE_SELECTORS:
+        price_el = snippet.locator(selector).first
+        if await price_el.count() > 0:
+            price = _parse_yandex_price_text(await price_el.inner_text())
+            if price:
+                return price
+    return _parse_yandex_price_text(await snippet.inner_text())
+
+
+async def _is_sponsored_snippet(snippet) -> bool:
+    return bool(await snippet.evaluate(f"""el => !!el.closest('[data-zone-name="{_SPONSORED_INCUT_ZONE}"]')"""))
+
+
+async def _read_snippet_images(snippet) -> tuple[str | None, list[str]]:
+    gallery = snippet.locator(_PICTURE_GALLERY_SELECTOR).first
+    if await gallery.count() == 0:
+        return None, []
+    evaluated = await gallery.evaluate(_YANDEX_COLLECT_GALLERY_MPIC_JS)
+    if not isinstance(evaluated, list):
+        return None, []
+    return _split_yandex_product_images(evaluated)
+
+
+async def _serp_list_count(page) -> int:
+    return await page.locator(_SERP_LIST_SELECTOR).count()
+
+
+async def _organic_snippet_count(page) -> int:
+    serp_lists = await _serp_list_count(page)
+    if serp_lists == 0:
+        return await page.locator(_ORGANIC_SNIPPET_IN_SERP).count()
+    take = min(serp_lists, _MAX_SERP_LIST_PAGES)
+    total = 0
+    for index in range(take):
+        total += await page.locator(_SERP_LIST_SELECTOR).nth(index).locator(_ORGANIC_SNIPPET_IN_SERP).count()
+    return total
+
+
+async def _scroll_yandex_search_results(page) -> int:
+    """Scroll search results in-page (JS) until organic snippets stop growing."""
+    count = await page.evaluate(_YANDEX_SCROLL_AND_WAIT_JS)
+    return count if isinstance(count, int) else await _organic_snippet_count(page)
+
+
+def _is_sponsored_product_link(product_link: str) -> bool:
+    return "sponsored=1" in product_link
+
+
+async def _iter_organic_snippet_locators(page):
+    serp_lists = page.locator(_SERP_LIST_SELECTOR)
+    list_count = await serp_lists.count()
+    if list_count == 0:
+        yield page.locator(_ORGANIC_SNIPPET_IN_SERP)
+        return
+    for index in range(min(list_count, _MAX_SERP_LIST_PAGES)):
+        yield serp_lists.nth(index).locator(_ORGANIC_SNIPPET_IN_SERP)
 
 
 async def collect_products_from_page(page) -> list[SearchResult]:
     """Read search snippets from the live page via Playwright locators."""
-    snippets = page.locator(_SNIPPET_SELECTOR)
-    count = await snippets.count()
-    products: list[SearchResult] = []
-    for index in range(count):
-        snippet = snippets.nth(index)
-        link = snippet.locator(_CARD_LINK_SELECTOR).first
-        if await link.count() == 0:
-            continue
-        href = await link.get_attribute("href")
-        if not href:
-            continue
-        product_link = normalize_product_url(href, _YANDEX_BASE_URL)
+    organic_count = await _scroll_yandex_search_results(page)
+    serp_pages = await _serp_list_count(page)
+    logger.info(
+        "Yandex Market organic snippets ready: %d (SerpList pages: %d/%d)",
+        organic_count,
+        min(serp_pages, _MAX_SERP_LIST_PAGES),
+        serp_pages,
+    )
+    by_key: dict[str, SearchResult] = {}
+    async for snippets in _iter_organic_snippet_locators(page):
+        count = await snippets.count()
+        for index in range(count):
+            snippet = snippets.nth(index)
+            if await _is_sponsored_snippet(snippet):
+                continue
+            link = snippet.locator(_CARD_LINK_SELECTOR).first
+            if await link.count() == 0:
+                continue
+            href = await link.get_attribute("href")
+            if not href:
+                continue
+            product_link = normalize_product_url(href, _YANDEX_BASE_URL)
+            if _is_sponsored_product_link(product_link):
+                continue
+            key = _yandex_product_key(product_link)
+            if not key:
+                continue
 
-        name = "Product"
-        title = snippet.locator(_TITLE_SELECTOR).first
-        if await title.count() > 0:
-            title_attr = await title.get_attribute("title")
-            title_text = (title_attr or await title.inner_text() or "").strip()
-            if title_text:
-                name = normalize_display_text(html_module.unescape(title_text))
+            name = await _read_snippet_title(snippet)
+            price = await _read_snippet_price(snippet)
+            image_link, image_links = await _read_snippet_images(snippet)
+            characteristics = await _read_snippet_characteristics(snippet)
 
-        price = None
-        price_el = snippet.locator(_PRICE_SELECTOR).first
-        if await price_el.count() > 0:
-            price_text = await price_el.inner_text()
-            price_match = re.search(r"([\d\s\u00a0\u2009]+)\s*₽", price_text)
-            if price_match:
-                price = re.sub(r"\s+", "", price_match.group(1))
+            if not name:
+                existing = by_key.get(key)
+                if existing is None:
+                    continue
+                if image_link or image_links:
+                    incoming = SearchResult(
+                        name=existing.name,
+                        product_link=product_link,
+                        image_link=image_link,
+                        image_links=image_links,
+                        characteristics=characteristics,
+                    )
+                    _merge_yandex_product(existing, incoming)
+                continue
 
-        image_link = None
-        image_el = snippet.locator(_IMAGE_SELECTOR).first
-        if await image_el.count() == 0:
-            image_el = snippet.locator("img").first
-        if await image_el.count() > 0:
-            src = await image_el.get_attribute("src")
-            if isinstance(src, str) and src.startswith("http"):
-                image_link = _normalize_yandex_image_url(src)
-            if not image_link:
-                srcset = await image_el.get_attribute("srcset")
-                if isinstance(srcset, str):
-                    match = _YANDEX_MPIC_URL_RE.search(srcset)
-                    if match:
-                        image_link = _normalize_yandex_image_url(match.group(0))
-
-        append_product(
-            products,
-            SearchResult(
+            incoming = SearchResult(
                 name=name,
                 product_link=product_link,
                 price=price,
                 image_link=image_link,
-            ),
-        )
-    return products
-
-
-def _attach_snippet_media(products: list[SearchResult], html: str) -> None:
-    if not products:
-        return
-    by_link = {product.product_link.split("?", 1)[0]: product for product in products if product.product_link}
-    for part in _split_product_snippet_parts(html):
-        link = _extract_yandex_card_link_from_part(part)
-        if not link:
-            continue
-        product = by_link.get(link.split("?", 1)[0])
-        if not product:
-            continue
-        if not product.image_link:
-            product.image_link = _extract_yandex_image_from_part(part)
-        if not product.price:
-            price_match = re.search(
-                r'data-auto="snippet-price-current"[^>]*>[\s\S]*?([\d\s\u00a0\u2009]+)\s*₽',
-                part,
+                image_links=image_links,
+                characteristics=characteristics,
             )
-            if price_match:
-                product.price = re.sub(r"\s+", "", price_match.group(1))
+            existing = by_key.get(key)
+            if existing is None:
+                by_key[key] = incoming
+            else:
+                _merge_yandex_product(existing, incoming)
 
-
-def _extract_yandex_card_links(source: object) -> dict[str, str]:
-    text = source if isinstance(source, str) else json.dumps(source, ensure_ascii=False)
-    links: dict[str, str] = {}
-    for path in _CARD_PATH_RE.findall(text):
-        product_id = path.rsplit("/", 1)[-1]
-        links[product_id] = urljoin(_YANDEX_BASE_URL, path)
-    return links
-
-
-def _yandex_product_link(zone: dict, card_links: dict[str, str]) -> str | None:
-    for key in ("url", "link", "productUrl"):
-        val = zone.get(key)
-        if isinstance(val, str) and val.strip():
-            return normalize_product_url(val, _YANDEX_BASE_URL)
-
-    for id_key in ("oskuId", "marketSku", "skuId", "modelId"):
-        val = zone.get(id_key)
-        if val is not None:
-            link = card_links.get(str(val))
-            if link:
-                return link
-    return None
+    return _dedupe_yandex_products(list(by_key.values()))
 
 
 def _build_search_url(
@@ -582,8 +763,6 @@ def _build_actions(
     search_url = _build_search_url(user_input, geo=geo, min_price=min_price, max_price=max_price)
     wait_script = (
         _WAIT_ELEMENT_TEMPLATE.replace("__SEARCH_TEXT__", json.dumps(user_input))
-        .replace("__PRE_ID__", RESULT_PRE_ID)
-        .replace("__TYPOFIX_PRE_ID__", TYPOFIX_PRE_ID)
         .replace("__MIN_PRICE__", str(min_price))
         .replace("__MAX_PRICE__", str(max_price))
     )
@@ -607,35 +786,6 @@ def _build_actions(
     return actions
 
 
-def _decode_embedded_zone_json(raw: str) -> dict:
-    decoded = html_module.unescape(html_module.unescape(raw))
-    try:
-        return json.loads(decoded)
-    except json.JSONDecodeError:
-        # Titles like 16" leave invalid \" after HTML unescape (16\\").
-        repaired = re.sub(r'(\d+(?:\.\d+)?)\\+"', r'\1\\"', decoded)
-        return json.loads(repaired)
-
-
-def _price_from_snippet(zone: dict) -> str | None:
-    for entry in zone.get("additionalPrices") or []:
-        if isinstance(entry, dict) and entry.get("priceType") == "yaBank":
-            value = entry.get("priceValue")
-            if value is not None:
-                return str(value)
-    price = zone.get("price")
-    if price is not None:
-        return str(price)
-    children = zone.get("children")
-    if isinstance(children, dict):
-        price_block = children.get("price") or children.get("wishlist", {}).get("price")
-        if isinstance(price_block, dict):
-            value = price_block.get("value")
-            if value is not None:
-                return str(value)
-    return None
-
-
 def parse_yandex_detail_html(html: str) -> dict[str, str]:
     specs: dict[str, str] = {}
     for match in _YANDEX_SPEC_ROW_RE.finditer(html):
@@ -649,32 +799,40 @@ async def fetch_yandex_detail_characteristics(page, product_link: str) -> dict[s
         await page.wait_for_selector('[data-auto="product-spec"]', timeout=5_000)
     except Exception:
         pass
-    specs = specs_from_raw(await page.evaluate(_YANDEX_DETAIL_SPECS_JS))
-    if specs:
-        return specs
-    return parse_yandex_detail_html(await page_content(page))
+    return specs_from_raw(await page.evaluate(_YANDEX_DETAIL_SPECS_JS))
 
 
-async def fetch_yandex_detail_image(page, product_link: str) -> str | None:
+async def fetch_yandex_detail_images(page, product_link: str) -> list[str]:
     if page.url.split("?", 1)[0] != product_link.split("?", 1)[0]:
         await page.goto(product_link, wait_until="domcontentloaded", timeout=30_000)
-    image = await page.evaluate(_YANDEX_DETAIL_IMAGE_JS)
-    if isinstance(image, str) and image.startswith("http"):
-        return _normalize_yandex_image_url(image)
-    return None
+    try:
+        await page.wait_for_selector(_PICTURE_GALLERY_SELECTOR, timeout=5_000)
+    except Exception:
+        pass
+    gallery = page.locator(_PICTURE_GALLERY_SELECTOR).first
+    if await gallery.count() == 0:
+        return []
+    images = await gallery.evaluate(_YANDEX_COLLECT_GALLERY_MPIC_JS)
+    if not isinstance(images, list):
+        return []
+    primary, gallery_urls = _split_yandex_product_images(images)
+    return gallery_urls if gallery_urls else ([primary] if primary else [])
 
 
 async def _enrich_yandex_characteristics(page, products: list[SearchResult]) -> None:
     by_link = {product.product_link: product for product in products if product.product_link}
 
     async def fetch_with_image(detail_page, product_link: str) -> dict[str, str]:
-        specs = await fetch_yandex_detail_characteristics(detail_page, product_link)
+        detail_specs = await fetch_yandex_detail_characteristics(detail_page, product_link)
         product = by_link.get(product_link)
-        if product and not product.image_link:
-            image = await fetch_yandex_detail_image(detail_page, product_link)
-            if image:
-                product.image_link = image
-        return specs
+        if product:
+            detail_images = await fetch_yandex_detail_images(detail_page, product_link)
+            if detail_images:
+                _merge_yandex_image_urls(product, detail_images)
+            merged = dict(product.characteristics)
+            merged.update(detail_specs)
+            return merged
+        return detail_specs
 
     await enrich_product_characteristics(
         page,
@@ -685,203 +843,22 @@ async def _enrich_yandex_characteristics(page, products: list[SearchResult]) -> 
     )
 
 
-def _product_from_snippet(zone: dict, card_links: dict[str, str]) -> SearchResult | None:
-    name = zone.get("title")
-    children = zone.get("children")
-    wishlist = children.get("wishlist", {}) if isinstance(children, dict) else {}
-    if not name and isinstance(wishlist, dict):
-        name = wishlist.get("title")
-    if not name or not str(name).strip():
-        return None
-
-    image = None
-    for source in (
-        wishlist if isinstance(wishlist, dict) else {},
-        children if isinstance(children, dict) else {},
-        zone,
-    ):
-        if isinstance(source, dict):
-            image = extract_image(source)
-            if image:
-                break
-    if image:
-        image = _normalize_yandex_image_url(image)
-
-    rating_block = zone.get("rating")
-    rating_value: str | None = None
-    reviews_value: str | None = None
-    if isinstance(rating_block, dict):
-        if rating_block.get("rating") is not None:
-            rating_value = str(rating_block["rating"])
-        if rating_block.get("gradesCount") is not None:
-            reviews_value = str(rating_block["gradesCount"])
-
-    return SearchResult(
-        name=normalize_display_text(str(name)),
-        product_link=_yandex_product_link(zone, card_links),
-        price=_price_from_snippet(zone),
-        image_link=image,
-        rating=rating_value,
-        reviews=reviews_value,
-    )
-
-
-def _attach_card_links(products: list[SearchResult], card_links: dict[str, str]) -> None:
-    if not card_links:
-        return
-    for product in products:
-        if product.product_link:
-            continue
-        for token in re.findall(r"\d{6,}", product.name):
-            link = card_links.get(token)
-            if link:
-                product.product_link = link
-                break
-
-
-def _split_product_snippet_parts(html: str) -> list[str]:
-    parts = html.split('data-zone-name="productSnippet"')
-    if len(parts) > 1:
-        return parts[1:]
-    return re.split(
-        r'data-zone-name=\\"productSnippet\\"',
-        html,
-        flags=re.IGNORECASE,
-    )[1:]
-
-
-def _collect_products_from_dom_html(html: str) -> list[SearchResult]:
-    products: list[SearchResult] = []
-    for part in _split_product_snippet_parts(html):
-        link = _extract_yandex_card_link_from_part(part)
-        if not link:
-            continue
-        title_match = re.search(
-            r'data-auto="snippet-title"[^>]*title="([^"]+)"',
-            part,
-        ) or re.search(
-            r'data-auto=\\"snippet-title\\"[^>]*title=\\"([^"\\]+)\\"',
-            part,
-        )
-        price_match = re.search(
-            r'data-auto="snippet-price-current"[^>]*>[\s\S]*?([\d\s\u00a0\u2009]+)\s*₽',
-            part,
-        )
-        price = re.sub(r"\s+", "", price_match.group(1)) if price_match else None
-        name = title_match.group(1) if title_match else "Product"
-        append_product(
-            products,
-            SearchResult(
-                name=name,
-                product_link=link,
-                price=price,
-                image_link=_extract_yandex_image_from_part(part),
-            ),
-        )
-    return products
-
-
-def _parse_dom_products_payload(raw: str) -> list[SearchResult]:
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(data, dict):
-        return []
-    items = data.get("__domProducts")
-    if not isinstance(items, list):
-        return []
-    products: list[SearchResult] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("name")
-        if not isinstance(name, str) or not name.strip():
-            continue
-        link = item.get("product_link")
-        append_product(
-            products,
-            SearchResult(
-                name=name.strip(),
-                product_link=normalize_product_url(str(link), _YANDEX_BASE_URL) if link else None,
-                price=str(item["price"]) if item.get("price") is not None else None,
-                image_link=item.get("image_link") if isinstance(item.get("image_link"), str) else None,
-            ),
-        )
-    return products
-
-
-def _collect_products_from_snippets(
-    html: str,
-    card_links: dict[str, str],
-) -> list[SearchResult]:
-    products: list[SearchResult] = []
-    for raw in _PRODUCT_SNIPPET_RE.findall(html):
-        try:
-            zone = _decode_embedded_zone_json(raw)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if zone.get("snippet_type") != "product" and zone.get("type") != "offer":
-            continue
-        append_product(products, _product_from_snippet(zone, card_links))
-    return products
-
-
-def _collect_products_from_legacy_html(html: str) -> list[SearchResult]:
-    products: list[SearchResult] = []
-    for block in re.finditer(r'"titles"\s*:\s*\{[^}]*"raw"\s*:\s*"([^"]+)"', html):
-        name = block.group(1).encode().decode("unicode_escape")
-        price_match = re.search(
-            r'"price"\s*:\s*\{[^}]*"value"\s*:\s*"?(\d+)"?',
-            html[block.start() : block.start() + 4000],
-        )
-        img_match = re.search(
-            r'"url"\s*:\s*"(https?://[^"]+)"',
-            html[block.start() : block.start() + 4000],
-        )
-        append_product(
-            products,
-            SearchResult(
-                name=name,
-                characteristics={},
-                price=price_match.group(1) if price_match else None,
-                image_link=img_match.group(1) if img_match else None,
-            ),
-        )
-    return products
-
-
 def parse_html(html: str) -> list[SearchResult]:
-    card_links = _extract_yandex_card_links(html)
-    raw = extract_pre_content(html)
-    if raw and raw != "no data":
-        if raw.startswith("{") and "__domProducts" in raw:
-            dom_products = _parse_dom_products_payload(raw)
-            if dom_products:
-                _attach_snippet_media(dom_products, html)
-                return dom_products
+    """Parse saved search HTML the same way as the live browser (DOM snippets)."""
 
-        try:
-            card_links = {**card_links, **_extract_yandex_card_links(json.loads(raw))}
-        except json.JSONDecodeError:
-            pass
+    from playwright.async_api import async_playwright
 
-        products = parse_api_payload(raw, product_keys=_PRODUCT_KEYS)
-        if products:
-            _attach_card_links(products, card_links)
-            _attach_snippet_media(products, html)
-            return products
+    async def run() -> list[SearchResult]:
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            page = await browser.new_page()
+            await page.set_content(html, wait_until="domcontentloaded")
+            try:
+                return await collect_products_from_page(page)
+            finally:
+                await browser.close()
 
-    dom_html = _collect_products_from_dom_html(html)
-    if dom_html:
-        return dom_html
-
-    snippets = _collect_products_from_snippets(html, card_links)
-    if snippets:
-        _attach_snippet_media(snippets, html)
-        return snippets
-
-    return _collect_products_from_legacy_html(html)
+    return asyncio.run(run())
 
 
 async def run_yandex_market_parser(
@@ -900,7 +877,7 @@ async def run_yandex_market_parser(
             context,
             site_name=SITE,
             actions=_build_actions(query, geo=geo, min_price=min_price, max_price=max_price),
-            parse_html=parse_html,
+            parse_html=lambda _: [],
             parse_typofix=lambda html: parse_yandex_market_typofix(html, original=user_input),
             original_query=user_input,
             check_captcha_expr=CHECK_CAPTCHA,
@@ -908,6 +885,7 @@ async def run_yandex_market_parser(
             enrich_characteristics=_enrich_yandex_characteristics,
             setup_page=make_yandex_setup_page(geo) if geo else None,
             collect_dom_products=collect_products_from_page,
+            block_images=False,
         )
 
     results, timing, typofix = await run_for_query(user_input)

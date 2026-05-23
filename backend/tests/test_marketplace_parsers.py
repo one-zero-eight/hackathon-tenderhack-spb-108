@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from src.modules.search.common import RESULT_PRE_ID, _merge_typofix_suggestion, normalize_display_text
+from src.modules.search.common import SearchResult, _merge_typofix_suggestion, normalize_display_text
 from src.modules.search.ozon import parse_html as parse_ozon_html
 from src.modules.search.ozon import parse_ozon_detail_html
 from src.modules.search.typofix import (
@@ -17,8 +17,14 @@ from src.modules.search.wildberries import (
     parse_wb_detail_html,
 )
 from src.modules.search.wildberries import parse_html as parse_wb_html
-from src.modules.search.yandex_market import collect_products_from_page, parse_yandex_detail_html
-from src.modules.search.yandex_market import parse_html as parse_yandex_html
+from src.modules.search.yandex_market import (
+    _dedupe_yandex_products,
+    collect_products_from_page,
+    parse_yandex_detail_html,
+)
+from src.modules.search.yandex_market import (
+    parse_html as parse_yandex_html,
+)
 from tests.conftest import example_html, fixture_json
 
 
@@ -27,22 +33,41 @@ class TestYandexMarket:
         assert normalize_display_text("16&amp;quot; Laptop") == '16" Laptop'
         assert normalize_display_text("foo&nbsp;bar") == "foo bar"
 
-    def test_dom_products_payload_unescapes_names(self):
-        payload = json.dumps(
-            {
-                "__domProducts": [
-                    {
-                        "name": "16&amp;quot; Ноутбук Lenovo Thinkbook 16",
-                        "product_link": "https://market.yandex.ru/card/test/123",
-                        "price": "7350",
-                    }
-                ]
-            }
+    def test_parse_snippet_spec_lines(self):
+        text = (
+            '16" Ноутбук Lenovo\n'
+            'Диагональ экрана: 16"\n'
+            "Процессор: AMD Ryzen 7 8845H\n"
+            "Рейтинг товара: 4.9 из 5\n"
+            "73 238 ₽\n"
         )
-        html = f'<pre id="{RESULT_PRE_ID}">{payload}</pre>'
-        products = parse_yandex_html(html)
-        assert len(products) == 1
-        assert products[0].name == '16" Ноутбук Lenovo Thinkbook 16'
+        from src.modules.search.yandex_market import _parse_snippet_spec_lines
+
+        specs = _parse_snippet_spec_lines(text)
+        assert specs["Диагональ экрана"] == '16"'
+        assert specs["Процессор"] == "AMD Ryzen 7 8845H"
+        assert "Рейтинг" not in "".join(specs)
+
+    def test_dedupe_merges_nested_snippets_by_card_id(self):
+        link = "https://market.yandex.ru/card/foo/5225693002"
+        merged = _dedupe_yandex_products(
+            [
+                SearchResult(
+                    name='Ноутбук Lenovo ThinkBook 16 G8 IAL 16"',
+                    product_link=link,
+                    price="80737",
+                    image_link="https://avatars.mds.yandex.net/get-mpic/1/abc/orig",
+                ),
+                SearchResult(
+                    name="Product",
+                    product_link=link,
+                    image_link="https://avatars.mds.yandex.net/get-mpic/2/def/orig",
+                ),
+            ]
+        )
+        assert len(merged) == 1
+        assert "Lenovo" in merged[0].name
+        assert merged[0].price == "80737"
 
     def test_product_card_specs(self):
         specs = parse_yandex_detail_html(example_html("16_*ин.html"))
@@ -50,17 +75,6 @@ class TestYandexMarket:
         assert specs.get("Артикул Маркета") == "4926170907"
         assert specs.get("Бренд") == "Lenovo"
         assert "Диагональ экрана" in specs
-
-    def test_search_page_has_product_snippets(self):
-        html = example_html("Ноутбук Lenovo Thinkbook 16 — купить по низкой цене на Яндекс Маркете.html")
-        assert 'data-zone-name="productSnippet"' in html
-        products = parse_yandex_html(html)
-        assert len(products) >= 3
-        with_images = [product for product in products if product.image_link]
-        assert with_images, "expected search snippets to include Yandex Market images"
-        assert all("get-mpic" in product.image_link for product in with_images)
-        assert all(product.image_link.endswith("/orig") for product in with_images)
-        assert all(product.product_link and "/card/" in product.product_link for product in products[:3])
 
     @pytest.mark.asyncio
     async def test_collect_products_from_page_fixture(self):
@@ -75,8 +89,71 @@ class TestYandexMarket:
             await browser.close()
 
         assert len(products) >= 3
-        assert all(product.image_link and "get-mpic" in product.image_link for product in products[:3])
         assert all(product.product_link and "/card/" in product.product_link for product in products[:3])
+        with_images = [product for product in products if product.image_link]
+        if any("get-mpic" in (product.image_link or "") for product in with_images):
+            assert all("get-mpic" in (product.image_link or "") for product in with_images[:3])
+            assert all("get-marketcms" not in (product.image_link or "") for product in with_images[:3])
+            assert all(product.image_link not in product.image_links for product in with_images[:3])
+        assert not any(product.name.strip().casefold() == "product" for product in products)
+        assert all(product.price for product in products[:3])
+        assert products[0].characteristics.get("Процессор")
+
+    def test_picture_gallery_images_from_step05(self):
+        html_path = Path(__file__).resolve().parents[1] / "src/modules/search/out/yandex_market/html/step_05.html"
+        if not html_path.is_file():
+            pytest.skip("step_05.html capture missing")
+        products = parse_yandex_html(html_path.read_text())
+        assert 8 <= len(products) <= 24
+        for product in products[:5]:
+            assert product.image_link and "get-mpic" in product.image_link
+            assert product.image_link.endswith("/orig")
+            assert product.image_link not in product.image_links
+            assert "get-marketcms" not in product.image_link
+        assert products[3].image_link != products[0].image_link
+
+    @pytest.mark.asyncio
+    async def test_collect_organic_only_on_sponsored_fixture(self):
+        from playwright.async_api import async_playwright
+
+        html = example_html("СПОНСОРСКИЕ Ноутбук Lenovo ThinkBook 16 — купить по низкой цене на Яндекс Маркете.html")
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch()
+            page = await browser.new_page()
+            await page.set_content(html, wait_until="domcontentloaded")
+            all_snippets = await page.locator('[data-zone-name="productSnippet"]').count()
+            products = await collect_products_from_page(page)
+            await browser.close()
+
+        assert all_snippets > len(products)
+        assert len(products) >= 4
+
+    @pytest.mark.asyncio
+    async def test_collect_skips_sponsored_incut(self):
+        from playwright.async_api import async_playwright
+
+        from src.modules.search.yandex_market import _SPONSORED_INCUT_ZONE
+
+        html = example_html("СПОНСОРСКИЕ Ноутбук Lenovo ThinkBook 16 — купить по низкой цене на Яндекс Маркете.html")
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch()
+            page = await browser.new_page()
+            await page.set_content(html, wait_until="domcontentloaded")
+            sponsored_href = await page.evaluate(
+                f"""() => {{
+                  const snippet = document.querySelector(
+                    '[data-zone-name="{_SPONSORED_INCUT_ZONE}"] [data-zone-name="productSnippet"] a[href*="/card/"]'
+                  );
+                  return snippet ? snippet.href : null;
+                }}"""
+            )
+            products = await collect_products_from_page(page)
+            await browser.close()
+
+        assert sponsored_href
+        assert len(products) >= 3
+        collected_links = " ".join(product.product_link or "" for product in products)
+        assert sponsored_href.split("?", 1)[0] not in collected_links
 
 
 class TestWildberries:
@@ -144,6 +221,8 @@ class TestWildberries:
         assert products[0].price == "75784"
         assert products[0].product_link.endswith("/676662119/detail.aspx")
         assert products[0].image_link == "https://basket-33.wbbasket.ru/vol6766/part676662/676662119/images/big/1.webp"
+        assert len(products[0].image_links) == 4
+        assert products[0].image_links[0].endswith("/2.webp")
 
     def test_search_api_payload_v18_sizes_price(self):
         payload = {
@@ -171,6 +250,13 @@ class TestWildberries:
         product = parse_wb_html(html)[0]
         assert product.price == "52967"
         assert product.image_link == "https://basket-34.wbbasket.ru/vol7251/part725109/725109772/images/big/1.webp"
+
+    def test_high_vol_nm_uses_basket_39(self):
+        from src.modules.search.wildberries import _wb_image_url_for_index
+
+        assert _wb_image_url_for_index(903747859, 1) == (
+            "https://basket-39.wbbasket.ru/vol9037/part903747/903747859/images/big/1.webp"
+        )
 
 
 class TestTypofix:
@@ -238,6 +324,26 @@ class TestTypofix:
 
 
 class TestOzon:
+    def test_ozon_search_page_path_is_not_preencoded(self):
+        from src.modules.search.ozon import _ozon_api_path, _ozon_search_page_path
+
+        raw = _ozon_search_page_path("Ноутбук Lenovo ThinkBook 16")
+        assert raw.startswith("/search/")
+        assert raw == _ozon_search_page_path("Ноутбук Lenovo ThinkBook 16")
+        encoded = _ozon_api_path("Ноутбук Lenovo ThinkBook 16")
+        assert encoded.startswith("%2Fsearch%2F")
+
+    def test_extract_next_page_path_from_search_api(self):
+        from src.modules.search.ozon import _ozon_extract_next_page_path
+
+        data = json.loads(
+            (Path(__file__).resolve().parents[1] / "tests/example_htmls/ozon_search_api.json").read_text()
+        )
+        next_path = _ozon_extract_next_page_path(data)
+        assert next_path
+        assert next_path.startswith("/")
+        assert "page=2" in next_path
+
     def test_search_api_response(self):
         html = example_html("ozon_search_api.html")
         products = parse_ozon_html(html)
@@ -248,6 +354,7 @@ class TestOzon:
         assert first.price
         assert first.product_link and "ozon.ru/product/" in first.product_link
         assert first.image_link and first.image_link.startswith("http")
+        assert first.image_link not in first.image_links
 
     def test_detail_api_response(self):
         html = example_html("ozon_detail_api.html")

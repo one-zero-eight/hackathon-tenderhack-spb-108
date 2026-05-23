@@ -65,6 +65,7 @@ async def _launch_browser_context():
         headless=headless,
         proxy=HTTP_PROXY,
         locale="ru-RU",
+        humanize=True,
     )
     logger.info("Shared cloakbrowser context started (headless=%s)", headless)
     return context
@@ -354,11 +355,13 @@ async def run_site_parser(
         action_index += 1
 
     async with recorder.stage("parse_results"):
-        html = await page_content(page)
-        save_html(out_dir, step + 1, html)
-        products = parse_html(html)
-        if not products and collect_dom_products is not None:
+        if collect_dom_products is not None:
             products = await collect_dom_products(page)
+            html = await page_content(page)
+        else:
+            html = await page_content(page)
+            products = parse_html(html)
+        save_html(out_dir, step + 1, html)
         if parse_typofix is not None:
             typofix_suggestion = _merge_typofix_suggestion(
                 typofix_suggestion,
@@ -366,6 +369,14 @@ async def run_site_parser(
                 original_query,
             )
     logger.info("Parsed %d products from %s", len(products), site_name)
+    for index, product in enumerate(products, start=1):
+        if product.product_link:
+            logger.info(
+                "  search result [%d/%d] %s",
+                index,
+                len(products),
+                product.product_link,
+            )
 
     if enrich_characteristics is not None:
         async with recorder.stage("enrich_details"):
@@ -421,28 +432,56 @@ def _format_price(val: int | float) -> str:
     return str(int(val)) if float(val).is_integer() else str(val)
 
 
+def dedupe_http_urls(urls: list[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        if not isinstance(url, str):
+            continue
+        cleaned = url.strip()
+        if not cleaned.startswith("http") or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        out.append(cleaned)
+    return out
+
+
+def split_product_images(urls: list[str]) -> tuple[str | None, list[str]]:
+    unique = dedupe_http_urls(urls)
+    if not unique:
+        return None, []
+    return unique[0], unique[1:]
+
+
+def _collect_image_urls(node: object, urls: list[str], seen: set[int]) -> None:
+    if isinstance(node, dict):
+        oid = id(node)
+        if oid in seen:
+            return
+        seen.add(oid)
+        for key in ("url", "src", "original", "image", "picture", "imageUrl", "link"):
+            val = node.get(key)
+            if isinstance(val, str) and val.startswith("http"):
+                urls.append(val)
+        for key in ("pictures", "images", "thumbnails", "avatars", "pics", "gallery"):
+            _collect_image_urls(node.get(key), urls, seen)
+    elif isinstance(node, list):
+        for item in node:
+            if isinstance(item, str) and item.startswith("http"):
+                urls.append(item)
+            else:
+                _collect_image_urls(item, urls, seen)
+
+
+def extract_images(obj: dict) -> list[str]:
+    urls: list[str] = []
+    _collect_image_urls(obj, urls, set())
+    return dedupe_http_urls(urls)
+
+
 def extract_image(obj: dict) -> str | None:
-    for key in ("url", "src", "original", "image", "picture", "imageUrl"):
-        val = obj.get(key)
-        if isinstance(val, str) and val.startswith("http"):
-            return val
-    for key in ("pictures", "images", "thumbnails", "avatars", "pics"):
-        items = obj.get(key)
-        if isinstance(items, list):
-            for item in items:
-                if isinstance(item, str) and item.startswith("http"):
-                    return item
-                if isinstance(item, dict):
-                    found = extract_image(item)
-                    if found:
-                        return found
-        if isinstance(items, dict):
-            for item in items.values():
-                if isinstance(item, dict):
-                    found = extract_image(item)
-                    if found:
-                        return found
-    return None
+    images = extract_images(obj)
+    return images[0] if images else None
 
 
 def append_characteristic(
@@ -560,12 +599,14 @@ def product_from_dict(obj: dict) -> SearchResult | None:
     name = extract_name(obj)
     if not name:
         return None
+    image_link, image_links = split_product_images(extract_images(obj))
     return SearchResult(
         name=name,
         characteristics=extract_characteristics(obj),
         product_link=extract_product_link(obj),
         price=extract_price(obj),
-        image_link=extract_image(obj),
+        image_link=image_link,
+        image_links=image_links,
         rating=extract_rating(obj),
         reviews=extract_reviews(obj),
     )

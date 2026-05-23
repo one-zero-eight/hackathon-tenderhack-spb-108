@@ -60,11 +60,12 @@ async def _enrich_one_product(
 ) -> None:
     recorder = TimingRecorder.start()
     logger.info(
-        "Loading detail page for %s (%d/%d): %s",
+        "Loading detail page for %s (%d/%d): %s | %s",
         site_name,
         index,
         total,
         product.name[:60],
+        product.product_link,
     )
     detail_page = await open_browser_page()
     try:
@@ -97,7 +98,12 @@ async def _enrich_one_product(
                 return
         if specs:
             product.characteristics = specs
-            logger.info("Got %d characteristics for %s", len(specs), product.name[:60])
+            logger.info(
+                "Got %d characteristics for %s | %s",
+                len(specs),
+                product.name[:60],
+                product.product_link,
+            )
     finally:
         await release_browser_page(detail_page)
         product.timing = recorder.to_product_timing()

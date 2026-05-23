@@ -3,6 +3,7 @@ import type { SchemaSearchResults, SourceType } from '@/api/openapi.gen'
 export type Product = {
   title: string
   image: string | null
+  images: string[]
   characteristics: string[]
   productLink?: string | null
   price?: string | null

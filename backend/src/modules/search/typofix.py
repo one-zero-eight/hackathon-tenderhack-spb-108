@@ -97,7 +97,7 @@ def _ozon_search_bar_text(data: dict) -> str | None:
 
 
 def parse_ozon_typofix(html: str, *, original: str | None = None) -> str | None:
-    from src.modules.search.ozon import _extract_json_document
+    from src.modules.search.ozon import _parse_ozon_json_html
 
     if captured := _typofix_from_pre(html):
         return captured
@@ -108,7 +108,7 @@ def parse_ozon_typofix(html: str, *, original: str | None = None) -> str | None:
         if corrected and (original is None or is_plausible_typofix(original, corrected)):
             return corrected
 
-    data = _extract_json_document(html)
+    data = _parse_ozon_json_html(html)
     if isinstance(data, dict):
         if corrected := _ozon_shared_corrected_text(data):
             if original is None or is_plausible_typofix(original, corrected):

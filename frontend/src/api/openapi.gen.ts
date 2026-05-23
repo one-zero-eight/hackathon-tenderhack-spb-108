@@ -123,6 +123,8 @@ export interface components {
             price?: string | null;
             /** Image Link */
             image_link?: string | null;
+            /** Image Links */
+            image_links?: string[];
             /** Rating */
             rating?: string | null;
             /** Reviews */
@@ -149,6 +151,8 @@ export interface components {
             source_favicon_url: string | null;
             /** Results */
             results: components["schemas"]["SearchResult"][];
+            /** Number of products found for this source. */
+            results_count: number;
             timing?: components["schemas"]["SourceTiming"] | null;
         };
         /** SourceTiming */

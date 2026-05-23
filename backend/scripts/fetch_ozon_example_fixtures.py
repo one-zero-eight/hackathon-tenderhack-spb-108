@@ -12,9 +12,9 @@ from src.modules.search.ozon import (
     CHECK_CAPTCHA,
     SITE,
     _build_actions,
-    _extract_json_document,
     _ozon_detail_api_url,
     _ozon_features_api_url,
+    _parse_ozon_json_html,
     parse_html,
     parse_ozon_detail_html,
 )
@@ -42,7 +42,7 @@ async def _run_actions(page, actions: list[dict[str, str]]) -> None:
 
 def _save_api_capture(path: Path, html: str) -> dict | None:
     path.write_text(html, encoding="utf-8")
-    data = _extract_json_document(html)
+    data = _parse_ozon_json_html(html)
     if data:
         json_path = path.with_suffix(".json")
         json_path.write_text(

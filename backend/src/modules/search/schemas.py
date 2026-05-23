@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 class SourceType(StrEnum):
@@ -55,6 +55,7 @@ class SearchResult(BaseModel):
     product_link: str | None = None
     price: str | None = None
     image_link: str | None = None
+    image_links: list[str] = Field(default_factory=list)
     rating: str | None = None
     reviews: str | None = None
     timing: ProductTiming | None = None
@@ -65,6 +66,13 @@ class SearchSource(BaseModel):
     source_url: str
     source_title: str
     source_favicon_url: str | None
+
+    @computed_field
+    @property
+    def results_count(self) -> int:
+        """Number of products found for this source."""
+        return len(self.results)
+
     results: list[SearchResult]
     timing: SourceTiming | None = None
 

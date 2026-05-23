@@ -12,6 +12,7 @@ export function mapSearchSourceToGroup(source: SchemaSearchSource): MarketplaceG
     products: source.results.map((result) => ({
       title: result.name,
       image: result.image_link ?? null,
+      images: result.image_links ?? [],
       characteristics: Object.entries(result.characteristics ?? {}).map(
         ([name, value]) => `${name}: ${value}`
       ),

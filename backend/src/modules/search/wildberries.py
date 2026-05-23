@@ -316,7 +316,7 @@ _WB_BASKET_VOL_LIMITS = (
     7997,
     8309,
     8621,
-    8933,
+    9244,
     9245,
     9557,
     9869,
@@ -619,15 +619,36 @@ def _wb_price_kopecks(item: dict) -> int | None:
     return min(prices) if prices else None
 
 
-def _wb_image_url(product: dict) -> str | None:
-    nm_id = product.get("id") or product.get("nmId")
-    if not nm_id:
-        return None
-    nm_id = int(nm_id)
+def _wb_image_url_for_index(nm_id: int, index: int) -> str:
     vol = nm_id // 100_000
     part = nm_id // 1_000
     host = _wb_basket_host(vol)
-    return f"https://basket-{host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/1.webp"
+    return f"https://basket-{host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/{index}.webp"
+
+
+def _wb_image_count(product: dict) -> int:
+    pics = product.get("pics")
+    if isinstance(pics, int):
+        return max(1, min(pics, 30))
+    if isinstance(pics, str) and pics.isdigit():
+        return max(1, min(int(pics), 30))
+    return 1
+
+
+def _wb_product_images(product: dict) -> tuple[str | None, list[str]]:
+    nm_id = product.get("id") or product.get("nmId")
+    if not nm_id:
+        return None, []
+    nm_id = int(nm_id)
+    urls = [_wb_image_url_for_index(nm_id, index) for index in range(1, _wb_image_count(product) + 1)]
+    if not urls:
+        return None, []
+    return urls[0], urls[1:]
+
+
+def _wb_image_url(product: dict) -> str | None:
+    image_link, _ = _wb_product_images(product)
+    return image_link
 
 
 def parse_wb_detail_html(html: str) -> dict[str, str]:
@@ -833,11 +854,13 @@ def _product_from_wb(item: dict) -> SearchResult | None:
     reviews = str(item["feedbacks"]) if item.get("feedbacks") is not None else None
     product_link = f"https://www.wildberries.ru/catalog/{nm_id}/detail.aspx"
 
+    image_link, image_links = _wb_product_images(item)
     return SearchResult(
         name=str(name).strip(),
         product_link=product_link,
         price=price_str,
-        image_link=_wb_image_url(item),
+        image_link=image_link,
+        image_links=image_links,
         rating=rating,
         reviews=reviews,
     )
