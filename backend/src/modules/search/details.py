@@ -9,6 +9,7 @@ from src.modules.search.common import (
     append_characteristic,
     check_captcha,
     open_browser_page,
+    release_browser_page,
     wait_captcha_solved,
 )
 from src.modules.search.schemas import SearchResult
@@ -86,7 +87,7 @@ async def _enrich_one_product(
             product.characteristics = specs
             logger.info("Got %d characteristics for %s", len(specs), product.name[:60])
     finally:
-        await detail_page.close()
+        await release_browser_page(detail_page)
         product.timing = recorder.to_product_timing()
 
 

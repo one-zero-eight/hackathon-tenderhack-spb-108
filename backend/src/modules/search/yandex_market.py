@@ -17,6 +17,7 @@ from .common import (
     append_product,
     build_price_filter,
     extract_pre_content,
+    normalize_display_text,
     normalize_product_url,
     page_content,
     parse_api_payload,
@@ -537,9 +538,7 @@ def _price_from_snippet(zone: dict) -> str | None:
 def parse_yandex_detail_html(html: str) -> dict[str, str]:
     specs: dict[str, str] = {}
     for match in _YANDEX_SPEC_ROW_RE.finditer(html):
-        name = html_module.unescape(match.group(1).strip())
-        value = html_module.unescape((match.group(2) or match.group(3) or "").strip())
-        append_characteristic(specs, name, value)
+        append_characteristic(specs, match.group(1), (match.group(2) or match.group(3) or ""))
     return specs
 
 
@@ -588,7 +587,7 @@ def _product_from_snippet(zone: dict, card_links: dict[str, str]) -> SearchResul
             reviews_value = str(rating_block["gradesCount"])
 
     return SearchResult(
-        name=str(name).strip(),
+        name=normalize_display_text(str(name)),
         product_link=_yandex_product_link(zone, card_links),
         price=_price_from_snippet(zone),
         image_link=image,
@@ -642,7 +641,7 @@ def _collect_products_from_dom_html(html: str) -> list[SearchResult]:
             part,
         )
         price = re.sub(r"\s+", "", price_match.group(1)) if price_match else None
-        name = html_module.unescape(title_match.group(1)) if title_match else "Product"
+        name = title_match.group(1) if title_match else "Product"
         append_product(
             products,
             SearchResult(
@@ -711,13 +710,14 @@ def _collect_products_from_legacy_html(html: str) -> list[SearchResult]:
             r'"url"\s*:\s*"(https?://[^"]+)"',
             html[block.start() : block.start() + 4000],
         )
-        products.append(
+        append_product(
+            products,
             SearchResult(
                 name=name,
                 characteristics={},
                 price=price_match.group(1) if price_match else None,
                 image_link=img_match.group(1) if img_match else None,
-            )
+            ),
         )
     return products
 

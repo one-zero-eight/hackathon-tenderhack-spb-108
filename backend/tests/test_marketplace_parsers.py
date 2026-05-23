@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from src.modules.search.common import _merge_typofix_suggestion
+from src.modules.search.common import RESULT_PRE_ID, _merge_typofix_suggestion, normalize_display_text
 from src.modules.search.ozon import parse_html as parse_ozon_html
 from src.modules.search.ozon import parse_ozon_detail_html
 from src.modules.search.typofix import (
@@ -15,11 +15,33 @@ from src.modules.search.wildberries import (
     parse_wb_detail_html,
 )
 from src.modules.search.wildberries import parse_html as parse_wb_html
+from src.modules.search.yandex_market import parse_html as parse_yandex_html
 from src.modules.search.yandex_market import parse_yandex_detail_html
 from tests.conftest import example_html, fixture_json
 
 
 class TestYandexMarket:
+    def test_normalize_display_text_decodes_double_encoded_entities(self):
+        assert normalize_display_text("16&amp;quot; Laptop") == '16" Laptop'
+        assert normalize_display_text("foo&nbsp;bar") == "foo bar"
+
+    def test_dom_products_payload_unescapes_names(self):
+        payload = json.dumps(
+            {
+                "__domProducts": [
+                    {
+                        "name": "16&amp;quot; Ноутбук Lenovo Thinkbook 16",
+                        "product_link": "https://market.yandex.ru/card/test/123",
+                        "price": "7350",
+                    }
+                ]
+            }
+        )
+        html = f'<pre id="{RESULT_PRE_ID}">{payload}</pre>'
+        products = parse_yandex_html(html)
+        assert len(products) == 1
+        assert products[0].name == '16" Ноутбук Lenovo Thinkbook 16'
+
     def test_product_card_specs(self):
         specs = parse_yandex_detail_html(example_html("16_*ин.html"))
         assert len(specs) >= 10

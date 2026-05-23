@@ -43,7 +43,8 @@ async def search(search_params: SearchParams) -> SearchResults:
         logger.warning("Unknown region city %r — geo override skipped", search_params.region)
 
     request_timing = TimingRecorder.start()
-    context = await get_browser_context()
+    await get_browser_context()
+    search_query = search_params.query
 
     run_ozon = not search_params.source_types or SourceType.ozon in search_params.source_types
     run_wildberries = not search_params.source_types or SourceType.wildberries in search_params.source_types
@@ -52,44 +53,24 @@ async def search(search_params: SearchParams) -> SearchResults:
 
     sources: list[SearchSource] = []
     typofix_suggestions: list[TypofixSuggestion] = []
-    search_query = search_params.query
 
+    tasks: list = []
     if run_ozon:
-        logger.info("Running Ozon parser (first, for typofix)")
-        async with request_timing.stage("fetch_sources.ozon"):
-            try:
-                ozon_source, ozon_typofix = await run_ozon_parser(
-                    context,
-                    search_params.query,
-                    region=search_params.region,
-                )
-            except Exception:
-                logger.error("Ozon search failed", exc_info=True)
-            else:
-                sources.append(ozon_source)
-                if (
-                    ozon_typofix
-                    and queries_differ(search_params.query, ozon_typofix)
-                    and is_plausible_typofix(search_params.query, ozon_typofix)
-                ):
-                    typofix_suggestions.append(TypofixSuggestion(source=SourceType.ozon, suggestion=ozon_typofix))
-                    search_query = ozon_typofix
-                    logger.info("Using Ozon typofix for other sources: %r", search_query)
-
-    other_tasks: list = []
+        logger.info("Running Ozon parser for %r", search_query)
+        tasks.append(run_ozon_parser(None, search_query, region=search_params.region))
     if run_wildberries:
         logger.info("Running Wildberries parser for %r", search_query)
-        other_tasks.append(run_wildberries_parser(context, search_query, region=search_params.region))
+        tasks.append(run_wildberries_parser(None, search_query, region=search_params.region))
     if run_yandex_market:
         logger.info("Running Yandex Market parser for %r", search_query)
-        other_tasks.append(run_yandex_market_parser(context, search_query, region=search_params.region))
+        tasks.append(run_yandex_market_parser(None, search_query, region=search_params.region))
     if run_runet:
         logger.info("Running Runet (Whoogle) parser for %r", search_query)
-        other_tasks.append(run_runet_parser(search_query))
+        tasks.append(run_runet_parser(search_query))
 
-    if other_tasks:
+    if tasks:
         async with request_timing.stage("fetch_sources"):
-            gathered = await asyncio.gather(*other_tasks, return_exceptions=True)
+            gathered = await asyncio.gather(*tasks, return_exceptions=True)
 
         for item in gathered:
             if isinstance(item, BaseException):
@@ -102,8 +83,11 @@ async def search(search_params: SearchParams) -> SearchResults:
                 sources.append(source)
             if suggestion and queries_differ(search_params.query, suggestion):
                 typofix_source = source[0].source_type if isinstance(source, list) else source.source_type
-                if not any(t.source == typofix_source and t.suggestion == suggestion for t in typofix_suggestions):
+                if is_plausible_typofix(search_params.query, suggestion) and not any(
+                    t.source == typofix_source and t.suggestion == suggestion for t in typofix_suggestions
+                ):
                     typofix_suggestions.append(TypofixSuggestion(source=typofix_source, suggestion=suggestion))
+
     if search_params.short:
         for source in sources:
             source.results = source.results[:4]

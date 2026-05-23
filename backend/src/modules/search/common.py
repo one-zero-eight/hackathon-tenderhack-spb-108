@@ -1,6 +1,7 @@
 """Shared utilities for marketplace search parsers."""
 
 import asyncio
+import html as html_module
 import json
 import os
 import re
@@ -27,11 +28,22 @@ class _BrowserState:
 
 
 _browser_lock = asyncio.Lock()
-_new_page_lock = asyncio.Lock()
 
 
 def _is_browser_closed_error(exc: BaseException) -> bool:
-    return type(exc).__name__ == "TargetClosedError" or "has been closed" in str(exc).lower()
+    msg = str(exc).lower()
+    if type(exc).__name__ == "TargetClosedError":
+        return True
+    return any(
+        needle in msg
+        for needle in (
+            "has been closed",
+            "failed to open a new tab",
+            "target.createtarget",
+            "protocol error",
+            "browser has been closed",
+        )
+    )
 
 
 def _context_is_alive(context) -> bool:
@@ -90,28 +102,41 @@ def page_is_blank(page) -> bool:
     return url in ("about:blank", "") or url.startswith("about:")
 
 
+async def release_browser_page(page) -> None:
+    """Return a tab to the shared pool; prefer blank navigation over close."""
+    try:
+        if page.is_closed():
+            return
+        await page.goto("about:blank", wait_until="commit", timeout=15_000)
+    except Exception as exc:
+        logger.debug("release_browser_page failed, closing tab: %s", exc)
+        try:
+            await page.close()
+        except Exception:
+            pass
+
+
 async def open_browser_page(*, url: str | None = None):
-    """Open a tab; restart shared browser if Playwright reports a dead context."""
-    async with _new_page_lock:
-        for attempt in range(2):
-            context = await get_browser_context()
-            try:
-                page = None
-                for candidate in context.pages:
-                    if page_is_blank(candidate):
-                        page = candidate
-                        break
-                if page is None:
-                    page = await context.new_page()
-                if url and page.url.rstrip("/") != url.rstrip("/"):
-                    await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
-                return page
-            except Exception as exc:
-                if not _is_browser_closed_error(exc) or attempt > 0:
-                    raise
-                logger.warning("Browser closed on new_page, restarting (%s)", exc)
-                await reset_browser_context()
-        raise RuntimeError("Could not open browser page after restart")
+    """Open a tab in the shared browser; restart the context if Playwright reports it dead."""
+    for attempt in range(3):
+        context = await get_browser_context()
+        try:
+            page = None
+            for candidate in context.pages:
+                if page_is_blank(candidate):
+                    page = candidate
+                    break
+            if page is None:
+                page = await context.new_page()
+            if url and page.url.rstrip("/") != url.rstrip("/"):
+                await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+            return page
+        except Exception as exc:
+            if not _is_browser_closed_error(exc) or attempt >= 2:
+                raise
+            logger.warning("Browser closed on new_page, restarting (%s)", exc)
+            await reset_browser_context()
+    raise RuntimeError("Could not open browser page after restart")
 
 
 async def close_browser_context() -> None:
@@ -146,9 +171,23 @@ def encode_query(query: str) -> str:
     return quote_plus(query)
 
 
+def normalize_display_text(text: str) -> str:
+    """Decode HTML entities (incl. double-encoded &amp;quot;) and normalize whitespace."""
+    if not text:
+        return text
+    out = text
+    for _ in range(3):
+        decoded = html_module.unescape(out)
+        if decoded == out:
+            break
+        out = decoded
+    return out.replace("\u00a0", " ").strip()
+
+
 def append_product(products: list[SearchResult], item: SearchResult | None) -> None:
     if item is None:
         return
+    item.name = normalize_display_text(item.name)
     if any(p.name == item.name and p.price == item.price for p in products):
         return
     products.append(item)
@@ -340,7 +379,7 @@ async def run_site_parser(
         async with recorder.stage("enrich_details"):
             await enrich_characteristics(page, products)
 
-    await page.close()
+    await release_browser_page(page)
     return products, recorder.to_source_timing(), typofix_suggestion
 
 
@@ -348,7 +387,7 @@ def extract_name(obj: dict) -> str | None:
     for key in ("raw", "text", "title", "name", "full", "short", "productTitle"):
         val = obj.get(key)
         if isinstance(val, str) and val.strip():
-            return val.strip()
+            return normalize_display_text(val)
     titles = obj.get("titles")
     if isinstance(titles, dict):
         return extract_name(titles)
@@ -358,7 +397,7 @@ def extract_name(obj: dict) -> str | None:
             if isinstance(block, dict) and block.get("type") == "textAtom":
                 text = block.get("textAtom", {}).get("text")
                 if isinstance(text, str) and text.strip():
-                    return text.strip()
+                    return normalize_display_text(text)
     return None
 
 
@@ -421,8 +460,8 @@ def append_characteristic(
 ) -> None:
     if value is None:
         return
-    key = str(name).strip()
-    val = str(value).strip()
+    key = normalize_display_text(str(name))
+    val = normalize_display_text(str(value))
     if not key or not val or key in specs:
         return
     specs[key] = val
