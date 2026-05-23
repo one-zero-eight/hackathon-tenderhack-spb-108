@@ -48,18 +48,7 @@ function Home() {
     isPending
   } = $api.useMutation(
     'post',
-    '/search/search',
-    {
-      body: searchParams ?? {
-        query: '',
-        region: null,
-        source_types: sourceTypesForRunetSearch(extendedRunetSearch),
-        short: false
-      }
-    },
-    {
-      enabled: searchParams !== null
-    }
+    '/search/search'
   )
   const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup)
   const visibleGroups = apiSourceGroups ?? []
@@ -97,7 +86,8 @@ function Home() {
       body: {
         query,
         region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
-        source_types: sourceTypesForRunetSearch(extendedRunetSearch)
+        source_types: sourceTypesForRunetSearch(extendedRunetSearch),
+        short: false
       }
     })
   }
