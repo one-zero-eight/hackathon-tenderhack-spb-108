@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, LoaderCircle, Search } from "lucide-react";
 import { $api } from "../api";
 import exampleSearchResultsRaw from "../../example.json?raw";
+import { Button } from "../components/ui/button";
 import type {
   SchemaSearchResults,
   SchemaSearchSource,
@@ -369,6 +370,8 @@ function Home() {
     (sum, group) => sum + group.products.length,
     0,
   );
+  const isSearchDisabled = isFetching || searchInput.trim().length === 0;
+
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = searchInput.trim();
@@ -394,7 +397,7 @@ function Home() {
 
         <form
           aria-label="Фильтры каталога"
-          className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_320px]"
+          className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_320px_auto]"
           onSubmit={handleSearchSubmit}
         >
           <label className="flex flex-col gap-2">
@@ -420,6 +423,21 @@ function Home() {
             onSelect={setSelectedRegion}
             selectedRegion={selectedRegion}
           />
+
+          <div className="flex flex-col justify-end">
+            <Button
+              className="h-11 w-full gap-2 px-4 text-sm md:min-w-32"
+              disabled={isSearchDisabled}
+              type="submit"
+            >
+              {isFetching ? (
+                <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+              ) : (
+                <Search aria-hidden="true" className="size-4" />
+              )}
+              {isFetching ? "Ищем..." : "Найти"}
+            </Button>
+          </div>
         </form>
 
         <section className="flex flex-col gap-4" aria-label="Источники товаров">
