@@ -102,7 +102,6 @@ class WhoogleSearchAdapter:
         query: str,
         limit: int,
         search_type: str = "",
-        near: str = "",
     ) -> dict[str, str]:
         if limit < 1:
             return {}
@@ -116,7 +115,6 @@ class WhoogleSearchAdapter:
                 query=query,
                 start=start,
                 search_type=search_type,
-                near=near,
             )
             if not page.results:
                 break
@@ -144,15 +142,12 @@ class WhoogleSearchAdapter:
         query: str,
         start: int = 0,
         search_type: str = "",
-        near: str = "",
     ) -> WhoogleSearchResponse:
         params = {"q": query, "format": "json"}
         if start > 0:
             params["start"] = str(start)
         if search_type:
             params["tbm"] = search_type
-        if near:
-            params["near"] = near
 
         response = self._client.get("/search", params=params)
         payload = response.json()
