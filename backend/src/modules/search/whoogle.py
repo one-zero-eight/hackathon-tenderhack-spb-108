@@ -213,7 +213,7 @@ async def run_runet_parser(query: str, *, limit: int = 5) -> tuple[list[SearchSo
     async with recorder.stage("parse_sources"):
         parse_results = await asyncio.gather(*(parse_url(url) for url in urls))
 
-    sources = [source for result in parse_results for source in result.sources]
+    sources = [source for result in parse_results for source in result.sources if source.results]
     source_timing = recorder.to_source_timing()
     for source in sources:
         source.timing = source_timing
