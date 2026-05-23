@@ -5,7 +5,6 @@ import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions
 import { createFileRoute } from '@tanstack/react-router'
 import { LoaderCircle, Search } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
-import exampleSearchResultsRaw from '../../example.json?raw'
 import { $api } from '../api'
 import { type SchemaSearchResults, SourceType } from '../api/openapi.gen'
 import { Button } from '../components/ui/button'
@@ -41,22 +40,13 @@ function Home() {
   const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS)
   const [extendedRunetSearch, setExtendedRunetSearch] = useState(false)
   const {
+    mutate,
     data: searchResults,
     error,
-    isFetching
-  } = $api.useQuery(
+    isPending
+  } = $api.useMutation(
     'post',
     '/search/search',
-    {
-      body: searchParams ?? {
-        query: '',
-        region: null,
-        source_types: sourceTypesForRunetSearch(extendedRunetSearch)
-      }
-    },
-    {
-      enabled: searchParams !== null
-    }
   )
   const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup)
   const visibleGroups = apiSourceGroups ?? []
@@ -76,7 +66,6 @@ function Home() {
   const hasTypofixSuggestions = typofixSuggestions.length > 0
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
-  const isSearchDisabled = isFetching
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -88,6 +77,13 @@ function Home() {
       query,
       region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
       source_types: sourceTypesForRunetSearch(extendedRunetSearch)
+    })
+    mutate({
+      body: {
+        query,
+        region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
+        source_types: sourceTypesForRunetSearch(extendedRunetSearch)
+      }
     })
   }
 
@@ -148,15 +144,15 @@ function Home() {
             </label>
             <Button
               className="h-11 w-full gap-2 px-4 text-sm md:min-w-32"
-              disabled={isSearchDisabled}
+              disabled={isPending}
               type="submit"
             >
-              {isFetching ? (
+              {isPending ? (
                 <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
               ) : (
                 <Search aria-hidden="true" className="size-4" />
               )}
-              {isFetching ? 'Ищем...' : 'Найти'}
+              {isPending ? 'Ищем...' : 'Найти'}
             </Button>
           </div>
         </form>
@@ -175,7 +171,7 @@ function Home() {
               <p className="text-sm text-slate-600">Регион: {selectedRegion}</p>
             </div>
             <p className="text-sm text-slate-500">
-              {isFetching ? 'Идёт поиск...' : `Найдено товаров: ${totalProducts}`}
+              {isPending ? 'Идёт поиск...' : `Найдено товаров: ${totalProducts}`}
             </p>
           </div>
 
