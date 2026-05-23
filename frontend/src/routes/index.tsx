@@ -25,10 +25,12 @@ type Product = {
 type MarketplaceGroup = {
   title: string;
   logoUrl: string;
+  sourceUrl: string;
   products: Product[];
 };
 
 const CHARACTERISTICS_PREVIEW_LIMIT = 5;
+const PRODUCTS_PER_PAGE = 3;
 
 function RegionDropdown({
   selectedRegion,
@@ -123,18 +125,36 @@ function ProductCharacteristics({
           Показать все
         </button>
       ) : null}
+      {showAll && hasHiddenCharacteristics ? (
+        <button
+          className="self-start text-sm font-medium text-slate-900 underline underline-offset-2 transition hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+          onClick={() => setShowAll(false)}
+          type="button"
+        >
+          Скрыть
+        </button>
+      ) : null}
     </div>
   );
 }
 
 function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
+  const [page, setPage] = useState(0);
+  const pageCount = Math.ceil(group.products.length / PRODUCTS_PER_PAGE);
+  const currentPage = Math.min(page, Math.max(pageCount - 1, 0));
+  const visibleProducts = group.products.slice(
+    currentPage * PRODUCTS_PER_PAGE,
+    (currentPage + 1) * PRODUCTS_PER_PAGE,
+  );
+  const canPaginate = pageCount > 1;
+
   return (
     <details
       className="group rounded-lg border border-slate-200 bg-white shadow-sm"
       open
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 marker:hidden">
-        <span className="flex min-w-0 items-center gap-3">
+      <summary className="flex cursor-pointer list-none flex-col gap-4 px-4 py-4 marker:hidden sm:flex-row sm:items-center sm:justify-between">
+        <span className="flex min-w-0 items-center gap-3 self-stretch sm:self-auto">
           <img
             alt=""
             className="size-10 shrink-0 rounded-md border border-slate-200 bg-white object-contain p-1"
@@ -147,67 +167,105 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
             </span>
           </span>
         </span>
-        <span className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-600">
-          {group.products.length}
+        <span className="flex items-center justify-between gap-3 self-stretch sm:shrink-0 sm:self-auto">
+          <a
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-center text-sm font-medium text-slate-800 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+            href={group.sourceUrl}
+            onClick={(event) => event.stopPropagation()}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Перейти на маркетплейс
+          </a>
+          <span className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-600">
+            {group.products.length}
+          </span>
         </span>
       </summary>
 
       <div className="border-t border-slate-200 p-4">
         {group.products.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {group.products.map((product) => (
-              <article
-                className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-                key={`${product.title}-${product.productLink ?? ""}`}
-              >
-                {product.image ? (
-                  <img
-                    alt={product.title}
-                    className="h-44 w-full object-cover"
-                    loading="lazy"
-                    src={product.image}
-                  />
-                ) : (
-                  <div className="flex h-44 items-center justify-center bg-slate-100 text-sm text-slate-500">
-                    Нет изображения
-                  </div>
-                )}
-                <div className="flex flex-col gap-3 p-4">
-                  {product.productLink ? (
-                    <a
-                      className="line-clamp-1 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                      href={product.productLink}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      {product.title}
-                    </a>
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleProducts.map((product) => (
+                <article
+                  className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                  key={`${product.title}-${product.productLink ?? ""}`}
+                >
+                  {product.image ? (
+                    <img
+                      alt={product.title}
+                      className="h-44 w-full object-cover"
+                      loading="lazy"
+                      src={product.image}
+                    />
                   ) : (
-                    <h3 className="line-clamp-1 text-base font-semibold leading-6 text-slate-950">
-                      {product.title}
-                    </h3>
+                    <div className="flex h-44 items-center justify-center bg-slate-100 text-sm text-slate-500">
+                      Нет изображения
+                    </div>
                   )}
-                  {product.price ? (
-                    <p className="text-sm font-medium text-slate-900">
-                      {product.price} ₽
-                    </p>
-                  ) : null}
-                  {product.rating || product.reviews ? (
-                    <p className="text-sm text-slate-600">
-                      {[
-                        product.rating ? `${product.rating} ★` : null,
-                        product.reviews,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  ) : null}
-                  <ProductCharacteristics
-                    characteristics={product.characteristics}
-                  />
-                </div>
-              </article>
-            ))}
+                  <div className="flex flex-col gap-3 p-4">
+                    {product.productLink ? (
+                      <a
+                        className="line-clamp-1 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        href={product.productLink}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {product.title}
+                      </a>
+                    ) : (
+                      <h3 className="line-clamp-1 text-base font-semibold leading-6 text-slate-950">
+                        {product.title}
+                      </h3>
+                    )}
+                    {product.price ? (
+                      <p className="text-sm font-medium text-slate-900">
+                        {product.price} ₽
+                      </p>
+                    ) : null}
+                    {product.rating || product.reviews ? (
+                      <p className="text-sm text-slate-600">
+                        {[
+                          product.rating ? `${product.rating} ★` : null,
+                          product.reviews,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    ) : null}
+                    <ProductCharacteristics
+                      characteristics={product.characteristics}
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
+            {canPaginate ? (
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={currentPage === 0}
+                  onClick={() => setPage((current) => Math.max(current - 1, 0))}
+                  type="button"
+                >
+                  Назад
+                </button>
+                <span className="text-sm text-slate-600">
+                  {currentPage + 1} / {pageCount}
+                </span>
+                <button
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={currentPage >= pageCount - 1}
+                  onClick={() =>
+                    setPage((current) => Math.min(current + 1, pageCount - 1))
+                  }
+                  type="button"
+                >
+                  Вперёд
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : (
           <p className="rounded-md bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
@@ -225,6 +283,7 @@ function mapSearchSourceToGroup(source: SchemaSearchSource): MarketplaceGroup {
     logoUrl:
       source.source_favicon_url ??
       `https://www.google.com/s2/favicons?domain=${source.source_url}&sz=64`,
+    sourceUrl: source.source_url,
     products: source.results.map((result) => ({
       title: result.name,
       image: result.image_link ?? null,
