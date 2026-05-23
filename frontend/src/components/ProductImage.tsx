@@ -6,7 +6,7 @@ export function ProductImage({ src, alt }: { src: string | null; alt: string }) 
 
   if (!src || hasError) {
     return (
-      <div className="flex h-44 w-full flex-col items-center justify-center gap-2 bg-slate-100 px-4 text-center text-sm text-slate-500">
+      <div className="flex h-80 w-full flex-col items-center justify-center gap-2 bg-slate-100 px-4 text-center text-sm text-slate-500">
         <ImageOff aria-hidden="true" className="size-8 text-slate-400" />
         <span>{alt}</span>
       </div>
@@ -14,12 +14,14 @@ export function ProductImage({ src, alt }: { src: string | null; alt: string }) 
   }
 
   return (
-    <img
-      alt={alt}
-      className="h-44 w-full object-cover"
-      loading="lazy"
-      onError={() => setHasError(true)}
-      src={src}
-    />
+    <div className="h-80 w-full bg-white">
+      <img
+        alt={alt}
+        className="h-full w-full object-contain"
+        loading="lazy"
+        onError={() => setHasError(true)}
+        src={src}
+      />
+    </div>
   )
 }
