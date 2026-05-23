@@ -1,4 +1,5 @@
 import { ProductSourceDetails } from '@/components/ProductSourceDetails'
+import { ProductSourceSkeletonList } from '@/components/ProductSourceSkeleton'
 import { RegionDropdown } from '@/components/RegionDropdown'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
@@ -6,7 +7,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { LoaderCircle, Search } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { $api } from '../api'
-import { type SchemaSearchResults, SourceType } from '../api/openapi.gen'
+import { SourceType, type SchemaSearchResults } from '../api/openapi.gen'
 import { Button } from '../components/ui/button'
 
 export const Route = createFileRoute('/')({ component: Home })
@@ -78,6 +79,7 @@ function Home() {
   const hasTypofixSuggestions = typofixSuggestions.length > 0
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
+  const showSkeleton = isPending && Boolean(searchParams)
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -137,7 +139,9 @@ function Home() {
 
           <div className="flex flex-col justify-end gap-3">
             <label className="flex cursor-pointer items-center justify-between gap-3">
-              <span className="text-sm font-medium text-slate-700">Расширенный поиск по Рунету</span>
+              <span className="text-sm font-medium text-slate-700">
+                Расширенный поиск по Рунету
+              </span>
               <span className="relative inline-flex h-6 w-11 shrink-0">
                 <input
                   checked={extendedRunetSearch}
@@ -177,7 +181,11 @@ function Home() {
           </p>
         ) : null}
 
-        <section className="flex flex-col gap-4" aria-label="Источники товаров">
+        <section
+          aria-busy={isPending}
+          aria-label="Источники товаров"
+          className="flex flex-col gap-4"
+        >
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-slate-950">Основные источники</h2>
@@ -194,19 +202,23 @@ function Home() {
             </p>
           ) : null}
 
-          {visibleGroups.map((group) => (
-            <ProductSourceDetails
-              group={group}
-              key={group.title}
-              queryResultLabel={
-                hasTypofixSuggestions
-                  ? `Результат запроса по "${
-                      typofixSuggestionBySource.get(group.sourceType) ?? originalQuery
-                    }"`
-                  : null
-              }
-            />
-          ))}
+          {showSkeleton ? <ProductSourceSkeletonList /> : null}
+
+          {!showSkeleton
+            ? visibleGroups.map((group) => (
+                <ProductSourceDetails
+                  group={group}
+                  key={group.title}
+                  queryResultLabel={
+                    hasTypofixSuggestions
+                      ? `Результат запроса по "${
+                          typofixSuggestionBySource.get(group.sourceType) ?? originalQuery
+                        }"`
+                      : null
+                  }
+                />
+              ))
+            : null}
         </section>
       </section>
     </main>
