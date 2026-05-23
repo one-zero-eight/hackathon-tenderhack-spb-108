@@ -7,6 +7,7 @@ from src.api import docs
 from src.logging_ import logger
 from src.modules.search.common import get_browser_context
 from src.modules.search.ozon import run_ozon_parser
+from src.modules.search.parse_from_url import parse_url
 from src.modules.search.schemas import SearchParams, SearchResults, SourceType
 from src.modules.search.timing import TimingRecorder
 from src.modules.search.wildberries import run_wildberries_parser
@@ -67,3 +68,12 @@ async def search(search_params: SearchParams) -> SearchResults:
         sources=sources,
         timing=request_timing.to_request_timing(),
     )
+
+
+@router.post("/test-parse-from-url", responses={200: {"description": "Found products"}})
+async def parse_from_url(url: str) -> SearchResults:
+    """
+    Fetch a page by URL, extract catalog markdown, and parse products.
+    """
+    logger.info("Parsing products from URL: %s", url)
+    return await parse_url(url)
