@@ -68,7 +68,7 @@ export function ProductSourceDetails({
 
   return (
     <details className="group rounded-lg border border-slate-200 bg-white shadow-sm" open>
-      <summary className="flex cursor-pointer list-none flex-col gap-4 px-4 py-4 marker:hidden sm:flex-row sm:items-center sm:justify-between">
+      <summary className="flex list-none flex-col gap-4 px-4 py-4 marker:hidden sm:flex-row sm:items-center sm:justify-between">
         <span className="flex min-w-0 items-center gap-3 self-stretch sm:self-auto">
           <img
             alt=""
