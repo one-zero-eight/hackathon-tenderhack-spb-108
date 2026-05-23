@@ -30,7 +30,7 @@ class _BrowserState:
 _browser_lock = asyncio.Lock()
 
 
-def _is_browser_closed_error(exc: BaseException) -> bool:
+def is_browser_closed_error(exc: BaseException) -> bool:
     msg = str(exc).lower()
     if type(exc).__name__ == "TargetClosedError":
         return True
@@ -103,36 +103,25 @@ def page_is_blank(page) -> bool:
 
 
 async def release_browser_page(page) -> None:
-    """Return a tab to the shared pool; prefer blank navigation over close."""
+    """Close a tab when the caller is done (parallel tasks each own their tab)."""
     try:
-        if page.is_closed():
-            return
-        await page.goto("about:blank", wait_until="commit", timeout=15_000)
-    except Exception as exc:
-        logger.debug("release_browser_page failed, closing tab: %s", exc)
-        try:
+        if not page.is_closed():
             await page.close()
-        except Exception:
-            pass
+    except Exception as exc:
+        logger.debug("release_browser_page: %s", exc)
 
 
 async def open_browser_page(*, url: str | None = None):
-    """Open a tab in the shared browser; restart the context if Playwright reports it dead."""
+    """Open a dedicated tab in the shared browser (never reuse an existing tab — safe for asyncio.gather)."""
     for attempt in range(3):
         context = await get_browser_context()
         try:
-            page = None
-            for candidate in context.pages:
-                if page_is_blank(candidate):
-                    page = candidate
-                    break
-            if page is None:
-                page = await context.new_page()
-            if url and page.url.rstrip("/") != url.rstrip("/"):
+            page = await context.new_page()
+            if url:
                 await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
             return page
         except Exception as exc:
-            if not _is_browser_closed_error(exc) or attempt >= 2:
+            if not is_browser_closed_error(exc) or attempt >= 2:
                 raise
             logger.warning("Browser closed on new_page, restarting (%s)", exc)
             await reset_browser_context()

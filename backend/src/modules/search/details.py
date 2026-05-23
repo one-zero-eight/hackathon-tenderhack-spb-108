@@ -8,6 +8,7 @@ from src.logging_ import logger
 from src.modules.search.common import (
     append_characteristic,
     check_captcha,
+    is_browser_closed_error,
     open_browser_page,
     release_browser_page,
     wait_captcha_solved,
@@ -74,7 +75,18 @@ async def _enrich_one_product(
             logger.warning("Detail characteristics failed for %s: %s", product.product_link, exc)
             product.timing = recorder.to_product_timing()
             return
-        if await check_captcha(detail_page, check_captcha_expr, site_name):
+        if detail_page.is_closed():
+            product.timing = recorder.to_product_timing()
+            return
+        try:
+            captcha = await check_captcha(detail_page, check_captcha_expr, site_name)
+        except Exception as exc:
+            if is_browser_closed_error(exc):
+                logger.warning("Detail page closed before captcha check for %s", product.product_link)
+                product.timing = recorder.to_product_timing()
+                return
+            raise
+        if captcha:
             await wait_captcha_solved(detail_page, check_captcha_expr)
             try:
                 async with recorder.stage("fetch_retry"):
@@ -104,7 +116,7 @@ async def enrich_product_characteristics(
     if not candidates:
         return
     total = len(candidates)
-    await asyncio.gather(
+    results = await asyncio.gather(
         *[
             _enrich_one_product(
                 product,
@@ -115,5 +127,9 @@ async def enrich_product_characteristics(
                 total=total,
             )
             for i, product in enumerate(candidates, start=1)
-        ]
+        ],
+        return_exceptions=True,
     )
+    for result in results:
+        if isinstance(result, BaseException):
+            logger.warning("Detail enrich task failed for %s: %s", site_name, result)
