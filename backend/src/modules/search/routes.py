@@ -14,8 +14,11 @@ from src.modules.search.schemas import (
     SearchResults,
     SearchSource,
     SourceType,
+    SpellcheckRequest,
+    SpellcheckResponse,
     TypofixSuggestion,
 )
+from src.modules.search.spellcheck import fetch_spellcheck_suggestions
 from src.modules.search.timing import TimingRecorder
 from src.modules.search.typofix import is_plausible_typofix, queries_differ
 from src.modules.search.whoogle import run_runet_parser, run_search
@@ -31,6 +34,23 @@ _description = """
 Search for products.
 """
 docs.TAGS_INFO.append({"description": _description, "name": str(router.tags[0])})
+
+
+@router.post("/spellcheck", responses={200: {"description": "Spellcheck suggestions"}})
+async def spellcheck(spellcheck_request: SpellcheckRequest) -> SpellcheckResponse:
+    """
+    Return spellcheck suggestions for a single word.
+    """
+    logger.info("Running spellcheck for %r (%s)", spellcheck_request.word, spellcheck_request.language)
+    suggestions = await fetch_spellcheck_suggestions(
+        spellcheck_request.word,
+        spellcheck_request.language,
+    )
+    return SpellcheckResponse(
+        word=spellcheck_request.word,
+        language=spellcheck_request.language,
+        suggestions=suggestions,
+    )
 
 
 @router.post("/search", responses={200: {"description": "Found products"}})

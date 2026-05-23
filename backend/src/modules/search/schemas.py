@@ -10,6 +10,11 @@ class SourceType(StrEnum):
     runet = "runet"
 
 
+class SpellcheckLanguage(StrEnum):
+    ru_RU = "ru-RU"
+    en_US = "en-US"
+
+
 class SearchParams(BaseModel):
     query: str
     "User search input"
@@ -87,3 +92,16 @@ class SearchResults(BaseModel):
     typofix_suggestions: list[TypofixSuggestion] = Field(default_factory=list)
     sources: list[SearchSource]
     timing: RequestTiming | None = None
+
+
+class SpellcheckRequest(BaseModel):
+    word: str = Field(min_length=3)
+    "Single word from the search query to check."
+    language: SpellcheckLanguage
+    "LanguageTool locale used for spellcheck."
+
+
+class SpellcheckResponse(BaseModel):
+    word: str
+    language: SpellcheckLanguage
+    suggestions: list[str] = Field(default_factory=list)

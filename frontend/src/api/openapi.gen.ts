@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/search/spellcheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Spellcheck
+         * @description Return spellcheck suggestions for a single word.
+         */
+        post: operations["spellcheck_search_spellcheck_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/search/search": {
         parameters: {
             query?: never;
@@ -151,9 +171,12 @@ export interface components {
             source_favicon_url: string | null;
             /** Results */
             results: components["schemas"]["SearchResult"][];
-            /** Number of products found for this source. */
-            results_count: number;
             timing?: components["schemas"]["SourceTiming"] | null;
+            /**
+             * Results Count
+             * @description Number of products found for this source.
+             */
+            readonly results_count: number;
         };
         /** SourceTiming */
         SourceTiming: {
@@ -171,6 +194,25 @@ export interface components {
          * @enum {string}
          */
         SourceType: SourceType;
+        /**
+         * SpellcheckLanguage
+         * @enum {string}
+         */
+        SpellcheckLanguage: SpellcheckLanguage;
+        /** SpellcheckRequest */
+        SpellcheckRequest: {
+            /** Word */
+            word: string;
+            language: components["schemas"]["SpellcheckLanguage"];
+        };
+        /** SpellcheckResponse */
+        SpellcheckResponse: {
+            /** Word */
+            word: string;
+            language: components["schemas"]["SpellcheckLanguage"];
+            /** Suggestions */
+            suggestions?: string[];
+        };
         /** StageTiming */
         StageTiming: {
             /** Name */
@@ -216,11 +258,46 @@ export type SchemaSearchResult = components['schemas']['SearchResult'];
 export type SchemaSearchResults = components['schemas']['SearchResults'];
 export type SchemaSearchSource = components['schemas']['SearchSource'];
 export type SchemaSourceTiming = components['schemas']['SourceTiming'];
+export type SchemaSpellcheckRequest = components['schemas']['SpellcheckRequest'];
+export type SchemaSpellcheckResponse = components['schemas']['SpellcheckResponse'];
 export type SchemaStageTiming = components['schemas']['StageTiming'];
 export type SchemaTypofixSuggestion = components['schemas']['TypofixSuggestion'];
 export type SchemaValidationError = components['schemas']['ValidationError'];
 export type $defs = Record<string, never>;
 export interface operations {
+    spellcheck_search_spellcheck_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpellcheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Spellcheck suggestions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpellcheckResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_search_search_post: {
         parameters: {
             query?: never;
@@ -322,4 +399,8 @@ export enum SourceType {
     wildberries = "wildberries",
     ozon = "ozon",
     runet = "runet"
+}
+export enum SpellcheckLanguage {
+    ru_RU = "ru-RU",
+    en_US = "en-US"
 }

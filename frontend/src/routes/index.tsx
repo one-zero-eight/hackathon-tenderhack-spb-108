@@ -1,4 +1,4 @@
-import { $api } from '@/api'
+import { $api, apiFetch } from '@/api'
 import { SourceType } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductSourceDetails, getMarketplaceTheme } from '@/components/ProductSourceDetails'
@@ -8,15 +8,24 @@ import { Button } from '@/components/ui/button'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
 import type { SearchResultProduct, SearchResultsWithTypofix, SortMode } from '@/lib/types'
-import { parsePrice, sourceTypesForRunetSearch } from '@/lib/utils'
+import {
+  detectSpellcheckLanguage,
+  getWordAtCaret,
+  parsePrice,
+  sourceTypesForRunetSearch
+} from '@/lib/utils'
 import { createFileRoute } from '@tanstack/react-router'
 import { Info, LoaderCircle, Search } from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+
+const SPELLCHECK_DEBOUNCE_MS = 50
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const [query, setQuery] = useState('')
+  const [caretPosition, setCaretPosition] = useState(0)
   const [searchParams, setSearchParams] = useState<{
     query: string
     region: string | null
@@ -26,6 +35,9 @@ function Home() {
   const [sortMode, setSortMode] = useState<SortMode>('sources')
   const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS)
   const [extendedRunetSearch, setExtendedRunetSearch] = useState(false)
+  const [spellcheckSuggestions, setSpellcheckSuggestions] = useState<string[]>([])
+  const [spellcheckWord, setSpellcheckWord] = useState<string | null>(null)
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const {
     mutate,
     data: searchResults,
@@ -42,11 +54,19 @@ function Home() {
   const typofixSuggestionBySource = new Map(
     typofixSuggestions.map(({ source, suggestion }) => [source, suggestion] as const)
   )
+  const activeWordRange = getWordAtCaret(query, caretPosition)
+  const activeSpellcheckWord =
+    activeWordRange && activeWordRange.word.length > 2 ? activeWordRange.word : null
+  const activeSpellcheckLanguage = activeSpellcheckWord
+    ? detectSpellcheckLanguage(activeSpellcheckWord)
+    : null
+  const showSpellcheckSuggestions =
+    isSearchFocused &&
+    Boolean(activeWordRange) &&
+    activeWordRange?.word === spellcheckWord &&
+    spellcheckSuggestions.length > 0
   const originalQuery =
-    searchResults?.original_params.query ??
-    searchParams?.query ??
-    searchInputRef.current?.value?.trim() ??
-    ''
+    searchResults?.original_params.query ?? searchParams?.query ?? query.trim() ?? ''
   const hasTypofixSuggestions = typofixSuggestions.length > 0
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
@@ -81,21 +101,82 @@ function Home() {
 
   const showSkeleton = isPending && Boolean(searchParams)
 
+  useEffect(() => {
+    if (!isSearchFocused || !activeSpellcheckWord || !activeSpellcheckLanguage) {
+      setSpellcheckSuggestions([])
+      setSpellcheckWord(null)
+      return
+    }
+
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(async () => {
+      const { data, error } = await apiFetch.POST('/search/spellcheck', {
+        body: {
+          word: activeSpellcheckWord,
+          language: activeSpellcheckLanguage
+        },
+        signal: controller.signal
+      })
+
+      if (controller.signal.aborted) return
+
+      if (error || !data) {
+        setSpellcheckSuggestions([])
+        setSpellcheckWord(null)
+        return
+      }
+
+      setSpellcheckSuggestions(data.suggestions ?? [])
+      setSpellcheckWord(data.word)
+    }, SPELLCHECK_DEBOUNCE_MS)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timeoutId)
+    }
+  }, [activeSpellcheckLanguage, activeSpellcheckWord, isSearchFocused])
+
+  const syncCaretPosition = (input: HTMLInputElement) => {
+    setCaretPosition(input.selectionStart ?? input.value.length)
+  }
+
+  const handleApplySpellcheckSuggestion = (suggestion: string) => {
+    if (!activeWordRange) return
+
+    const nextQuery = `${query.slice(0, activeWordRange.start)}${suggestion}${query.slice(
+      activeWordRange.end
+    )}`
+    const nextCaretPosition = activeWordRange.start + suggestion.length
+
+    setQuery(nextQuery)
+    setCaretPosition(nextCaretPosition)
+    setSpellcheckSuggestions([])
+    setSpellcheckWord(null)
+
+    window.requestAnimationFrame(() => {
+      const input = searchInputRef.current
+      if (!input) return
+
+      input.focus()
+      input.setSelectionRange(nextCaretPosition, nextCaretPosition)
+    })
+  }
+
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const query = searchInputRef.current?.value.trim() ?? ''
+    const trimmedQuery = query.trim()
 
-    if (!query) return
+    if (!trimmedQuery) return
 
     setSearchParams({
-      query,
+      query: trimmedQuery,
       region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
       source_types: sourceTypesForRunetSearch(extendedRunetSearch),
       short: false
     })
     mutate({
       body: {
-        query,
+        query: trimmedQuery,
         region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
         source_types: sourceTypesForRunetSearch(extendedRunetSearch),
         short: false
@@ -128,11 +209,39 @@ function Home() {
               />
               <input
                 className="h-11 w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                onBlur={() => setIsSearchFocused(false)}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  syncCaretPosition(event.target)
+                }}
+                onClick={(event) => syncCaretPosition(event.currentTarget)}
+                onFocus={(event) => {
+                  setIsSearchFocused(true)
+                  syncCaretPosition(event.currentTarget)
+                }}
+                onKeyUp={(event) => syncCaretPosition(event.currentTarget)}
+                onSelect={(event) => syncCaretPosition(event.currentTarget)}
                 placeholder="Введите товар или характеристику"
                 ref={searchInputRef}
                 required
                 type="search"
+                value={query}
               />
+              {showSpellcheckSuggestions ? (
+                <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-[0_18px_50px_-20px_rgba(15,23,42,0.35)]">
+                  {spellcheckSuggestions.map((suggestion) => (
+                    <button
+                      className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                      key={suggestion}
+                      onClick={() => handleApplySpellcheckSuggestion(suggestion)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      type="button"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </span>
           </label>
 

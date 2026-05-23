@@ -35,5 +35,10 @@ properties:
     description: Base URL of the Whoogle search instance (e.g. http://127.0.0.1:5000)
     title: Whoogle Base Url
     type: string
+  languagetool_base_url:
+    default: http://127.0.0.1:8010
+    description: Base URL of the LanguageTool instance used for spellcheck (e.g. http://127.0.0.1:8010)
+    title: Languagetool Base Url
+    type: string
 title: Settings
 type: object

@@ -68,3 +68,8 @@ services:
       langtool_pipelinePrewarming: "true"
       Java_Xms: "512m"
       Java_Xmx: "1536m"
+    deploy:
+      resources:
+        limits:
+          memory: "3g"
+          cpus: "2"
