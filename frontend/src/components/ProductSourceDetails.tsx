@@ -1,6 +1,6 @@
 import { ProductImage } from '@/components/ProductImage'
 import type { MarketplaceGroup } from '@/lib/types'
-import { SquareArrowOutUpRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, SquareArrowOutUpRight } from 'lucide-react'
 import { useState } from 'react'
 
 const CHARACTERISTICS_PREVIEW_LIMIT = 5
@@ -109,70 +109,71 @@ export function ProductSourceDetails({
       <div className="border-t border-slate-200 p-4">
         {group.products.length > 0 ? (
           <div className="flex flex-col gap-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {visibleProducts.map((product) => (
-                <article
-                  className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-                  key={`${product.title}-${product.productLink ?? ''}`}
-                >
-                  <ProductImage alt={product.title} src={product.image} />
-                  <div className="flex flex-col gap-3 p-4">
-                    {product.productLink ? (
-                      <a
-                        className="flex items-start gap-1.5 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                        href={product.productLink}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        <span className="line-clamp-2 min-w-0">{product.title}</span>
-                        <SquareArrowOutUpRight
-                          aria-hidden="true"
-                          className="mt-1 size-4 shrink-0 text-slate-400"
-                        />
-                      </a>
-                    ) : (
-                      <h3 className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
-                        {product.title}
-                      </h3>
-                    )}
-                    {product.price ? (
-                      <p className="text-sm font-medium text-slate-900">{product.price} ₽</p>
-                    ) : null}
-                    {product.rating || product.reviews ? (
-                      <p className="text-sm text-slate-600">
-                        {[product.rating ? `${product.rating} ★` : null, product.reviews]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </p>
-                    ) : null}
-                    <ProductCharacteristics characteristics={product.characteristics} />
-                  </div>
-                </article>
-              ))}
-            </div>
-            {canPaginate ? (
-              <div className="flex items-center justify-center gap-3">
+            <div className="relative">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {visibleProducts.map((product) => (
+                  <article
+                    className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                    key={`${product.title}-${product.productLink ?? ''}`}
+                  >
+                    <ProductImage alt={product.title} src={product.image} />
+                    <div className="flex flex-col gap-3 p-4">
+                      {product.productLink ? (
+                        <a
+                          className="flex items-start gap-1.5 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          href={product.productLink}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          <span className="line-clamp-2 min-w-0">{product.title}</span>
+                          <SquareArrowOutUpRight
+                            aria-hidden="true"
+                            className="mt-1 size-4 shrink-0 text-slate-400"
+                          />
+                        </a>
+                      ) : (
+                        <h3 className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
+                          {product.title}
+                        </h3>
+                      )}
+                      {product.price ? (
+                        <p className="text-sm font-medium text-slate-900">{product.price} ₽</p>
+                      ) : null}
+                      {product.rating || product.reviews ? (
+                        <p className="text-sm text-slate-600">
+                          {[product.rating ? `${product.rating} ★` : null, product.reviews]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      ) : null}
+                      <ProductCharacteristics characteristics={product.characteristics} />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {canPaginate && currentPage > 0 && (
                 <button
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={currentPage === 0}
+                  aria-label="Назад"
+                  className="absolute -left-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-10 sm:-left-5"
                   onClick={() => setPage((current) => Math.max(current - 1, 0))}
                   type="button"
                 >
-                  Назад
+                  <ChevronLeft className="size-6 text-slate-900" />
                 </button>
-                <span className="text-sm text-slate-600">
-                  {currentPage + 1} / {pageCount}
-                </span>
+              )}
+
+              {canPaginate && currentPage < pageCount - 1 && (
                 <button
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={currentPage >= pageCount - 1}
+                  aria-label="Вперёд"
+                  className="absolute -right-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-10 sm:-right-5"
                   onClick={() => setPage((current) => Math.min(current + 1, pageCount - 1))}
                   type="button"
                 >
-                  Вперёд
+                  <ChevronRight className="size-6 text-slate-900" />
                 </button>
-              </div>
-            ) : null}
+              )}
+            </div>
           </div>
         ) : (
           <p className="rounded-md bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
