@@ -17,7 +17,7 @@ from src.modules.search.schemas import (
     TypofixSuggestion,
 )
 from src.modules.search.timing import TimingRecorder
-from src.modules.search.typofix import queries_differ
+from src.modules.search.typofix import is_plausible_typofix, queries_differ
 from src.modules.search.whoogle import run_runet_parser, run_search
 from src.modules.search.wildberries import run_wildberries_parser
 from src.modules.search.yandex_market import run_yandex_market_parser
@@ -45,48 +45,65 @@ async def search(search_params: SearchParams) -> SearchResults:
     request_timing = TimingRecorder.start()
     context = await get_browser_context()
 
-    run_yandex_market = not search_params.source_types or SourceType.yandex_market in search_params.source_types
-    if run_yandex_market:
-        logger.info("Running Yandex Market parser")
-        yandex_market_task = run_yandex_market_parser(context, search_params.query, region=search_params.region)
-    else:
-        yandex_market_task = None
-
-    run_wildberries = not search_params.source_types or SourceType.wildberries in search_params.source_types
-    if run_wildberries:
-        logger.info("Running Wildberries parser")
-        wildberries_task = run_wildberries_parser(context, search_params.query, region=search_params.region)
-    else:
-        wildberries_task = None
-
     run_ozon = not search_params.source_types or SourceType.ozon in search_params.source_types
-    if run_ozon:
-        logger.info("Running Ozon parser")
-        ozon_task = run_ozon_parser(context, search_params.query, region=search_params.region)
-    else:
-        ozon_task = None
-
+    run_wildberries = not search_params.source_types or SourceType.wildberries in search_params.source_types
+    run_yandex_market = not search_params.source_types or SourceType.yandex_market in search_params.source_types
     run_runet = not search_params.source_types or SourceType.runet in search_params.source_types
-    if run_runet:
-        logger.info("Running Runet (Whoogle) parser")
-        runet_task = run_runet_parser(search_params.query)
-    else:
-        runet_task = None
-
-    tasks = [t for t in (yandex_market_task, wildberries_task, ozon_task, runet_task) if t is not None]
-    async with request_timing.stage("fetch_sources"):
-        results = await asyncio.gather(*tasks) if tasks else []
 
     sources: list[SearchSource] = []
     typofix_suggestions: list[TypofixSuggestion] = []
-    for source, suggestion in results:
-        if isinstance(source, list):
-            sources.extend(source)
-        else:
-            sources.append(source)
-        if suggestion and queries_differ(search_params.query, suggestion):
-            typofix_source = source[0].source_type if isinstance(source, list) else source.source_type
-            typofix_suggestions.append(TypofixSuggestion(source=typofix_source, suggestion=suggestion))
+    search_query = search_params.query
+
+    if run_ozon:
+        logger.info("Running Ozon parser (first, for typofix)")
+        async with request_timing.stage("fetch_sources.ozon"):
+            try:
+                ozon_source, ozon_typofix = await run_ozon_parser(
+                    context,
+                    search_params.query,
+                    region=search_params.region,
+                )
+            except Exception:
+                logger.error("Ozon search failed", exc_info=True)
+            else:
+                sources.append(ozon_source)
+                if (
+                    ozon_typofix
+                    and queries_differ(search_params.query, ozon_typofix)
+                    and is_plausible_typofix(search_params.query, ozon_typofix)
+                ):
+                    typofix_suggestions.append(TypofixSuggestion(source=SourceType.ozon, suggestion=ozon_typofix))
+                    search_query = ozon_typofix
+                    logger.info("Using Ozon typofix for other sources: %r", search_query)
+
+    other_tasks: list = []
+    if run_wildberries:
+        logger.info("Running Wildberries parser for %r", search_query)
+        other_tasks.append(run_wildberries_parser(context, search_query, region=search_params.region))
+    if run_yandex_market:
+        logger.info("Running Yandex Market parser for %r", search_query)
+        other_tasks.append(run_yandex_market_parser(context, search_query, region=search_params.region))
+    if run_runet:
+        logger.info("Running Runet (Whoogle) parser for %r", search_query)
+        other_tasks.append(run_runet_parser(search_query))
+
+    if other_tasks:
+        async with request_timing.stage("fetch_sources"):
+            gathered = await asyncio.gather(*other_tasks, return_exceptions=True)
+
+        for item in gathered:
+            if isinstance(item, BaseException):
+                logger.error("Search source failed", exc_info=item)
+                continue
+            source, suggestion = item
+            if isinstance(source, list):
+                sources.extend(source)
+            else:
+                sources.append(source)
+            if suggestion and queries_differ(search_params.query, suggestion):
+                typofix_source = source[0].source_type if isinstance(source, list) else source.source_type
+                if not any(t.source == typofix_source and t.suggestion == suggestion for t in typofix_suggestions):
+                    typofix_suggestions.append(TypofixSuggestion(source=typofix_source, suggestion=suggestion))
     if search_params.short:
         for source in sources:
             source.results = source.results[:4]

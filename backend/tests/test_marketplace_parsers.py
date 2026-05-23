@@ -105,7 +105,17 @@ class TestTypofix:
 
     def test_yandex_market_ihone_example(self):
         html = example_html("ОПЕЧАТКА Телефон iphone — купить по низкой цене на Яндекс Маркете.html")
-        assert parse_yandex_market_typofix(html) == "телефон iphone"
+        assert parse_yandex_market_typofix(html, original="телефон ihone") == "телефон iphone"
+
+    def test_yandex_search_text_json(self):
+        html = example_html("ОПЕЧАТКА Телефон iphone — купить по низкой цене на Яндекс Маркете.html")
+        assert parse_yandex_market_typofix(html, original="телефон ihone") == "телефон iphone"
+
+    def test_wildberries_search_input(self):
+        html = example_html(
+            "ОПЕЧАТКА Интернет‑магазин Wildberries_ широкий ассортимент товаров - скидки каждый день!.html"
+        )
+        assert parse_wildberries_typofix(html, original="телефон ihone") == "телефон iphone"
 
     def test_ozon_typofix_merge_search_page_over_api(self):
         search_page = example_html("ОПЕЧАТКА телефон ihone - купить на OZON.html")
@@ -115,7 +125,7 @@ class TestTypofix:
         for html in (search_page, api_page):
             merged = _merge_typofix_suggestion(
                 merged,
-                parse_ozon_typofix(html),
+                parse_ozon_typofix(html, original=original),
                 original,
             )
         assert merged == "телефон iphone"

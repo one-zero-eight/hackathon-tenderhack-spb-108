@@ -5,15 +5,14 @@ import asyncio
 from pydefuddle import defuddle
 
 from src.logging_ import logger
-from src.modules.search.common import get_browser_context, page_content
+from src.modules.search.common import open_browser_page, page_content
 from src.modules.search.extract_product_infos import extract_product_infos
 from src.modules.search.schemas import SearchParams, SearchResult, SearchResults, SearchSource, SourceType
 from src.modules.search.timing import TimingRecorder
 
 
 async def fetch_page_html(url: str) -> str:
-    context = await get_browser_context()
-    page = await context.new_page()
+    page = await open_browser_page()
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
         return await page_content(page)

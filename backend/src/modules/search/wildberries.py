@@ -9,6 +9,7 @@ from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
     RESULT_PRE_ID,
+    TYPOFIX_PRE_ID,
     SearchResult,
     append_product,
     build_price_filter,
@@ -21,7 +22,7 @@ from .common import (
 )
 from .details import enrich_product_characteristics, parse_specs_table_html, specs_from_raw
 from .region_geo import get_city_geo, make_wb_setup_page
-from .typofix import parse_wildberries_typofix
+from .typofix import parse_wildberries_typofix, queries_differ
 
 _WB_DETAIL_SPECS_JS = """() => {
   const out = [];
@@ -82,12 +83,18 @@ _WAIT_QUERY_ID = r"""function getCookie(name) {
   if (parts.length === 2) return parts.pop().split(';').shift();
 }
 
-async function waitForElement(timeout = 20000) {
+async function waitForElement(timeout = 10000) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     let queryId = sessionStorage.query_id_search != null && sessionStorage.query_id_search != '';
-    let powToken = localStorage.getItem('session-pow-token') != null && localStorage.getItem('session-pow-token') != '';
-    let wbaas = getCookie('x_wbaas_token');
+    let wbaas = null;
+    try {
+      wbaas = getCookie('x_wbaas_token');
+    } catch (_) {}
+    let powToken = false;
+    try {
+      powToken = localStorage.getItem('session-pow-token') != null && localStorage.getItem('session-pow-token') != '';
+    } catch (_) {}
     if (queryId && wbaas != undefined && wbaas != '') {
       let g = document.createElement('pre');
       g.setAttribute("id", "queryId");
@@ -101,63 +108,142 @@ async function waitForElement(timeout = 20000) {
       }
       return true;
     }
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 250));
   }
   return false;
 }
 
 return await waitForElement();"""
 
-_WAIT_FETCH_TEMPLATE = r"""let notFound = document.querySelector('.content404') != null
-    || (document.querySelector('.searching-results__count') != null && document.querySelector('.searching-results__count').textContent == '0 товаров найдено')
+_WAIT_FETCH_TEMPLATE = r"""async function runSearchFetch() {
+  const originalQuery = __ORIGINAL_QUERY__;
+  function normalizeQuery(text) {
+    return (text || '').trim().replace(/\\s+/g, ' ').toLowerCase();
+  }
+
+  function readCorrectedQuery() {
+    const searchInput = document.querySelector('#searchInput');
+    if (searchInput && searchInput.value) {
+      const inputValue = searchInput.value.trim();
+      if (inputValue && normalizeQuery(inputValue) !== normalizeQuery(originalQuery)) {
+        return inputValue;
+      }
+    }
+    const correctedEl = document.querySelector(
+      '.searching-results__query-replaced .searching-results__query'
+    );
+    if (correctedEl) {
+      const corrected = correctedEl.textContent.replace(/[«»]/g, '').trim();
+      if (corrected && normalizeQuery(corrected) !== normalizeQuery(originalQuery)) {
+        return corrected;
+      }
+    }
+    return null;
+  }
+
+  function pageReady() {
+    const queryIdEl = document.querySelector('#queryId');
+    if (!queryIdEl || !queryIdEl.textContent) {
+      return false;
+    }
+    return !!(
+      document.querySelector('[data-nm-id]') ||
+      document.querySelector('.product-card__wrapper') ||
+      document.querySelector('.catalog-page__content')
+    );
+  }
+
+  let correctedQuery = readCorrectedQuery();
+  if (!correctedQuery) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if (pageReady()) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      correctedQuery = readCorrectedQuery();
+      if (correctedQuery) {
+        break;
+      }
+    }
+  }
+
+  let queryEnc = correctedQuery
+    ? encodeURIComponent(correctedQuery)
+    : "__QUERY_ENC__";
+
+  const notFound = document.querySelector('.content404') != null
+    || (document.querySelector('.searching-results__count') != null
+      && document.querySelector('.searching-results__count').textContent == '0 товаров найдено')
     || (document.querySelector('.not-found-search__title') != null);
 
-if (notFound) {
+  if (notFound) {
     document.body = document.createElement("body");
-    let g = document.createElement('pre');
+    if (correctedQuery) {
+      const typoPre = document.createElement('pre');
+      typoPre.id = "__TYPOFIX_PRE_ID__";
+      typoPre.innerText = correctedQuery;
+      document.body.append(typoPre);
+    }
+    const g = document.createElement('pre');
     g.setAttribute("id", "__PRE_ID__");
     g.innerHTML = 'not found';
     document.body.append(g);
-    return Promise.resolve(true);
-}
+    return true;
+  }
 
-var priceFilter = __PRICE_FILTER_JS__;
+  const priceFilter = __PRICE_FILTER_JS__;
+  const queryId = document.querySelector('#queryId');
+  const powToken = document.querySelector('#powToken')
+    ? document.querySelector('#powToken').textContent
+    : null;
+  const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&__DEST_PARAM__hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=" + queryEnc + "&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false";
+  const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?__DEST_PARAM__search=" + queryEnc;
 
-const queryId = document.querySelector('#queryId');
-const powToken = document.querySelector('#powToken') ? document.querySelector('#powToken').textContent : null;
-const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&__DEST_PARAM__hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=__QUERY_ENC__&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false";
-const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?__DEST_PARAM__search=__QUERY_ENC__";
+  let headers;
+  if (queryId && queryId.textContent != '' && powToken) {
+    headers = {"x-pow": powToken, "x-queryid": queryId.textContent, "cookie": document.cookie};
+  } else {
+    headers = {
+      "x-requested-with": "XMLHttpRequest",
+      "x-spa-version": "13.14.1",
+      "x-userid": "0",
+      "x-queryid": queryId ? queryId.textContent : null,
+      "cookie": document.cookie
+    };
+  }
 
-let headers;
-if (queryId && queryId.textContent != '' && powToken) {
-  headers = {"x-pow": powToken, "x-queryid": queryId.textContent, "cookie": document.cookie};
-} else {
-  headers = {
-    "x-requested-with": "XMLHttpRequest",
-    "x-spa-version": "13.14.1",
-    "x-userid": "0",
-    "x-queryid": queryId ? queryId.textContent : null,
-    "cookie": document.cookie
-  };
-}
-
-return fetch(apiUrl, {"headers": headers, "referrer": referrer, "method": "GET", "mode": "cors", "credentials": "include"})
-  .then(response => response.text())
-  .then(data => {
-    let g = document.createElement('pre');
+  try {
+    const response = await fetch(apiUrl, {
+      "headers": headers,
+      "referrer": referrer,
+      "method": "GET",
+      "mode": "cors",
+      "credentials": "include"
+    });
+    const data = await response.text();
+    document.body = document.createElement("body");
+    if (correctedQuery) {
+      const typoPre = document.createElement('pre');
+      typoPre.id = "__TYPOFIX_PRE_ID__";
+      typoPre.innerText = correctedQuery;
+      document.body.append(typoPre);
+    }
+    const g = document.createElement('pre');
     g.setAttribute("id", "__PRE_ID__");
     g.innerText = data;
     document.body.append(g);
     return true;
-  })
-  .catch(error => {
+  } catch (error) {
     document.body = document.createElement('body');
-    let g = document.createElement('pre');
+    const g = document.createElement('pre');
     g.setAttribute("id", "__PRE_ID__");
     g.innerText = 'error: ' + error;
     document.body.append(g);
     return true;
-  });"""
+  }
+}
+
+return await runSearchFetch();"""
 
 _PRODUCT_KEYS = ("name", "salePriceU", "priceU", "brand", "id", "pics", "sizes")
 
@@ -439,21 +525,23 @@ def _build_actions(
     dest_param = _dest_query(geo)
     fetch_script = (
         _WAIT_FETCH_TEMPLATE.replace("__PRE_ID__", RESULT_PRE_ID)
+        .replace("__TYPOFIX_PRE_ID__", TYPOFIX_PRE_ID)
         .replace("__DEST_PARAM__", dest_param)
         .replace("__QUERY_ENC__", quote(query))
+        .replace("__ORIGINAL_QUERY__", json.dumps(query))
         .replace("__PRICE_FILTER_JS__", _wb_price_filter_js(min_price, max_price))
     )
     return [
         {"type": "url", "data": search_url},
-        {"type": "wait", "data": "5000"},
+        {"type": "wait", "data": "2000"},
         {
             "type": "script",
             "data": _DISMISS_BLOCKING_DRAWER_STMTS,
             "expects_navigation": "false",
         },
         {"type": "waitElement", "data": _WAIT_QUERY_ID, "wait_for": "pre#queryId"},
-        {"type": "wait", "data": "5000"},
-        {"type": "waitElement", "data": fetch_script},
+        {"type": "wait", "data": "500"},
+        {"type": "waitElement", "data": fetch_script, "wait_for": ""},
     ]
 
 
@@ -617,21 +705,28 @@ async def run_wildberries_parser(
 ) -> tuple[SearchSource, str | None]:
     """Run Wildberries search and return parsed products."""
     geo = get_city_geo(region)
-    results, timing, typofix = await run_site_parser(
-        context,
-        site_name=SITE,
-        actions=_build_actions(user_input, geo=geo, min_price=min_price, max_price=max_price),
-        parse_html=parse_html,
-        parse_typofix=parse_wildberries_typofix,
-        original_query=user_input,
-        check_captcha_expr=CHECK_CAPTCHA,
-        headless_env=HEADLESS_ENV,
-        enrich_characteristics=_enrich_wb_characteristics,
-        setup_page=make_wb_setup_page(geo) if geo else None,
-    )
+
+    async def run_for_query(query: str):
+        return await run_site_parser(
+            context,
+            site_name=SITE,
+            actions=_build_actions(query, geo=geo, min_price=min_price, max_price=max_price),
+            parse_html=parse_html,
+            parse_typofix=lambda html: parse_wildberries_typofix(html, original=user_input),
+            original_query=user_input,
+            check_captcha_expr=CHECK_CAPTCHA,
+            headless_env=HEADLESS_ENV,
+            enrich_characteristics=_enrich_wb_characteristics,
+            setup_page=make_wb_setup_page(geo) if geo else None,
+        )
+
+    # Query is usually already corrected via routes (Ozon typofix); fetch script applies spellcheck once.
+    results, timing, typofix = await run_for_query(user_input)
+
+    search_query = typofix if typofix and queries_differ(user_input, typofix) else user_input
     return SearchSource(
         source_type="wildberries",
-        source_url=_build_search_url(user_input, geo=geo),
+        source_url=_build_search_url(search_query, geo=geo),
         source_title="Wildberries",
         source_favicon_url=None,
         results=results,

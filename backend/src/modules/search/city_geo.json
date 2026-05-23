@@ -5,7 +5,8 @@
     "lon": 83.7788448,
     "wb_dest": "-4024771",
     "yandex_lr": "197",
-    "ozon_slug": "barnaul"
+    "ozon_slug": "barnaul",
+    "ozon_pp": "83911"
   },
   {
     "city": "Благовещенск",
@@ -13,7 +14,8 @@
     "lon": 127.5337378,
     "wb_dest": "123585533",
     "yandex_lr": "77",
-    "ozon_slug": "blagoveschensk"
+    "ozon_slug": "blagoveshchensk",
+    "ozon_pp": "2611359"
   },
   {
     "city": "Архангельск",
@@ -21,7 +23,8 @@
     "lon": 40.5286774,
     "wb_dest": "-5843670",
     "yandex_lr": "20",
-    "ozon_slug": "arhangelsk"
+    "ozon_slug": "arhangelsk",
+    "ozon_pp": "100469"
   },
   {
     "city": "Астрахань",
@@ -29,7 +32,8 @@
     "lon": 48.0326203,
     "wb_dest": "-10106464",
     "yandex_lr": "37",
-    "ozon_slug": "astrahan"
+    "ozon_slug": "astrahan",
+    "ozon_pp": "92899"
   },
   {
     "city": "Белгород",
@@ -37,7 +41,8 @@
     "lon": 36.5873394,
     "wb_dest": "123585474",
     "yandex_lr": "4",
-    "ozon_slug": "belgorod"
+    "ozon_slug": "belgorod",
+    "ozon_pp": "83660"
   },
   {
     "city": "Брянск",
@@ -45,7 +50,8 @@
     "lon": 34.3668288,
     "wb_dest": "-5518648",
     "yandex_lr": "191",
-    "ozon_slug": "bryansk"
+    "ozon_slug": "bryansk",
+    "ozon_pp": "442316"
   },
   {
     "city": "Владимир",
@@ -53,7 +59,8 @@
     "lon": 40.4075203,
     "wb_dest": "-3856723",
     "yandex_lr": "192",
-    "ozon_slug": "vladimir"
+    "ozon_slug": "vladimir",
+    "ozon_pp": "514762"
   },
   {
     "city": "Волгоград",
@@ -61,7 +68,8 @@
     "lon": 44.5153353,
     "wb_dest": "-4039473",
     "yandex_lr": "38",
-    "ozon_slug": "volgograd"
+    "ozon_slug": "volgograd",
+    "ozon_pp": "1423295"
   },
   {
     "city": "Вологда",
@@ -69,7 +77,8 @@
     "lon": 39.8933913,
     "wb_dest": "123586880",
     "yandex_lr": "21",
-    "ozon_slug": "vologda"
+    "ozon_slug": "vologda",
+    "ozon_pp": "93653"
   },
   {
     "city": "Воронеж",
@@ -77,7 +86,8 @@
     "lon": 39.2005858,
     "wb_dest": "12358283",
     "yandex_lr": "193",
-    "ozon_slug": "voronezh"
+    "ozon_slug": "voronezh",
+    "ozon_pp": "106372"
   },
   {
     "city": "Донецк",
@@ -85,7 +95,8 @@
     "lon": 39.9509488,
     "wb_dest": "123585834",
     "yandex_lr": "11038",
-    "ozon_slug": "donetsk"
+    "ozon_slug": "donetsk",
+    "ozon_pp": "100644"
   },
   {
     "city": "Биробиджан",
@@ -93,7 +104,8 @@
     "lon": 132.9269836,
     "wb_dest": "123586043",
     "yandex_lr": "11393",
-    "ozon_slug": "birobidzhan"
+    "ozon_slug": "birobidzhan",
+    "ozon_pp": "1236185"
   },
   {
     "city": "Чита",
@@ -101,7 +113,8 @@
     "lon": 113.500893,
     "wb_dest": "-5551586",
     "yandex_lr": "68",
-    "ozon_slug": "chita"
+    "ozon_slug": "chita",
+    "ozon_pp": "1287783"
   },
   {
     "city": "Запорожье",
@@ -117,7 +130,8 @@
     "lon": 40.9812104,
     "wb_dest": "-1586360",
     "yandex_lr": "5",
-    "ozon_slug": "ivanovo"
+    "ozon_slug": "ivanovo",
+    "ozon_pp": "380830"
   },
   {
     "city": "Иркутск",
@@ -125,7 +139,8 @@
     "lon": 104.279829,
     "wb_dest": "-5827722",
     "yandex_lr": "63",
-    "ozon_slug": "irkutsk"
+    "ozon_slug": "irkutsk",
+    "ozon_pp": "1266638"
   },
   {
     "city": "Нальчик",
@@ -133,7 +148,8 @@
     "lon": 43.5966578,
     "wb_dest": "123586045",
     "yandex_lr": "30",
-    "ozon_slug": "nalchik"
+    "ozon_slug": "nalchik",
+    "ozon_pp": "2593580"
   },
   {
     "city": "Калининград",
@@ -141,7 +157,8 @@
     "lon": 20.5105838,
     "wb_dest": "-331412",
     "yandex_lr": "22",
-    "ozon_slug": "kaliningrad"
+    "ozon_slug": "kaliningrad",
+    "ozon_pp": "520372"
   },
   {
     "city": "Калуга",
@@ -149,7 +166,8 @@
     "lon": 36.2598115,
     "wb_dest": "123585487",
     "yandex_lr": "6",
-    "ozon_slug": "kaluga"
+    "ozon_slug": "kaluga",
+    "ozon_pp": "102822"
   },
   {
     "city": "Петропавловск-Камчатский",
@@ -157,7 +175,8 @@
     "lon": 158.6471356,
     "wb_dest": "123585749",
     "yandex_lr": "78",
-    "ozon_slug": "petropavlovsk-kamchatskiy"
+    "ozon_slug": "petropavlovsk-kamchatskiy",
+    "ozon_pp": "1406418"
   },
   {
     "city": "Черкесск",
@@ -165,7 +184,8 @@
     "lon": 42.048257,
     "wb_dest": "123585541",
     "yandex_lr": "1104",
-    "ozon_slug": "cherkessk"
+    "ozon_slug": "cherkessk",
+    "ozon_pp": "90079"
   },
   {
     "city": "Кемерово",
@@ -173,7 +193,8 @@
     "lon": 86.0871213,
     "wb_dest": "-1172839",
     "yandex_lr": "64",
-    "ozon_slug": "kemerovo"
+    "ozon_slug": "kemerovo",
+    "ozon_pp": "86339"
   },
   {
     "city": "Киров",
@@ -181,7 +202,8 @@
     "lon": 49.6666241,
     "wb_dest": "123589348",
     "yandex_lr": "46",
-    "ozon_slug": "kirov"
+    "ozon_slug": "kirov",
+    "ozon_pp": "2351190"
   },
   {
     "city": "Кострома",
@@ -189,7 +211,8 @@
     "lon": 40.9269141,
     "wb_dest": "123585693",
     "yandex_lr": "7",
-    "ozon_slug": "kostroma"
+    "ozon_slug": "kostroma",
+    "ozon_pp": "93652"
   },
   {
     "city": "Краснодар",
@@ -197,7 +220,8 @@
     "lon": 38.9772396,
     "wb_dest": "12358062",
     "yandex_lr": "35",
-    "ozon_slug": "krasnodar"
+    "ozon_slug": "krasnodar",
+    "ozon_pp": "1293132"
   },
   {
     "city": "Красноярск",
@@ -205,7 +229,8 @@
     "lon": 92.872586,
     "wb_dest": "12356481",
     "yandex_lr": "62",
-    "ozon_slug": "krasnoyarsk"
+    "ozon_slug": "krasnoyarsk",
+    "ozon_pp": "228523"
   },
   {
     "city": "Курган",
@@ -213,7 +238,8 @@
     "lon": 65.3421169,
     "wb_dest": "123585948",
     "yandex_lr": "53",
-    "ozon_slug": "kurgan"
+    "ozon_slug": "kurgan",
+    "ozon_pp": "2599109"
   },
   {
     "city": "Курск",
@@ -221,7 +247,8 @@
     "lon": 36.192248,
     "wb_dest": "-2307160",
     "yandex_lr": "8",
-    "ozon_slug": "kursk"
+    "ozon_slug": "kursk",
+    "ozon_pp": "95794"
   },
   {
     "city": "Гатчина",
@@ -229,7 +256,8 @@
     "lon": 30.1252083,
     "wb_dest": "-1430460",
     "yandex_lr": "10867",
-    "ozon_slug": "gatchina"
+    "ozon_slug": "gatchina",
+    "ozon_pp": "197383"
   },
   {
     "city": "Липецк",
@@ -237,7 +265,8 @@
     "lon": 39.5963775,
     "wb_dest": "-4734876",
     "yandex_lr": "9",
-    "ozon_slug": "lipetsk"
+    "ozon_slug": "lipetsk",
+    "ozon_pp": "76455"
   },
   {
     "city": "Луганск",
@@ -253,7 +282,8 @@
     "lon": 150.8078832,
     "wb_dest": "123585707",
     "yandex_lr": "79",
-    "ozon_slug": "magadan"
+    "ozon_slug": "magadan",
+    "ozon_pp": "1436553"
   },
   {
     "city": "Москва",
@@ -261,7 +291,8 @@
     "lon": 37.6063916,
     "wb_dest": "-535680",
     "yandex_lr": "213",
-    "ozon_slug": "moskva"
+    "ozon_slug": "moskva",
+    "ozon_pp": "454331"
   },
   {
     "city": "Красногорск",
@@ -269,7 +300,8 @@
     "lon": 37.3196942,
     "wb_dest": "123589785",
     "yandex_lr": "10735",
-    "ozon_slug": "krasnogorsk"
+    "ozon_slug": "krasnogorsk",
+    "ozon_pp": "1237259"
   },
   {
     "city": "Мурманск",
@@ -277,7 +309,8 @@
     "lon": 33.07497,
     "wb_dest": "-1965487",
     "yandex_lr": "23",
-    "ozon_slug": "murmansk"
+    "ozon_slug": "murmansk",
+    "ozon_pp": "503208"
   },
   {
     "city": "Нарьян-Мар",
@@ -285,7 +318,8 @@
     "lon": 53.0071044,
     "wb_dest": "123585770",
     "yandex_lr": "10902",
-    "ozon_slug": "naryan-mar"
+    "ozon_slug": "naryan-mar",
+    "ozon_pp": "101725"
   },
   {
     "city": "Нижний Новгород",
@@ -293,7 +327,8 @@
     "lon": 44.0051395,
     "wb_dest": "12358536",
     "yandex_lr": "47",
-    "ozon_slug": "nizhniy-novgorod"
+    "ozon_slug": "nizhniy-novgorod",
+    "ozon_pp": "1253143"
   },
   {
     "city": "Великий Новгород",
@@ -301,7 +336,8 @@
     "lon": 31.2757862,
     "wb_dest": "123585586",
     "yandex_lr": "24",
-    "ozon_slug": "velikiy-novgorod"
+    "ozon_slug": "velikiy-novgorod",
+    "ozon_pp": "439247"
   },
   {
     "city": "Новосибирск",
@@ -309,7 +345,8 @@
     "lon": 82.9515989,
     "wb_dest": "-365403",
     "yandex_lr": "65",
-    "ozon_slug": "novosibirsk"
+    "ozon_slug": "novosibirsk",
+    "ozon_pp": "47409"
   },
   {
     "city": "Омск",
@@ -325,7 +362,8 @@
     "lon": 55.0978517,
     "wb_dest": "12358312",
     "yandex_lr": "48",
-    "ozon_slug": "orenburg"
+    "ozon_slug": "orenburg",
+    "ozon_pp": "262921"
   },
   {
     "city": "Орел",
@@ -333,7 +371,8 @@
     "lon": 36.0642127,
     "wb_dest": "123585628",
     "yandex_lr": "10",
-    "ozon_slug": "orel"
+    "ozon_slug": "orel",
+    "ozon_pp": "88997"
   },
   {
     "city": "Пенза",
@@ -341,7 +380,8 @@
     "lon": 45.0067413,
     "wb_dest": "-5892277",
     "yandex_lr": "49",
-    "ozon_slug": "penza"
+    "ozon_slug": "penza",
+    "ozon_pp": "228555"
   },
   {
     "city": "Пермь",
@@ -349,7 +389,8 @@
     "lon": 56.2318528,
     "wb_dest": "12358361",
     "yandex_lr": "50",
-    "ozon_slug": "perm"
+    "ozon_slug": "perm",
+    "ozon_pp": "413096"
   },
   {
     "city": "Владивосток",
@@ -357,7 +398,8 @@
     "lon": 131.8855768,
     "wb_dest": "123587791",
     "yandex_lr": "75",
-    "ozon_slug": "vladivostok"
+    "ozon_slug": "vladivostok",
+    "ozon_pp": "1229378"
   },
   {
     "city": "Псков",
@@ -365,7 +407,8 @@
     "lon": 28.3343465,
     "wb_dest": "123585943",
     "yandex_lr": "25",
-    "ozon_slug": "pskov"
+    "ozon_slug": "pskov",
+    "ozon_pp": "92816"
   },
   {
     "city": "Майкоп",
@@ -373,7 +416,8 @@
     "lon": 40.104053,
     "wb_dest": "123589323",
     "yandex_lr": "1093",
-    "ozon_slug": "maykop"
+    "ozon_slug": "maykop",
+    "ozon_pp": "387865"
   },
   {
     "city": "Горно-Алтайск",
@@ -381,7 +425,8 @@
     "lon": 85.963653,
     "wb_dest": "123585493",
     "yandex_lr": "11319",
-    "ozon_slug": "gorno-altaysk"
+    "ozon_slug": "gorno-altaysk",
+    "ozon_pp": "1433784"
   },
   {
     "city": "Уфа",
@@ -389,7 +434,8 @@
     "lon": 55.947499,
     "wb_dest": "12358515",
     "yandex_lr": "172",
-    "ozon_slug": "ufa"
+    "ozon_slug": "ufa",
+    "ozon_pp": "380740"
   },
   {
     "city": "Улан-Удэ",
@@ -397,7 +443,8 @@
     "lon": 107.5839105,
     "wb_dest": "-1979947",
     "yandex_lr": "198",
-    "ozon_slug": "ulan-ude"
+    "ozon_slug": "ulan-ude",
+    "ozon_pp": "434076"
   },
   {
     "city": "Махачкала",
@@ -405,7 +452,8 @@
     "lon": 47.5048717,
     "wb_dest": "-5921134",
     "yandex_lr": "28",
-    "ozon_slug": "mahachkala"
+    "ozon_slug": "mahachkala",
+    "ozon_pp": "1401375"
   },
   {
     "city": "Магас",
@@ -413,7 +461,8 @@
     "lon": 44.8048191,
     "wb_dest": "123585806",
     "yandex_lr": "20181",
-    "ozon_slug": "magas"
+    "ozon_slug": "magas",
+    "ozon_pp": "102909"
   },
   {
     "city": "Элиста",
@@ -421,7 +470,8 @@
     "lon": 44.2692214,
     "wb_dest": "123585888",
     "yandex_lr": "1094",
-    "ozon_slug": "elista"
+    "ozon_slug": "elista",
+    "ozon_pp": "82570"
   },
   {
     "city": "Петрозаводск",
@@ -429,7 +479,8 @@
     "lon": 34.3688041,
     "wb_dest": "123585633",
     "yandex_lr": "18",
-    "ozon_slug": "petrozavodsk"
+    "ozon_slug": "petrozavodsk",
+    "ozon_pp": "377937"
   },
   {
     "city": "Сыктывкар",
@@ -437,7 +488,8 @@
     "lon": 50.8352024,
     "wb_dest": "123585595",
     "yandex_lr": "19",
-    "ozon_slug": "syktyvkar"
+    "ozon_slug": "syktyvkar",
+    "ozon_pp": "359276"
   },
   {
     "city": "Симферополь",
@@ -445,7 +497,8 @@
     "lon": 81.5338754,
     "wb_dest": "-3428570",
     "yandex_lr": "146",
-    "ozon_slug": "simferopol"
+    "ozon_slug": "simferopol",
+    "ozon_pp": "2598242"
   },
   {
     "city": "Йошкар-Ола",
@@ -453,7 +506,8 @@
     "lon": 47.8868803,
     "wb_dest": "123586143",
     "yandex_lr": "41",
-    "ozon_slug": "yoshkar-ola"
+    "ozon_slug": "yoshkar-ola",
+    "ozon_pp": "412063"
   },
   {
     "city": "Саранск",
@@ -461,7 +515,8 @@
     "lon": 45.18383,
     "wb_dest": "123586028",
     "yandex_lr": "42",
-    "ozon_slug": "saransk"
+    "ozon_slug": "saransk",
+    "ozon_pp": "92486"
   },
   {
     "city": "Якутск",
@@ -469,7 +524,8 @@
     "lon": 129.7319787,
     "wb_dest": "1259570250",
     "yandex_lr": "74",
-    "ozon_slug": "yakutsk"
+    "ozon_slug": "yakutsk",
+    "ozon_pp": "1401766"
   },
   {
     "city": "Владикавказ",
@@ -477,7 +533,8 @@
     "lon": 44.68211,
     "wb_dest": "-4638357",
     "yandex_lr": "33",
-    "ozon_slug": "vladikavkaz"
+    "ozon_slug": "vladikavkaz",
+    "ozon_pp": "1444775"
   },
   {
     "city": "Казань",
@@ -485,7 +542,8 @@
     "lon": 49.1115022,
     "wb_dest": "-2133462",
     "yandex_lr": "43",
-    "ozon_slug": "kazan"
+    "ozon_slug": "kazan",
+    "ozon_pp": "1267318"
   },
   {
     "city": "Кызыл",
@@ -493,7 +551,8 @@
     "lon": 94.4300679,
     "wb_dest": "123585918",
     "yandex_lr": "11333",
-    "ozon_slug": "kyzyl"
+    "ozon_slug": "kyzyl",
+    "ozon_pp": "1229424"
   },
   {
     "city": "Абакан",
@@ -501,7 +560,8 @@
     "lon": 91.4406019,
     "wb_dest": "123587564",
     "yandex_lr": "1095",
-    "ozon_slug": "abakan"
+    "ozon_slug": "abakan",
+    "ozon_pp": "84044"
   },
   {
     "city": "Ростов-на-Дону",
@@ -509,7 +569,8 @@
     "lon": 39.7198736,
     "wb_dest": "-2228364",
     "yandex_lr": "39",
-    "ozon_slug": "rostov-na-donu"
+    "ozon_slug": "rostov-na-donu",
+    "ozon_pp": "1282737"
   },
   {
     "city": "Рязань",
@@ -517,7 +578,8 @@
     "lon": 39.6884462,
     "wb_dest": "-5817684",
     "yandex_lr": "11",
-    "ozon_slug": "ryazan"
+    "ozon_slug": "ryazan",
+    "ozon_pp": "99418"
   },
   {
     "city": "Самара",
@@ -525,7 +587,8 @@
     "lon": 50.1014927,
     "wb_dest": "-283781",
     "yandex_lr": "51",
-    "ozon_slug": "samara"
+    "ozon_slug": "samara",
+    "ozon_pp": "1411847"
   },
   {
     "city": "Санкт-Петербург",
@@ -533,7 +596,8 @@
     "lon": 30.1586551,
     "wb_dest": "123585507",
     "yandex_lr": "2",
-    "ozon_slug": "sankt-peterburg"
+    "ozon_slug": "sankt-peterburg",
+    "ozon_pp": "452794"
   },
   {
     "city": "Саратов",
@@ -541,7 +605,8 @@
     "lon": 46.034683,
     "wb_dest": "12358452",
     "yandex_lr": "194",
-    "ozon_slug": "saratov"
+    "ozon_slug": "saratov",
+    "ozon_pp": "204533"
   },
   {
     "city": "Южно-Сахалинск",
@@ -549,7 +614,8 @@
     "lon": 142.727438,
     "wb_dest": "1259570251",
     "yandex_lr": "80",
-    "ozon_slug": "yuzhno-sahalinsk"
+    "ozon_slug": "yuzhno-sahalinsk",
+    "ozon_pp": "995489"
   },
   {
     "city": "Екатеринбург",
@@ -557,7 +623,8 @@
     "lon": 60.6007886,
     "wb_dest": "123589409",
     "yandex_lr": "54",
-    "ozon_slug": "ekaterinburg"
+    "ozon_slug": "ekaterinburg",
+    "ozon_pp": "1258536"
   },
   {
     "city": "Севастополь",
@@ -565,7 +632,8 @@
     "lon": 35.186371,
     "wb_dest": "-1900954",
     "yandex_lr": "166243",
-    "ozon_slug": "sevastopol"
+    "ozon_slug": "sevastopol",
+    "ozon_pp": "2599270"
   },
   {
     "city": "Смоленск",
@@ -573,7 +641,8 @@
     "lon": 32.0471812,
     "wb_dest": "-3339991",
     "yandex_lr": "12",
-    "ozon_slug": "smolensk"
+    "ozon_slug": "smolensk",
+    "ozon_pp": "1415778"
   },
   {
     "city": "Ставрополь",
@@ -581,7 +650,8 @@
     "lon": 41.9690934,
     "wb_dest": "-5856841",
     "yandex_lr": "36",
-    "ozon_slug": "stavropol"
+    "ozon_slug": "stavropol",
+    "ozon_pp": "1448685"
   },
   {
     "city": "Тамбов",
@@ -589,7 +659,8 @@
     "lon": 41.4523988,
     "wb_dest": "123587520",
     "yandex_lr": "13",
-    "ozon_slug": "tambov"
+    "ozon_slug": "tambov",
+    "ozon_pp": "1419347"
   },
   {
     "city": "Тверь",
@@ -597,7 +668,8 @@
     "lon": 35.8952416,
     "wb_dest": "-1784077",
     "yandex_lr": "14",
-    "ozon_slug": "tver"
+    "ozon_slug": "tver",
+    "ozon_pp": "361703"
   },
   {
     "city": "Томск",
@@ -605,7 +677,8 @@
     "lon": 84.9523434,
     "wb_dest": "-2688921",
     "yandex_lr": "67",
-    "ozon_slug": "tomsk"
+    "ozon_slug": "tomsk",
+    "ozon_pp": "2593009"
   },
   {
     "city": "Тула",
@@ -613,7 +686,8 @@
     "lon": 37.61754,
     "wb_dest": "123586853",
     "yandex_lr": "15",
-    "ozon_slug": "tula"
+    "ozon_slug": "tula",
+    "ozon_pp": "1278548"
   },
   {
     "city": "Тюмень",
@@ -621,7 +695,8 @@
     "lon": 65.542274,
     "wb_dest": "12358470",
     "yandex_lr": "55",
-    "ozon_slug": "tyumen"
+    "ozon_slug": "tyumen",
+    "ozon_pp": "1401088"
   },
   {
     "city": "Ижевск",
@@ -629,7 +704,8 @@
     "lon": 53.2103071,
     "wb_dest": "-971646",
     "yandex_lr": "44",
-    "ozon_slug": "izhevsk"
+    "ozon_slug": "izhevsk",
+    "ozon_pp": "1451925"
   },
   {
     "city": "Ульяновск",
@@ -637,7 +713,8 @@
     "lon": 48.403373,
     "wb_dest": "-3115289",
     "yandex_lr": "195",
-    "ozon_slug": "ulyanovsk"
+    "ozon_slug": "ulyanovsk",
+    "ozon_pp": "1435633"
   },
   {
     "city": "Хабаровск",
@@ -645,7 +722,8 @@
     "lon": 135.0762968,
     "wb_dest": "-1785058",
     "yandex_lr": "76",
-    "ozon_slug": "habarovsk"
+    "ozon_slug": "habarovsk",
+    "ozon_pp": "204655"
   },
   {
     "city": "Ханты-Мансийск",
@@ -653,7 +731,8 @@
     "lon": 69.0189684,
     "wb_dest": "123585931",
     "yandex_lr": "57",
-    "ozon_slug": "hanty-mansiysk"
+    "ozon_slug": "hanty-mansiysk",
+    "ozon_pp": "1419171"
   },
   {
     "city": "Херсон",
@@ -669,7 +748,8 @@
     "lon": 61.4025547,
     "wb_dest": "-1581689",
     "yandex_lr": "56",
-    "ozon_slug": "chelyabinsk"
+    "ozon_slug": "chelyabinsk",
+    "ozon_pp": "443909"
   },
   {
     "city": "Грозный",
@@ -685,7 +765,8 @@
     "lon": 47.2480999,
     "wb_dest": "-3889738",
     "yandex_lr": "45",
-    "ozon_slug": "cheboksary"
+    "ozon_slug": "cheboksary",
+    "ozon_pp": "2002727"
   },
   {
     "city": "Анадырь",
@@ -693,7 +774,8 @@
     "lon": 177.5060925,
     "wb_dest": "123585624",
     "yandex_lr": "11458",
-    "ozon_slug": "anadyr"
+    "ozon_slug": "anadyr",
+    "ozon_pp": "2597457"
   },
   {
     "city": "Салехард",
@@ -701,7 +783,8 @@
     "lon": 66.6146311,
     "wb_dest": "123585947",
     "yandex_lr": "58",
-    "ozon_slug": "salehard"
+    "ozon_slug": "salehard",
+    "ozon_pp": "543729"
   },
   {
     "city": "Ярославль",
@@ -709,6 +792,7 @@
     "lon": 39.8933705,
     "wb_dest": "-3351953",
     "yandex_lr": "16",
-    "ozon_slug": "yaroslavl"
+    "ozon_slug": "yaroslavl",
+    "ozon_pp": "518289"
   }
 ]

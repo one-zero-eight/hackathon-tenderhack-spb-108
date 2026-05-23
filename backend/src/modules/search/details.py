@@ -8,6 +8,7 @@ from src.logging_ import logger
 from src.modules.search.common import (
     append_characteristic,
     check_captcha,
+    open_browser_page,
     wait_captcha_solved,
 )
 from src.modules.search.schemas import SearchResult
@@ -47,7 +48,6 @@ def specs_from_raw(rows: object) -> dict[str, str]:
 
 
 async def _enrich_one_product(
-    context,
     product: SearchResult,
     *,
     fetch_characteristics: Callable[[object, str], Awaitable[dict[str, str]]],
@@ -64,7 +64,7 @@ async def _enrich_one_product(
         total,
         product.name[:60],
     )
-    detail_page = await context.new_page()
+    detail_page = await open_browser_page()
     try:
         try:
             async with recorder.stage("fetch"):
@@ -102,12 +102,10 @@ async def enrich_product_characteristics(
     candidates = [p for p in products if p.product_link][:limit]
     if not candidates:
         return
-    context = page.context
     total = len(candidates)
     await asyncio.gather(
         *[
             _enrich_one_product(
-                context,
                 product,
                 fetch_characteristics=fetch_characteristics,
                 check_captcha_expr=check_captcha_expr,

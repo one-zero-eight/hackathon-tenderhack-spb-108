@@ -27,34 +27,81 @@ class _BrowserState:
 
 
 _browser_lock = asyncio.Lock()
+_new_page_lock = asyncio.Lock()
+
+
+def _is_browser_closed_error(exc: BaseException) -> bool:
+    return type(exc).__name__ == "TargetClosedError" or "has been closed" in str(exc).lower()
+
+
+def _context_is_alive(context) -> bool:
+    try:
+        browser = context.browser
+        return browser is not None and browser.is_connected()
+    except Exception:
+        return False
+
+
+async def _launch_browser_context():
+    session_dir, _ = site_paths("shared")
+    session_dir.mkdir(parents=True, exist_ok=True)
+    headless = headless_from_env(SEARCH_HEADLESS_ENV)
+    if HTTP_PROXY:
+        logger.info("Using HTTP proxy: %s", HTTP_PROXY.split("@")[-1])
+    context = await launch_persistent_context_async(
+        user_data_dir=session_dir,
+        headless=headless,
+        proxy=HTTP_PROXY,
+        locale="ru-RU",
+    )
+    logger.info("Shared cloakbrowser context started (headless=%s)", headless)
+    return context
+
+
+async def reset_browser_context() -> None:
+    async with _browser_lock:
+        if _BrowserState.context is None:
+            return
+        try:
+            await _BrowserState.context.close()
+        except Exception as exc:
+            logger.warning("Error closing browser context: %s", exc)
+        _BrowserState.context = None
+        logger.info("Shared cloakbrowser context reset")
 
 
 async def get_browser_context():
     async with _browser_lock:
-        if _BrowserState.context is not None:
+        if _BrowserState.context is not None and _context_is_alive(_BrowserState.context):
             return _BrowserState.context
-        session_dir, _ = site_paths("shared")
-        session_dir.mkdir(parents=True, exist_ok=True)
-        headless = headless_from_env(SEARCH_HEADLESS_ENV)
-        if HTTP_PROXY:
-            logger.info("Using HTTP proxy: %s", HTTP_PROXY.split("@")[-1])
-        _BrowserState.context = await launch_persistent_context_async(
-            user_data_dir=session_dir,
-            headless=headless,
-            proxy=HTTP_PROXY,
-            locale="ru-RU",
-        )
-        logger.info("Shared cloakbrowser context started (headless=%s)", headless)
+        if _BrowserState.context is not None:
+            logger.warning("Shared browser context is dead, restarting")
+            try:
+                await _BrowserState.context.close()
+            except Exception:
+                pass
+            _BrowserState.context = None
+        _BrowserState.context = await _launch_browser_context()
         return _BrowserState.context
 
 
+async def open_browser_page():
+    """Open a tab; restart shared browser if Playwright reports a dead context."""
+    async with _new_page_lock:
+        for attempt in range(2):
+            context = await get_browser_context()
+            try:
+                return await context.new_page()
+            except Exception as exc:
+                if not _is_browser_closed_error(exc) or attempt > 0:
+                    raise
+                logger.warning("Browser closed on new_page, restarting (%s)", exc)
+                await reset_browser_context()
+        raise RuntimeError("Could not open browser page after restart")
+
+
 async def close_browser_context() -> None:
-    async with _browser_lock:
-        if _BrowserState.context is None:
-            return
-        await _BrowserState.context.close()
-        _BrowserState.context = None
-        logger.info("Shared cloakbrowser context closed")
+    await reset_browser_context()
 
 
 def scripts_dir() -> Path:
@@ -182,9 +229,9 @@ def _merge_typofix_suggestion(
     if not candidate:
         return current
     if original_query:
-        from src.modules.search.typofix import queries_differ
+        from src.modules.search.typofix import is_plausible_typofix
 
-        if not queries_differ(original_query, candidate):
+        if not is_plausible_typofix(original_query, candidate):
             return current
     return candidate
 
@@ -193,7 +240,7 @@ async def run_site_parser(
     context,
     *,
     site_name: str,
-    actions: list[dict[str, str]],
+    actions: list[dict[str, str]] | Callable[[], list[dict[str, str]]],
     parse_html: Callable[[str], list[SearchResult]],
     check_captcha_expr: str,
     headless_env: str,
@@ -209,12 +256,14 @@ async def run_site_parser(
     headless = headless_from_env(headless_env)
 
     async with recorder.stage("browser_setup"):
-        page = await context.new_page()
+        page = await open_browser_page()
         if not headless:
             logger.info("Browser running headful — captcha can be solved manually")
 
         if setup_page is not None:
             await setup_page(page)
+
+        action_list = actions() if callable(actions) else actions
 
         if block_images:
             await page.route(
@@ -223,8 +272,8 @@ async def run_site_parser(
             )
 
     typofix_suggestion: str | None = None
-    for step, action in enumerate(actions, start=1):
-        logger.info("Action %d/%d: %s", step, len(actions), action["type"])
+    for step, action in enumerate(action_list, start=1):
+        logger.info("Action %d/%d: %s", step, len(action_list), action["type"])
         async with recorder.stage(f"search.{step}_{action['type']}"):
             await run_action(
                 page,
@@ -243,7 +292,7 @@ async def run_site_parser(
 
     async with recorder.stage("parse_results"):
         html = await page_content(page)
-        save_html(out_dir, len(actions) + 1, html)
+        save_html(out_dir, len(action_list) + 1, html)
         products = parse_html(html)
         if parse_typofix is not None:
             typofix_suggestion = _merge_typofix_suggestion(

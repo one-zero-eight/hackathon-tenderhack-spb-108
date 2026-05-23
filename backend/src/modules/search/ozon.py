@@ -10,6 +10,8 @@ from src.modules.search.schemas import SearchSource
 from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
+    RESULT_PRE_ID,
+    TYPOFIX_PRE_ID,
     SearchResult,
     append_characteristic,
     append_product,
@@ -23,12 +25,14 @@ from .common import (
 )
 from .details import enrich_product_characteristics
 from .region_geo import (
+    _OZON_BOOTSTRAP_URL,
     get_city_geo,
-    ozon_geo_url,
-    ozon_map_viewport_body,
-    ozon_pick_pvz_script,
+    make_ozon_setup_page,
+    ozon_confirm_region_script,
+    ozon_geo_page_url,
+    ozon_set_region_script,
 )
-from .typofix import parse_ozon_typofix
+from .typofix import parse_ozon_typofix, queries_differ
 
 SITE = "ozon"
 CHECK_CAPTCHA = (
@@ -42,40 +46,6 @@ CHECK_CAPTCHA = (
     "})()"
 )
 HEADLESS_ENV = "OZON_HEADLESS"
-
-_SAVE_PVZ_SCRIPT = r"""const btn = [...document.querySelectorAll('button')].find(
-  b => /сохран/i.test(b.innerText)
-);
-if (btn) {
-  btn.click();
-  return true;
-}
-return false;"""
-
-_GEO_SCRIPT_TEMPLATE = r"""var cityInfoStr = __CITY_INFO__;
-var cityInfo = cityInfoStr.split('/');
-
-if (cityInfo.length == 1) {
-  var ppMatch = location.pathname.match(/\/geo\/[^/]+\/(\d+)\//);
-  if (ppMatch) {
-    cityInfo.push(ppMatch[1]);
-  }
-}
-if (cityInfo.length == 1) {
-    return Promise.resolve(true);
-}
-
-return fetch("https://www.ozon.ru/api/entrypoint-api.bx/page/json/v2?url=%2Fgeo%2F" + cityInfo[0] + "%2F%3Fazimuth%3D0.000000000000%26nfr%3Dt%26pid%3D7%26pp%3D" + cityInfo[1], {
-  "headers": {
-    "accept": "application/json",
-    "content-type": "application/json",
-    "cookie": document.cookie
-  },
-  "body": __MAP_BODY__,
-  "method": "POST",
-  "mode": "cors",
-  "credentials": "include"
-}).then(() => true).catch(() => true);"""
 
 _PRODUCT_KEYS = ("skuId", "sku", "cellTrackingInfo", "tileImage")
 _OZON_BASE_URL = "https://www.ozon.ru"
@@ -136,6 +106,122 @@ def _build_search_url(query: str) -> str:
     return f"https://www.ozon.ru/search/?text={encoded}&from_global=true"
 
 
+def _ozon_price_path_part(
+    *,
+    min_price: int = DEFAULT_MIN_PRICE,
+    max_price: int = DEFAULT_MAX_PRICE,
+) -> str:
+    price_part = build_price_filter(
+        "&currency_price=[minPrice].000%3B[maxPrice].000",
+        min_price=min_price,
+        max_price=max_price,
+    )
+    if not price_part:
+        return "&currency_price=0.000%3B9999999.000"
+    return price_part
+
+
+_OZON_FETCH_TEMPLATE = r"""const originalQuery = __ORIGINAL_QUERY__;
+
+function normalizeQuery(text) {
+  return (text || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function resolveCorrectedQuery() {
+  const correctedMatch = document.documentElement.innerHTML.match(
+    /"correctedText"\s*:\s*"([^"\\]+)"/
+  );
+  if (correctedMatch) {
+    const corrected = correctedMatch[1];
+    if (normalizeQuery(corrected) !== normalizeQuery(originalQuery)) {
+      return corrected;
+    }
+  }
+  const input = document.querySelector('input[name="text"]');
+  if (input && input.value) {
+    const value = input.value.trim();
+    if (value && normalizeQuery(value) !== normalizeQuery(originalQuery)) {
+      return value;
+    }
+  }
+  return originalQuery;
+}
+
+async function waitAndFetch() {
+  let corrected = originalQuery;
+  for (let attempt = 0; attempt < 24; attempt++) {
+    corrected = resolveCorrectedQuery();
+    if (normalizeQuery(corrected) !== normalizeQuery(originalQuery)) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  const pricePart = __PRICE_PART__;
+  const path =
+    '/search/?deny_category_prediction=false&force_spell=true&text=' +
+    encodeURIComponent(corrected) +
+    '&from_global=true' +
+    pricePart +
+    '&page_changed=true';
+  const apiUrl =
+    'https://www.ozon.ru/api/entrypoint-api.bx/page/json/v2?url=' +
+    encodeURIComponent(path);
+
+  const response = await fetch(apiUrl, {
+    credentials: 'include',
+    headers: { accept: 'application/json' },
+  });
+  const data = await response.text();
+
+  document.body = document.createElement('body');
+  if (normalizeQuery(corrected) !== normalizeQuery(originalQuery)) {
+    const typoPre = document.createElement('pre');
+    typoPre.id = "__TYPOFIX_PRE_ID__";
+    typoPre.innerText = corrected;
+    document.body.append(typoPre);
+  }
+  const resultPre = document.createElement('pre');
+  resultPre.id = "__PRE_ID__";
+  resultPre.innerText = data;
+  document.body.append(resultPre);
+  return true;
+}
+
+return await waitAndFetch();"""
+
+
+def _build_fetch_script(
+    query: str,
+    *,
+    min_price: int = DEFAULT_MIN_PRICE,
+    max_price: int = DEFAULT_MAX_PRICE,
+) -> str:
+    return (
+        _OZON_FETCH_TEMPLATE.replace("__ORIGINAL_QUERY__", json.dumps(query))
+        .replace("__PRICE_PART__", json.dumps(_ozon_price_path_part(min_price=min_price, max_price=max_price)))
+        .replace("__PRE_ID__", RESULT_PRE_ID)
+        .replace("__TYPOFIX_PRE_ID__", TYPOFIX_PRE_ID)
+    )
+
+
+def _search_page_actions(
+    query: str,
+    *,
+    min_price: int = DEFAULT_MIN_PRICE,
+    max_price: int = DEFAULT_MAX_PRICE,
+) -> list[dict[str, str]]:
+    return [
+        {"type": "url", "data": _build_search_url(query)},
+        {"type": "wait", "data": "2000"},
+        {
+            "type": "waitElement",
+            "data": _build_fetch_script(query, min_price=min_price, max_price=max_price),
+            "wait_for": "",
+        },
+    ]
+
+
 def _build_actions(
     query: str,
     *,
@@ -143,59 +229,18 @@ def _build_actions(
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
-    search_url = _build_search_url(query)
-    actions: list[dict[str, str]] = []
-
-    if geo and geo.ozon_slug:
-        geo_url = ozon_geo_url(geo)
-        if geo_url:
-            actions.extend(
-                [
-                    {"type": "url", "data": geo_url},
-                    {"type": "wait", "data": "3000"},
-                ]
-            )
-            if not geo.ozon_pp:
-                actions.extend(
-                    [
-                        {
-                            "type": "script",
-                            "data": ozon_pick_pvz_script(geo),
-                            "expects_navigation": "true",
-                        },
-                        {"type": "wait", "data": "2000"},
-                    ]
-                )
-            actions.extend(
-                [
-                    {
-                        "type": "script",
-                        "data": _SAVE_PVZ_SCRIPT,
-                        "expects_navigation": "false",
-                    },
-                    {"type": "wait", "data": "2000"},
-                ]
-            )
-
-    city_info = geo.ozon_slug if geo and geo.ozon_slug else ""
-    map_body = json.dumps(ozon_map_viewport_body(geo)) if geo else "{}"
-    geo_script = _GEO_SCRIPT_TEMPLATE.replace("__CITY_INFO__", json.dumps(city_info)).replace("__MAP_BODY__", map_body)
-
-    actions.extend(
-        [
-            {"type": "url", "data": search_url},
-            {"type": "wait", "data": "5000"},
+    geo_page = ozon_geo_page_url(geo) if geo else None
+    if geo and geo.ozon_slug and geo_page:
+        return [
+            {"type": "url", "data": _OZON_BOOTSTRAP_URL},
+            {"type": "wait", "data": "1000"},
+            {"type": "waitElement", "data": ozon_set_region_script(geo), "wait_for": ""},
+            {"type": "url", "data": geo_page},
+            {"type": "wait", "data": "1500"},
+            {"type": "waitElement", "data": ozon_confirm_region_script(geo), "wait_for": ""},
+            *_search_page_actions(query, min_price=min_price, max_price=max_price),
         ]
-    )
-    if geo and geo.ozon_slug:
-        actions.append({"type": "waitElement", "data": geo_script, "wait_for": ""})
-    actions.extend(
-        [
-            {"type": "url", "data": _search_api_url(query, min_price=min_price, max_price=max_price)},
-            {"type": "wait", "data": "3000"},
-        ]
-    )
-    return actions
+    return _search_page_actions(query, min_price=min_price, max_price=max_price)
 
 
 def _parse_widget_states(data: dict, products: list[SearchResult]) -> None:
@@ -470,22 +515,22 @@ def _extract_body_json(html: str) -> str | None:
 
 
 def parse_html(html: str) -> list[SearchResult]:
+    raw = extract_pre_content(html)
+    if raw:
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, dict):
+            ozon_products = _parse_ozon_payload(data)
+            if ozon_products:
+                return ozon_products
+
     data = _extract_json_document(html)
     if data:
         ozon_products = _parse_ozon_payload(data)
         if ozon_products:
             return ozon_products
-
-    pre_match = re.search(r"<pre[^>]*>(.*?)</pre>", html, re.DOTALL)
-    if pre_match:
-        try:
-            data = json.loads(pre_match.group(1).strip())
-            if isinstance(data, dict):
-                ozon_products = _parse_ozon_payload(data)
-                if ozon_products:
-                    return ozon_products
-        except json.JSONDecodeError:
-            pass
 
     return parse_result_pre(html, product_keys=_PRODUCT_KEYS)
 
@@ -500,20 +545,31 @@ async def run_ozon_parser(
 ) -> tuple[SearchSource, str | None]:
     """Run Ozon search and return parsed products."""
     geo = get_city_geo(region)
-    results, timing, typofix = await run_site_parser(
-        context,
-        site_name=SITE,
-        actions=_build_actions(user_input, geo=geo, min_price=min_price, max_price=max_price),
-        parse_html=parse_html,
-        parse_typofix=parse_ozon_typofix,
-        original_query=user_input,
-        check_captcha_expr=CHECK_CAPTCHA,
-        headless_env=HEADLESS_ENV,
-        enrich_characteristics=_enrich_ozon_characteristics,
-    )
+
+    async def run_for_query(query: str):
+        def actions() -> list[dict[str, str]]:
+            return _build_actions(query, geo=geo, min_price=min_price, max_price=max_price)
+
+        return await run_site_parser(
+            context,
+            site_name=SITE,
+            actions=actions,
+            parse_html=parse_html,
+            parse_typofix=lambda html: parse_ozon_typofix(html, original=user_input),
+            original_query=user_input,
+            check_captcha_expr=CHECK_CAPTCHA,
+            headless_env=HEADLESS_ENV,
+            enrich_characteristics=_enrich_ozon_characteristics,
+            setup_page=make_ozon_setup_page(geo) if geo and geo.ozon_slug else None,
+        )
+
+    # Fetch script already applies Ozon correctedText before API call — one browser run is enough.
+    results, timing, typofix = await run_for_query(user_input)
+
+    search_query = typofix if typofix and queries_differ(user_input, typofix) else user_input
     return SearchSource(
         source_type="ozon",
-        source_url=_build_search_url(user_input),
+        source_url=_build_search_url(search_query),
         source_title="Ozon",
         source_favicon_url=None,
         results=results,

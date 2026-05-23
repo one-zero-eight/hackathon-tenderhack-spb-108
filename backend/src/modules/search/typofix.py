@@ -36,6 +36,31 @@ def _probably_typo_pair(html: str) -> str | None:
     return None
 
 
+def _search_text_from_json(html: str, original: str | None = None) -> str | None:
+    candidates = [_unescape(m) for m in re.findall(r'"searchText"\s*:\s*"([^"\\]+)"', html)]
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if original is None or is_plausible_typofix(original, candidate):
+            return candidate
+    return None
+
+
+def _title_search_query(html: str, original: str | None = None) -> str | None:
+    match = re.search(r"<title>([^<]+)</title>", html, re.I)
+    if not match:
+        return None
+    title = _unescape(match.group(1))
+    for sep in (" — купить", " - купить"):
+        if sep in title:
+            query = title.split(sep, 1)[0].strip()
+            if query and (original is None or is_plausible_typofix(original, query)):
+                return query
+    return None
+
+
 def _ozon_shared_corrected_text(data: dict) -> str | None:
     shared = data.get("shared")
     if isinstance(shared, str):
@@ -71,17 +96,26 @@ def _ozon_search_bar_text(data: dict) -> str | None:
     return None
 
 
-def parse_ozon_typofix(html: str) -> str | None:
+def parse_ozon_typofix(html: str, *, original: str | None = None) -> str | None:
     from src.modules.search.ozon import _extract_json_document
+
+    if captured := _typofix_from_pre(html):
+        return captured
 
     match = re.search(r'"correctedText"\s*:\s*"([^"\\]+)"', html)
     if match:
-        return _unescape(match.group(1)) or None
+        corrected = _unescape(match.group(1))
+        if corrected and (original is None or is_plausible_typofix(original, corrected)):
+            return corrected
 
     data = _extract_json_document(html)
     if isinstance(data, dict):
         if corrected := _ozon_shared_corrected_text(data):
-            return corrected
+            if original is None or is_plausible_typofix(original, corrected):
+                return corrected
+        if corrected := _ozon_search_bar_text(data):
+            if original is None or is_plausible_typofix(original, corrected):
+                return corrected
 
     if "fulltextResultsHeader" in html or "Вы искали" in html:
         input_match = re.search(
@@ -90,19 +124,30 @@ def parse_ozon_typofix(html: str) -> str | None:
             re.I,
         )
         if input_match:
-            return _unescape(input_match.group(1)) or None
+            value = _unescape(input_match.group(1))
+            if value and (original is None or is_plausible_typofix(original, value)):
+                return value
     return None
 
 
-def parse_wildberries_typofix(html: str) -> str | None:
-    if "searching-results__query-replaced" not in html:
-        return None
-    match = re.search(
-        r'class="searching-results__query"[^>]*>«([^»]+)»',
-        html,
-    )
-    if match:
-        return _unescape(match.group(1)) or None
+def parse_wildberries_typofix(html: str, *, original: str | None = None) -> str | None:
+    if captured := _typofix_from_pre(html):
+        return captured
+
+    if "searching-results__query-replaced" in html:
+        match = re.search(
+            r'class="searching-results__query"[^>]*>«([^»]+)»',
+            html,
+        )
+        if match:
+            return _unescape(match.group(1)) or None
+
+    input_match = re.search(r'id="searchInput"[^>]*value="([^"]+)"', html, re.I)
+    if input_match:
+        value = _unescape(input_match.group(1))
+        if value and (original is None or is_plausible_typofix(original, value)):
+            return value
+
     title_match = re.search(r'class="searching-results__title">([^<]+)', html)
     if title_match:
         return _unescape(title_match.group(1)) or None
@@ -113,11 +158,46 @@ def queries_differ(original: str, suggestion: str) -> bool:
     return " ".join(original.split()).casefold() != " ".join(suggestion.split()).casefold()
 
 
-def parse_yandex_market_typofix(html: str) -> str | None:
+def is_plausible_typofix(original: str, suggestion: str) -> bool:
+    if not queries_differ(original, suggestion):
+        return False
+    original_words = {word.casefold() for word in original.split() if len(word) >= 3}
+    suggestion_words = {word.casefold() for word in suggestion.split() if len(word) >= 3}
+    return bool(original_words & suggestion_words)
+
+
+def _query_match_words(query: str) -> list[str]:
+    words = [word.casefold() for word in query.split() if len(word) >= 4]
+    if words:
+        return words
+    return [word.casefold() for word in query.split() if len(word) >= 3]
+
+
+def results_relevant_to_query(query: str, product_names: list[str]) -> bool:
+    """True when at least one product name overlaps the query (by word stem)."""
+    if not product_names:
+        return False
+    words = _query_match_words(query)
+    if not words:
+        return True
+    for name in product_names:
+        lowered = name.casefold()
+        if any(word in lowered for word in words):
+            return True
+    return False
+
+
+def parse_yandex_market_typofix(html: str, *, original: str | None = None) -> str | None:
     if captured := _typofix_from_pre(html):
         return captured
 
     if corrected := _probably_typo_pair(html):
+        return corrected
+
+    if corrected := _search_text_from_json(html, original):
+        return corrected
+
+    if corrected := _title_search_query(html, original):
         return corrected
 
     if "SearchSpellchecker" in html or "Запрос исправлен" in html:

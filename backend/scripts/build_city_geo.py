@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import argparse
+import asyncio
 import json
 import sys
 import time
@@ -14,12 +16,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.modules.search.region_geo import (  # noqa: E402
+    _OZON_BOOTSTRAP_URL,
     _WB_DEST_RE,
     REGION_CAPITALS,
+    discover_ozon_pp_in_listing,
     ozon_slug_for_city,
 )
 
 OUT = ROOT / "src/modules/search/city_geo.json"
+OZON_BUILD_PROFILE = ROOT / ".cache" / "ozon-geo-build"
 USER_AGENT = "tenderhack-city-geo/1.0"
 
 
@@ -71,7 +76,7 @@ def yandex_lr(city: str, lat: float, lon: float) -> str:
     return str(geoid)
 
 
-def main() -> None:
+def build_base_entries() -> tuple[list[dict[str, object]], list[str]]:
     entries: list[dict[str, object]] = []
     failed: list[str] = []
 
@@ -80,24 +85,126 @@ def main() -> None:
         try:
             lat, lon = nominatim_coords(city)
             time.sleep(1.05)
-            entry: dict[str, object] = {
-                "city": city,
-                "lat": lat,
-                "lon": lon,
-                "wb_dest": wb_dest(lat, lon, city),
-                "yandex_lr": yandex_lr(city, lat, lon),
-                "ozon_slug": ozon_slug_for_city(city),
-            }
-            entries.append(entry)
+            entries.append(
+                {
+                    "city": city,
+                    "lat": lat,
+                    "lon": lon,
+                    "wb_dest": wb_dest(lat, lon, city),
+                    "yandex_lr": yandex_lr(city, lat, lon),
+                    "ozon_slug": ozon_slug_for_city(city),
+                }
+            )
         except Exception as exc:
             print(f"  FAIL: {exc}", flush=True)
             failed.append(city)
 
+    return entries, failed
+
+
+async def fetch_ozon_pp_by_slug(entries: list[dict[str, object]]) -> list[str]:
+    from cloakbrowser import launch_persistent_context_async
+
+    for entry in entries:
+        city = str(entry["city"])
+        entry["ozon_slug"] = ozon_slug_for_city(city)
+
+    slug_to_cities: dict[str, list[str]] = {}
+    for entry in entries:
+        slug = entry.get("ozon_slug")
+        if slug:
+            slug_to_cities.setdefault(str(slug), []).append(str(entry["city"]))
+
+    slugs = sorted(slug_to_cities)
+    if not slugs:
+        return []
+
+    slug_to_pp: dict[str, str] = {}
+    failed_slugs: list[str] = []
+
+    OZON_BUILD_PROFILE.mkdir(parents=True, exist_ok=True)
+    ctx = await launch_persistent_context_async(
+        user_data_dir=str(OZON_BUILD_PROFILE),
+        headless=True,
+        locale="ru-RU",
+    )
+    page = await ctx.new_page()
+    await page.goto(_OZON_BOOTSTRAP_URL, wait_until="domcontentloaded", timeout=60_000)
+    await page.wait_for_timeout(1000)
+
+    async def listing_for(slug: str) -> str:
+        return await page.evaluate(
+            """async (slug) => {
+              const r = await fetch(
+                '/api/entrypoint-api.bx/page/json/v2?url=' + encodeURIComponent('/geo/' + slug + '/'),
+                {credentials: 'include', headers: {accept: 'application/json'}}
+              );
+              return await r.text();
+            }""",
+            slug,
+        )
+
+    for index, slug in enumerate(slugs, start=1):
+        print(f"  ozon_pp [{index}/{len(slugs)}] {slug}", flush=True)
+        listing = await listing_for(slug)
+        pp = discover_ozon_pp_in_listing(listing, slug)
+        if not pp:
+            await page.wait_for_timeout(1500)
+            listing = await listing_for(slug)
+            pp = discover_ozon_pp_in_listing(listing, slug)
+        if pp:
+            slug_to_pp[slug] = pp
+            print(f"    -> {pp}", flush=True)
+        else:
+            print("    WARN: no pp in listing", flush=True)
+            failed_slugs.append(slug)
+        await page.wait_for_timeout(250)
+
+    await ctx.close()
+
+    for entry in entries:
+        slug = entry.get("ozon_slug")
+        if slug and slug in slug_to_pp:
+            entry["ozon_pp"] = slug_to_pp[str(slug)]
+        else:
+            entry.pop("ozon_pp", None)
+
+    return [c for slug in failed_slugs for c in slug_to_cities.get(slug, [])]
+
+
+def write_entries(entries: list[dict[str, object]]) -> None:
     OUT.write_text(json.dumps(entries, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {len(entries)} cities to {OUT}")
-    if failed:
-        print("Failed:", ", ".join(failed))
-        sys.exit(1)
+
+
+async def main_async(*, ozon_only: bool) -> None:
+    if ozon_only:
+        if not OUT.is_file():
+            print(f"Missing {OUT} — run full build first", file=sys.stderr)
+            sys.exit(1)
+        entries = json.loads(OUT.read_text(encoding="utf-8"))
+        print(f"Refreshing ozon_pp for {len(entries)} cities", flush=True)
+    else:
+        entries, failed = build_base_entries()
+        if failed:
+            print("Failed:", ", ".join(failed))
+            sys.exit(1)
+
+    failed_cities = await fetch_ozon_pp_by_slug(entries)
+    write_entries(entries)
+    if failed_cities:
+        print("WARN: ozon_pp missing for:", ", ".join(failed_cities))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--ozon-only",
+        action="store_true",
+        help="only refresh ozon_pp in existing city_geo.json (skip nominatim/wb/yandex)",
+    )
+    args = parser.parse_args()
+    asyncio.run(main_async(ozon_only=args.ozon_only))
 
 
 if __name__ == "__main__":
