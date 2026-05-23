@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from src.config import settings
 from src.logging_ import logger
 from src.modules.search.parse_from_url import parse_url
-from src.modules.search.schemas import SearchParams, SearchResults
+from src.modules.search.schemas import SearchParams, SearchResults, SearchSource
 from src.modules.search.timing import TimingRecorder
 
 
@@ -200,26 +200,31 @@ def search_top_urls(query: str, limit: int = 5) -> list[str]:
     return list(title_map.values())
 
 
-async def run_search(query: str, *, limit: int = 5) -> SearchResults:
-    request_timing = TimingRecorder.start()
+async def run_runet_parser(query: str, *, limit: int = 5) -> tuple[list[SearchSource], None]:
+    recorder = TimingRecorder.start()
 
-    async with request_timing.stage("whoogle_search"):
+    async with recorder.stage("whoogle_search"):
         urls = await asyncio.to_thread(search_top_urls, query, limit)
     logger.info("Whoogle returned %d URLs for query %r", len(urls), query)
 
     if not urls:
-        return SearchResults(
-            original_params=SearchParams(query=query),
-            sources=[],
-            timing=request_timing.to_request_timing(),
-        )
+        return [], None
 
-    async with request_timing.stage("parse_sources"):
+    async with recorder.stage("parse_sources"):
         parse_results = await asyncio.gather(*(parse_url(url) for url in urls))
 
     sources = [source for result in parse_results for source in result.sources]
-    logger.info("Parsed %d sources (%d products total)", len(sources), sum(len(s.results) for s in sources))
+    source_timing = recorder.to_source_timing()
+    for source in sources:
+        source.timing = source_timing
+    logger.info("Parsed %d runet sources (%d products total)", len(sources), sum(len(s.results) for s in sources))
+    return sources, None
 
+
+async def run_search(query: str, *, limit: int = 5) -> SearchResults:
+    request_timing = TimingRecorder.start()
+    async with request_timing.stage("runet"):
+        sources, _ = await run_runet_parser(query, limit=limit)
     return SearchResults(
         original_params=SearchParams(query=query),
         sources=sources,

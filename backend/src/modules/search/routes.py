@@ -17,7 +17,7 @@ from src.modules.search.schemas import (
 )
 from src.modules.search.timing import TimingRecorder
 from src.modules.search.typofix import queries_differ
-from src.modules.search.whoogle import run_search
+from src.modules.search.whoogle import run_runet_parser, run_search
 from src.modules.search.wildberries import run_wildberries_parser
 from src.modules.search.yandex_market import run_yandex_market_parser
 
@@ -63,16 +63,27 @@ async def search(search_params: SearchParams) -> SearchResults:
     else:
         ozon_task = None
 
-    tasks = [t for t in (yandex_market_task, wildberries_task, ozon_task) if t is not None]
+    run_runet = not search_params.source_types or SourceType.runet in search_params.source_types
+    if run_runet:
+        logger.info("Running Runet (Whoogle) parser")
+        runet_task = run_runet_parser(search_params.query)
+    else:
+        runet_task = None
+
+    tasks = [t for t in (yandex_market_task, wildberries_task, ozon_task, runet_task) if t is not None]
     async with request_timing.stage("fetch_sources"):
         results = await asyncio.gather(*tasks) if tasks else []
 
     sources: list[SearchSource] = []
     typofix_suggestions: list[TypofixSuggestion] = []
     for source, suggestion in results:
-        sources.append(source)
+        if isinstance(source, list):
+            sources.extend(source)
+        else:
+            sources.append(source)
         if suggestion and queries_differ(search_params.query, suggestion):
-            typofix_suggestions.append(TypofixSuggestion(source=source.source_type, suggestion=suggestion))
+            typofix_source = source[0].source_type if isinstance(source, list) else source.source_type
+            typofix_suggestions.append(TypofixSuggestion(source=typofix_source, suggestion=suggestion))
     if search_params.short:
         for source in sources:
             source.results = source.results[:4]
