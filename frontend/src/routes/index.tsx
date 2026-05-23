@@ -46,10 +46,7 @@ function Home() {
     data: searchResults,
     error,
     isPending
-  } = $api.useMutation(
-    'post',
-    '/search/search'
-  )
+  } = $api.useMutation('post', '/search/search')
   const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup)
   const visibleGroups = apiSourceGroups ?? []
   const typofixSuggestions =
