@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import { regions, type RegionName } from "@/lib/regions";
+import { regions, type RegionName } from '@/lib/regions'
+import { ChevronDown } from 'lucide-react'
+import { useState } from 'react'
 
 export function RegionDropdown({
   selectedRegion,
-  onSelect,
+  onSelect
 }: {
-  selectedRegion: RegionName;
-  onSelect: (region: RegionName) => void;
+  selectedRegion: RegionName
+  onSelect: (region: RegionName) => void
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <div className="relative flex flex-col gap-2">
@@ -23,9 +23,7 @@ export function RegionDropdown({
         <span className="truncate">{selectedRegion}</span>
         <ChevronDown
           aria-hidden="true"
-          className={`size-4 shrink-0 text-slate-500 transition ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`size-4 shrink-0 text-slate-500 transition ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -34,18 +32,12 @@ export function RegionDropdown({
           {regions.map((region, index) => (
             <button
               className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-slate-100 ${
-                region === selectedRegion
-                  ? "font-medium text-slate-950"
-                  : "text-slate-700"
-              } ${
-                index === 0
-                  ? "sticky top-0 z-10 border-b border-slate-200 bg-white"
-                  : ""
-              }`}
+                region === selectedRegion ? 'font-medium text-slate-950' : 'text-slate-700'
+              } ${index === 0 ? 'sticky top-0 z-10 border-b border-slate-200 bg-white' : ''}`}
               key={region}
               onClick={() => {
-                onSelect(region);
-                setIsOpen(false);
+                onSelect(region)
+                setIsOpen(false)
               }}
               type="button"
             >
@@ -55,5 +47,5 @@ export function RegionDropdown({
         </div>
       ) : null}
     </div>
-  );
+  )
 }

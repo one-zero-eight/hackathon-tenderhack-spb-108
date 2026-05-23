@@ -1,14 +1,8 @@
-import { useState } from "react";
-import { ImageOff } from "lucide-react";
+import { ImageOff } from 'lucide-react'
+import { useState } from 'react'
 
-export function ProductImage({
-  src,
-  alt,
-}: {
-  src: string | null;
-  alt: string;
-}) {
-  const [hasError, setHasError] = useState(false);
+export function ProductImage({ src, alt }: { src: string | null; alt: string }) {
+  const [hasError, setHasError] = useState(false)
 
   if (!src || hasError) {
     return (
@@ -16,7 +10,7 @@ export function ProductImage({
         <ImageOff aria-hidden="true" className="size-8 text-slate-400" />
         <span>{alt}</span>
       </div>
-    );
+    )
   }
 
   return (
@@ -27,5 +21,5 @@ export function ProductImage({
       onError={() => setHasError(true)}
       src={src}
     />
-  );
+  )
 }
