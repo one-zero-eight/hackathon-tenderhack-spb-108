@@ -3,7 +3,7 @@
 import html as html_lib
 import json
 import re
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urljoin, urlparse
 
 from src.modules.search.schemas import SearchSource
 
@@ -11,14 +11,17 @@ from .common import (
     DEFAULT_MAX_PRICE,
     DEFAULT_MIN_PRICE,
     SearchResult,
+    append_characteristic,
     append_product,
     build_price_filter,
     collect_products,
     encode_query,
     extract_pre_content,
+    page_content,
     parse_result_pre,
     run_site_parser,
 )
+from .details import enrich_product_characteristics
 
 SITE = "ozon"
 CHECK_CAPTCHA = (
@@ -224,6 +227,61 @@ def _extract_tile_link(action: object) -> str | None:
     return urljoin(_OZON_BASE_URL, link)
 
 
+def _parse_ozon_characteristic_state(state: dict) -> dict[str, str]:
+    specs: dict[str, str] = {}
+    for item in state.get("characteristics", []):
+        if not isinstance(item, dict):
+            continue
+        title_parts = item.get("title", {}).get("textRs", [])
+        name = next(
+            (part.get("content") for part in title_parts if isinstance(part, dict) and part.get("content")),
+            None,
+        )
+        values = item.get("values", [])
+        texts = [v.get("text") for v in values if isinstance(v, dict) and v.get("text")]
+        if name and texts:
+            append_characteristic(specs, name, ", ".join(texts))
+    return specs
+
+
+def parse_ozon_detail_html(html: str) -> dict[str, str]:
+    data = _extract_json_document(html)
+    if not data:
+        return {}
+    specs: dict[str, str] = {}
+    for state_id, raw_state in data.get("widgetStates", {}).items():
+        if "haracteristic" not in state_id.lower() or not isinstance(raw_state, str):
+            continue
+        try:
+            state = json.loads(raw_state)
+        except json.JSONDecodeError:
+            continue
+        for key, value in _parse_ozon_characteristic_state(state).items():
+            append_characteristic(specs, key, value)
+    return specs
+
+
+def _ozon_detail_api_url(product_link: str) -> str:
+    path = urlparse(product_link).path
+    return f"{_OZON_BASE_URL}/api/entrypoint-api.bx/page/json/v2?url={quote(path, safe='')}"
+
+
+def fetch_ozon_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    page.goto(_ozon_detail_api_url(product_link), wait_until="domcontentloaded", timeout=60_000)
+    page.wait_for_timeout(1500)
+    return parse_ozon_detail_html(page_content(page))
+
+
+def _enrich_ozon_characteristics(page, products: list[SearchResult]) -> None:
+    enrich_product_characteristics(
+        page,
+        products,
+        fetch_characteristics=fetch_ozon_detail_characteristics,
+        check_captcha_expr=CHECK_CAPTCHA,
+        site_name=SITE,
+    )
+
+
 def _parse_ozon_tile(item: object) -> SearchResult | None:
     if not isinstance(item, dict) or not item.get("sku"):
         return None
@@ -349,6 +407,7 @@ def run_ozon_parser(
         parse_html=parse_html,
         check_captcha=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
+        enrich_characteristics=_enrich_ozon_characteristics,
     )
     return SearchSource(
         source_type="ozon",

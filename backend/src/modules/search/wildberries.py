@@ -18,6 +18,37 @@ from .common import (
     parse_result_pre,
     run_site_parser,
 )
+from .details import enrich_product_characteristics, specs_from_raw
+
+_WB_DETAIL_SPECS_JS = """() => {
+  const out = [];
+  const seen = new Set();
+  const add = (name, value) => {
+    const key = name + '\\0' + value;
+    if (!name || !value || seen.has(key)) return;
+    seen.add(key);
+    out.push([name, value]);
+  };
+  const skip = new Set(['Дополнительная информация', 'Габариты', 'Основные характеристики']);
+  const section = [...document.querySelectorAll('section')].find(
+    s => s.innerText.includes('Ширина, мм') || s.innerText.includes('Артикул')
+  );
+  if (section) {
+    const lines = section.innerText.split('\\n').map(l => l.trim()).filter(Boolean);
+    for (let i = 0; i < lines.length - 1; i++) {
+      if (skip.has(lines[i])) continue;
+      if (!skip.has(lines[i + 1])) {
+        add(lines[i], lines[i + 1]);
+        i++;
+      }
+    }
+  }
+  document.querySelectorAll('[class*="param"]').forEach(el => {
+    const parts = [...el.children].map(c => c.innerText.trim()).filter(Boolean);
+    if (parts.length >= 2) add(parts[0], parts[1]);
+  });
+  return out;
+}"""
 
 SITE = "wildberries"
 CHECK_CAPTCHA = "document.querySelector('#wait_msg') != null || document.querySelector('.support-title') != null"
@@ -160,6 +191,28 @@ def _wb_image_url(product: dict) -> str | None:
     return f"https://basket-{basket:02d}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/{pic_idx}.webp"
 
 
+def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
+    page.wait_for_timeout(3000)
+    try:
+        page.locator("button").filter(has_text="Характеристики").first.click(timeout=10_000)
+        page.wait_for_timeout(3000)
+    except Exception:
+        pass
+    rows = page.evaluate(_WB_DETAIL_SPECS_JS)
+    return specs_from_raw(rows)
+
+
+def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None:
+    enrich_product_characteristics(
+        page,
+        products,
+        fetch_characteristics=fetch_wb_detail_characteristics,
+        check_captcha_expr=CHECK_CAPTCHA,
+        site_name=SITE,
+    )
+
+
 def _product_from_wb(item: dict) -> SearchResult | None:
     name = item.get("name")
     if not name:
@@ -234,6 +287,7 @@ def run_wildberries_parser(
         parse_html=parse_html,
         check_captcha=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
+        enrich_characteristics=_enrich_wb_characteristics,
     )
     return SearchSource(
         source_type="wildberries",

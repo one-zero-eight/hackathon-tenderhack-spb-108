@@ -142,6 +142,7 @@ def run_site_parser(
     parse_html: Callable[[str], list[SearchResult]],
     check_captcha: str,
     headless_env: str,
+    enrich_characteristics: Callable[[object, list[SearchResult]], None] | None = None,
     locale: str = "ru-RU",
     block_images: bool = True,
 ) -> list[SearchResult]:
@@ -185,6 +186,8 @@ def run_site_parser(
         save_html(out_dir, len(actions) + 1, html)
         products = parse_html(html)
         logger.info("Parsed %d products from %s", len(products), site_name)
+        if enrich_characteristics is not None:
+            enrich_characteristics(page, products)
         return products
     finally:
         context.close()
@@ -260,9 +263,23 @@ def extract_image(obj: dict) -> str | None:
     return None
 
 
+def append_characteristic(
+    specs: dict[str, str],
+    name: str,
+    value: object | None,
+) -> None:
+    if value is None:
+        return
+    key = str(name).strip()
+    val = str(value).strip()
+    if not key or not val or key in specs:
+        return
+    specs[key] = val
+
+
 def extract_characteristics(obj: dict) -> dict[str, str]:
     specs: dict[str, str] = {}
-    for key in ("specs", "fullSpecs", "filteredSpecs", "characteristics", "spec"):
+    for key in ("specs", "fullSpecs", "filteredSpecs", "spec"):
         block = obj.get(key)
         if isinstance(block, list):
             for item in block:
@@ -270,12 +287,25 @@ def extract_characteristics(obj: dict) -> dict[str, str]:
                     continue
                 name = item.get("name") or item.get("title") or item.get("key")
                 value = item.get("value") or item.get("text") or item.get("content")
-                if name and value:
-                    specs[str(name)] = str(value)
+                append_characteristic(specs, str(name), value)
         elif isinstance(block, dict):
             for k, v in block.items():
                 if isinstance(v, str):
-                    specs[str(k)] = v
+                    append_characteristic(specs, str(k), v)
+
+    characteristics = obj.get("characteristics")
+    if isinstance(characteristics, dict):
+        for k, v in characteristics.items():
+            append_characteristic(specs, str(k), v)
+    elif isinstance(characteristics, list):
+        for item in characteristics:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                append_characteristic(specs, item[0], item[1])
+            elif isinstance(item, dict):
+                name = item.get("name") or item.get("title") or item.get("key")
+                value = item.get("value") or item.get("text") or item.get("content")
+                append_characteristic(specs, str(name) if name else "", value)
+
     return specs
 
 

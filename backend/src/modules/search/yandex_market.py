@@ -19,6 +19,26 @@ from .common import (
     parse_api_payload,
     run_site_parser,
 )
+from .details import enrich_product_characteristics, specs_from_raw
+
+_YANDEX_DETAIL_SPECS_JS = """() => {
+  const out = [];
+  const seen = new Set();
+  const add = (name, value) => {
+    const key = name + '\\0' + value;
+    if (!name || !value || seen.has(key)) return;
+    seen.add(key);
+    out.push([name, value]);
+  };
+  document.querySelectorAll('[data-auto="product-spec"]').forEach(el => {
+    const name = el.innerText.trim();
+    const row = el.closest('div._3rW2x') || el.closest('div');
+    const valueEl = row && row.querySelector('.eXP5k span');
+    const value = valueEl && valueEl.innerText.trim();
+    if (name && value) add(name, value);
+  });
+  return out;
+}"""
 
 SITE = "yandex_market"
 CHECK_CAPTCHA = (
@@ -247,6 +267,23 @@ def _price_from_snippet(zone: dict) -> str | None:
     return None
 
 
+def fetch_yandex_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    page.goto(product_link, wait_until="domcontentloaded", timeout=60_000)
+    page.wait_for_timeout(2000)
+    rows = page.evaluate(_YANDEX_DETAIL_SPECS_JS)
+    return specs_from_raw(rows)
+
+
+def _enrich_yandex_characteristics(page, products: list[SearchResult]) -> None:
+    enrich_product_characteristics(
+        page,
+        products,
+        fetch_characteristics=fetch_yandex_detail_characteristics,
+        check_captcha_expr=CHECK_CAPTCHA,
+        site_name=SITE,
+    )
+
+
 def _product_from_snippet(zone: dict, card_links: dict[str, str]) -> SearchResult | None:
     name = zone.get("title")
     children = zone.get("children")
@@ -363,6 +400,7 @@ def run_yandex_market_parser(
         parse_html=parse_html,
         check_captcha=CHECK_CAPTCHA,
         headless_env=HEADLESS_ENV,
+        enrich_characteristics=_enrich_yandex_characteristics,
     )
     return SearchSource(
         source_type="yandex_market",
