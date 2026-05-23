@@ -1,8 +1,13 @@
 """Wildberries search parser using cloakbrowser."""
 
+import asyncio
 import json
+import re
+import urllib.error
+import urllib.request
 from urllib.parse import quote
 
+from src.logging_ import logger
 from src.modules.search.schemas import SearchSource
 
 from .common import (
@@ -11,6 +16,7 @@ from .common import (
     RESULT_PRE_ID,
     TYPOFIX_PRE_ID,
     SearchResult,
+    append_characteristic,
     append_product,
     build_price_filter,
     encode_query,
@@ -33,35 +39,31 @@ _WB_DETAIL_SPECS_JS = """() => {
     seen.add(key);
     out.push([name, value]);
   };
-  const skip = new Set(['Дополнительная информация', 'Габариты', 'Основные характеристики']);
-  document.querySelectorAll('th[class*="cellKey"]').forEach(th => {
+  const readRow = (th) => {
     const tr = th.closest('tr');
     const td = tr && tr.querySelector('td[class*="cellValue"]');
-    if (td) add(th.innerText.trim(), td.innerText.trim());
-  });
-  const section = [...document.querySelectorAll('section')].find(
-    s => s.innerText.includes('Ширина, мм') || s.innerText.includes('Артикул')
-  );
-  if (section) {
-    const lines = section.innerText.split('\\n').map(l => l.trim()).filter(Boolean);
-    for (let i = 0; i < lines.length - 1; i++) {
-      if (skip.has(lines[i])) continue;
-      if (!skip.has(lines[i + 1])) {
-        add(lines[i], lines[i + 1]);
-        i++;
-      }
-    }
+    if (!td) return;
+    const name = (
+      th.querySelector('[class*="cellWrapper"]')?.innerText
+      || th.innerText
+    ).trim();
+    const value = td.innerText.trim();
+    add(name, value);
+  };
+  const scopes = [
+    document.querySelector('[class*="detailsDrawer"] [data-testid="product_additional_information"]'),
+    document.querySelector('[class*="detailsDrawer"]'),
+  ].filter(Boolean);
+  for (const scope of scopes) {
+    scope.querySelectorAll('th[class*="cellKey"]').forEach(readRow);
   }
-  document.querySelectorAll('[class*="param"]').forEach(el => {
-    const parts = [...el.children].map(c => c.innerText.trim()).filter(Boolean);
-    if (parts.length >= 2) add(parts[0], parts[1]);
-  });
   return out;
 }"""
 
 _DISMISS_BLOCKING_DRAWER_STMTS = """const overlay = document.querySelector('.mo-drawer__overlay');
 if (!overlay) return false;
-if (document.querySelector('th[class*="cellKey"]')) return false;
+if (document.querySelector('[class*="detailsDrawer"]')) return false;
+if (document.querySelector('[class*="detailsDrawer"] [data-testid="product_additional_information"]')) return false;
 const close = document.querySelector('[class*="closeButton"]')
   || document.querySelector('.mo-drawer__paper button[type="button"]');
 if (close) {
@@ -70,6 +72,65 @@ if (close) {
 }
 overlay.click();
 return true;"""
+
+_WB_NM_ID_RE = re.compile(r"/catalog/(\d+)/")
+_WB_RICH_SPECS_COUNT = 10
+_WB_DRAWER_ROWS = '[class*="detailsDrawer"] [data-testid="product_additional_information"] th[class*="cellKey"]'
+
+_WB_EXPAND_SPECS_JS = """() => {
+  let clicked = false;
+  for (const el of document.querySelectorAll('button, a, span, div')) {
+    const text = (el.innerText || el.textContent || '').trim().toLowerCase();
+    if (!text || text.length > 40) continue;
+    if (
+      text.includes('показать все')
+      || text.includes('развернуть')
+      || text === 'ещё'
+      || text.includes('все характеристики')
+    ) {
+      el.click();
+      clicked = true;
+    }
+  }
+  return clicked;
+}"""
+
+_WB_SCROLL_SPECS_JS = """async () => {
+  const countRows = () => {
+    const section = document.querySelector('[class*="detailsDrawer"] [data-testid="product_additional_information"]');
+    return section ? section.querySelectorAll('th[class*="cellKey"]').length : 0;
+  };
+  const drawer = document.querySelector('[class*="detailsDrawer"]');
+  const scrollables = drawer
+    ? [...drawer.querySelectorAll('*')].filter((el) => {
+        const style = getComputedStyle(el);
+        return (
+          (style.overflowY === 'auto' || style.overflowY === 'scroll')
+          && el.scrollHeight > el.clientHeight + 20
+        );
+      })
+  : [];
+  const scrollEl = scrollables.at(-1)
+    || drawer?.querySelector('[class*="content"]')
+    || document.querySelector('[data-testid="product_additional_information"]')
+    || drawer
+    || document.documentElement;
+  let prev = 0;
+  let stable = 0;
+  for (let i = 0; i < 50; i++) {
+    scrollEl.scrollTop = scrollEl.scrollHeight;
+    await new Promise((r) => setTimeout(r, 150));
+    const n = countRows();
+    if (n > prev) {
+      prev = n;
+      stable = 0;
+    } else {
+      stable += 1;
+      if (stable >= 4) break;
+    }
+  }
+  return prev;
+}"""
 
 _DISMISS_BLOCKING_DRAWER_JS = f"() => {{ {_DISMISS_BLOCKING_DRAWER_STMTS} }}"
 
@@ -614,11 +675,102 @@ def parse_wb_detail_html(html: str) -> dict[str, str]:
     return parse_specs_table_html(html)
 
 
-async def _extract_wb_specs(page) -> dict[str, str]:
+def _wb_nm_id_from_link(product_link: str) -> int | None:
+    match = _WB_NM_ID_RE.search(product_link)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _wb_specs_rich_enough(specs: dict[str, str]) -> bool:
+    return len(specs) >= _WB_RICH_SPECS_COUNT
+
+
+def _load_basket_card_json(nm_id: int) -> dict[str, str]:
+    url = _wb_basket_card_json_url(nm_id)
+    with urllib.request.urlopen(url, timeout=5) as response:
+        return parse_wb_card_options(json.loads(response.read().decode()))
+
+
+async def _fetch_wb_basket_card_specs(nm_id: int) -> tuple[dict[str, str], bool]:
+    """Return specs and whether card.json was found (False on 404)."""
+    try:
+        specs = await asyncio.to_thread(_load_basket_card_json, nm_id)
+        return specs, True
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            logger.warning("Basket card.json HTTP %s for nm=%s", exc.code, nm_id)
+        return {}, False
+    except Exception as exc:
+        logger.warning("Basket card.json failed for nm=%s: %s", nm_id, exc)
+        return {}, False
+
+
+def _wb_append_product_options(specs: dict[str, str], product: dict) -> None:
+    nm_id = product.get("id") or product.get("nmId") or product.get("nm_id")
+    if nm_id is not None:
+        append_characteristic(specs, "Артикул", str(nm_id))
+
+    options = product.get("options")
+    if isinstance(options, list):
+        for option in options:
+            if isinstance(option, dict):
+                append_characteristic(specs, option.get("name"), option.get("value"))
+
+    grouped_options = product.get("grouped_options")
+    if isinstance(grouped_options, list):
+        for group in grouped_options:
+            if not isinstance(group, dict):
+                continue
+            for option in group.get("options") or []:
+                if isinstance(option, dict):
+                    append_characteristic(specs, option.get("name"), option.get("value"))
+
+
+def parse_wb_card_options(data: object) -> dict[str, str]:
+    specs: dict[str, str] = {}
+    if not isinstance(data, dict):
+        return specs
+
+    products = data.get("products")
+    if products is None and isinstance(data.get("data"), dict):
+        products = data["data"].get("products")
+    if not isinstance(products, list) or not products:
+        if data.get("nm_id") or data.get("id") or data.get("nmId"):
+            _wb_append_product_options(specs, data)
+        return specs
+
+    product = products[0]
+    if isinstance(product, dict):
+        _wb_append_product_options(specs, product)
+    return specs
+
+
+def _wb_basket_card_json_url(nm_id: int) -> str:
+    vol = nm_id // 100_000
+    part = nm_id // 1_000
+    host = _wb_basket_host(vol)
+    return f"https://basket-{host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/info/ru/card.json"
+
+
+async def _extract_wb_drawer_specs(page) -> dict[str, str]:
     specs = specs_from_raw(await page.evaluate(_WB_DETAIL_SPECS_JS))
     if specs:
         return specs
     return parse_wb_detail_html(await page_content(page))
+
+
+async def _click_wb_specs_button(page) -> None:
+    if await page.locator(_WB_DRAWER_ROWS).count() > 0:
+        return
+
+    btn = page.locator('button[class*="btnDetail"]')
+    await btn.first.wait_for(state="visible", timeout=30_000)
+    await btn.first.scroll_into_view_if_needed(timeout=10_000)
+    try:
+        await btn.first.click(timeout=10_000)
+    except Exception:
+        await btn.first.click(timeout=10_000, force=True)
 
 
 async def dismiss_wb_blocking_drawer(page) -> None:
@@ -631,21 +783,19 @@ async def dismiss_wb_blocking_drawer(page) -> None:
 
 
 async def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, str]:
+    nm_id = _wb_nm_id_from_link(product_link)
+    if nm_id is not None:
+        basket_specs, has_basket = await _fetch_wb_basket_card_specs(nm_id)
+        if has_basket:
+            return basket_specs
+
     await page.goto(product_link, wait_until="domcontentloaded", timeout=30_000)
     await dismiss_wb_blocking_drawer(page)
-    if await page.locator("th[class*='cellKey']").count() > 0:
-        specs = await _extract_wb_specs(page)
-        if specs:
-            return specs
-    try:
-        await page.locator("button").filter(has_text="Характеристики").first.click(timeout=5_000)
-    except Exception:
-        pass
-    try:
-        await page.wait_for_selector("th.cellKey--eGe6N, th[class*='cellKey']", timeout=5_000)
-    except Exception:
-        pass
-    return await _extract_wb_specs(page)
+    await _click_wb_specs_button(page)
+    await page.locator(_WB_DRAWER_ROWS).first.wait_for(state="attached", timeout=15_000)
+    await page.evaluate(_WB_EXPAND_SPECS_JS)
+    await page.evaluate(_WB_SCROLL_SPECS_JS)
+    return await _extract_wb_drawer_specs(page)
 
 
 async def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None:

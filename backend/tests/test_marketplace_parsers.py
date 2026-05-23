@@ -9,8 +9,12 @@ from src.modules.search.typofix import (
     parse_wildberries_typofix,
     parse_yandex_market_typofix,
 )
+from src.modules.search.wildberries import (
+    _wb_specs_rich_enough,
+    parse_wb_card_options,
+    parse_wb_detail_html,
+)
 from src.modules.search.wildberries import parse_html as parse_wb_html
-from src.modules.search.wildberries import parse_wb_detail_html
 from src.modules.search.yandex_market import parse_yandex_detail_html
 from tests.conftest import example_html, fixture_json
 
@@ -41,6 +45,36 @@ class TestWildberries:
         assert len(specs) >= 5
         assert specs.get("Цвет") == "черный"
         assert specs.get("Вид наушников") == "охватывающие"
+
+    def test_card_api_options(self):
+        payload = {
+            "data": {
+                "products": [
+                    {
+                        "id": 242056282,
+                        "options": [
+                            {"name": "Цвет", "value": "красный"},
+                            {"name": "Длина намотки шнура (м)", "value": "10"},
+                        ],
+                    }
+                ]
+            }
+        }
+        specs = parse_wb_card_options(payload)
+        assert specs.get("Артикул") == "242056282"
+        assert specs.get("Цвет") == "красный"
+        assert specs.get("Длина намотки шнура (м)") == "10"
+        assert len(specs) >= 2
+
+    def test_card_api_only_artikul_is_insufficient(self):
+        specs = parse_wb_card_options({"data": {"products": [{"id": 242056282}]}})
+        assert specs == {"Артикул": "242056282"}
+        assert not _wb_specs_rich_enough(specs)
+
+    def test_thinkbook_fixture_has_rich_specs(self):
+        specs = parse_wb_detail_html(example_html("*Thinkbook*Wildberries*.html"))
+        assert _wb_specs_rich_enough(specs)
+        assert len(specs) >= 30
 
     def test_search_api_payload_legacy_price(self):
         payload = {

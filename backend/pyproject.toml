@@ -38,6 +38,10 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "browser: live marketplace browser integration tests, headful (RUN_BROWSER_TESTS=1)",
+]
 
 [tool.ruff]
 line-length = 120

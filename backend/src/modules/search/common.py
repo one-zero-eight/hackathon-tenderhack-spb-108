@@ -85,13 +85,27 @@ async def get_browser_context():
         return _BrowserState.context
 
 
-async def open_browser_page():
+def page_is_blank(page) -> bool:
+    url = page.url or ""
+    return url in ("about:blank", "") or url.startswith("about:")
+
+
+async def open_browser_page(*, url: str | None = None):
     """Open a tab; restart shared browser if Playwright reports a dead context."""
     async with _new_page_lock:
         for attempt in range(2):
             context = await get_browser_context()
             try:
-                return await context.new_page()
+                page = None
+                for candidate in context.pages:
+                    if page_is_blank(candidate):
+                        page = candidate
+                        break
+                if page is None:
+                    page = await context.new_page()
+                if url and page.url.rstrip("/") != url.rstrip("/"):
+                    await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+                return page
             except Exception as exc:
                 if not _is_browser_closed_error(exc) or attempt > 0:
                     raise
@@ -199,7 +213,8 @@ async def run_action(
     wait_for = action.get("wait_for", f"pre#{RESULT_PRE_ID}")
 
     if action_type == "url":
-        await page.goto(data, wait_until="domcontentloaded", timeout=60_000)
+        if page.url.rstrip("/") != data.rstrip("/"):
+            await page.goto(data, wait_until="domcontentloaded", timeout=60_000)
     elif action_type == "wait":
         await page.wait_for_timeout(int(data))
     elif action_type == "waitFor":
@@ -258,6 +273,9 @@ async def run_site_parser(
     _, out_dir = site_paths(site_name)
     headless = headless_from_env(headless_env)
 
+    action_list = actions() if callable(actions) else actions
+    first_url = next((a["data"] for a in action_list if a["type"] == "url"), None)
+
     async with recorder.stage("browser_setup"):
         page = await open_browser_page()
         if not headless:
@@ -266,7 +284,8 @@ async def run_site_parser(
         if setup_page is not None:
             await setup_page(page)
 
-        action_list = actions() if callable(actions) else actions
+        if first_url and page.url.rstrip("/") != first_url.rstrip("/"):
+            await page.goto(first_url, wait_until="domcontentloaded", timeout=60_000)
 
         if block_images:
             await page.route(
