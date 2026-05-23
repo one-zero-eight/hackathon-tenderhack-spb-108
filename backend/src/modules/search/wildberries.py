@@ -31,6 +31,11 @@ _WB_DETAIL_SPECS_JS = """() => {
     out.push([name, value]);
   };
   const skip = new Set(['Дополнительная информация', 'Габариты', 'Основные характеристики']);
+  document.querySelectorAll('th[class*="cellKey"]').forEach(th => {
+    const tr = th.closest('tr');
+    const td = tr && tr.querySelector('td[class*="cellValue"]');
+    if (td) add(th.innerText.trim(), td.innerText.trim());
+  });
   const section = [...document.querySelectorAll('section')].find(
     s => s.innerText.includes('Ширина, мм') || s.innerText.includes('Артикул')
   );
@@ -50,6 +55,20 @@ _WB_DETAIL_SPECS_JS = """() => {
   });
   return out;
 }"""
+
+_DISMISS_BLOCKING_DRAWER_STMTS = """const overlay = document.querySelector('.mo-drawer__overlay');
+if (!overlay) return false;
+if (document.querySelector('th[class*="cellKey"]')) return false;
+const close = document.querySelector('[class*="closeButton"]')
+  || document.querySelector('.mo-drawer__paper button[type="button"]');
+if (close) {
+  close.click();
+  return true;
+}
+overlay.click();
+return true;"""
+
+_DISMISS_BLOCKING_DRAWER_JS = f"() => {{ {_DISMISS_BLOCKING_DRAWER_STMTS} }}"
 
 SITE = "wildberries"
 CHECK_CAPTCHA = "document.querySelector('#wait_msg') != null || document.querySelector('.support-title') != null"
@@ -419,6 +438,11 @@ def _build_actions(
     return [
         {"type": "url", "data": search_url},
         {"type": "wait", "data": "5000"},
+        {
+            "type": "script",
+            "data": _DISMISS_BLOCKING_DRAWER_STMTS,
+            "expects_navigation": "false",
+        },
         {"type": "waitElement", "data": _WAIT_QUERY_ID, "wait_for": "pre#queryId"},
         {"type": "wait", "data": "5000"},
         {"type": "waitElement", "data": fetch_script},
@@ -470,8 +494,29 @@ def parse_wb_detail_html(html: str) -> dict[str, str]:
     return parse_specs_table_html(html)
 
 
+async def _extract_wb_specs(page) -> dict[str, str]:
+    specs = specs_from_raw(await page.evaluate(_WB_DETAIL_SPECS_JS))
+    if specs:
+        return specs
+    return parse_wb_detail_html(await page_content(page))
+
+
+async def dismiss_wb_blocking_drawer(page) -> None:
+    dismissed = await page.evaluate(_DISMISS_BLOCKING_DRAWER_JS)
+    if dismissed:
+        try:
+            await page.wait_for_selector(".mo-drawer__overlay", state="hidden", timeout=3_000)
+        except Exception:
+            pass
+
+
 async def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, str]:
     await page.goto(product_link, wait_until="domcontentloaded", timeout=30_000)
+    await dismiss_wb_blocking_drawer(page)
+    if await page.locator("th[class*='cellKey']").count() > 0:
+        specs = await _extract_wb_specs(page)
+        if specs:
+            return specs
     try:
         await page.locator("button").filter(has_text="Характеристики").first.click(timeout=5_000)
     except Exception:
@@ -480,10 +525,7 @@ async def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, 
         await page.wait_for_selector("th.cellKey--eGe6N, th[class*='cellKey']", timeout=5_000)
     except Exception:
         pass
-    specs = specs_from_raw(await page.evaluate(_WB_DETAIL_SPECS_JS))
-    if specs:
-        return specs
-    return parse_wb_detail_html(await page_content(page))
+    return await _extract_wb_specs(page)
 
 
 async def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None:

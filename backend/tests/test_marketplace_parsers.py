@@ -29,6 +29,12 @@ class TestWildberries:
         assert specs.get("Модель") == "16 G8 IAL"
         assert specs.get("Серия ноутбуков") == "ThinkBook"
 
+    def test_blocker_drawer_specs(self):
+        specs = parse_wb_detail_html(example_html("blocker.html"))
+        assert len(specs) >= 5
+        assert specs.get("Цвет") == "черный"
+        assert specs.get("Вид наушников") == "охватывающие"
+
     def test_search_api_payload_legacy_price(self):
         payload = {
             "products": [

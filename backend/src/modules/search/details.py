@@ -16,8 +16,8 @@ from src.modules.search.timing import TimingRecorder
 DETAIL_CHARACTERISTICS_LIMIT = 3
 
 _SPECS_TABLE_ROW_RE = re.compile(
-    r'<th class="cellKey[^"]*"[^>]*>.*?cellWrapper[^"]*"[^>]*>([^<]+)</span>.*?</th>\s*'
-    r'<td class="cellValue[^"]*"[^>]*>(.*?)</td>',
+    r'<th class="cellKey[^"]*"[^>]*>.*?cellWrapper[^"]*"[^>]*>([^<]+)</span\s*>.*?</th>\s*'
+    r'<td class="cellValue[^"]*"[^>]*>(.*?)</td\s*>',
     re.DOTALL,
 )
 
