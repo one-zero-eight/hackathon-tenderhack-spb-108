@@ -1,8 +1,10 @@
+import { ProductCard } from '@/components/ProductCard'
 import { ProductSourceDetails } from '@/components/ProductSourceDetails'
 import { ProductSourceSkeletonList } from '@/components/ProductSourceSkeleton'
 import { RegionDropdown } from '@/components/RegionDropdown'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
+import type { Product } from '@/lib/types'
 import { parsePrice } from '@/lib/utils'
 import { createFileRoute } from '@tanstack/react-router'
 import { Info, LoaderCircle, Search } from 'lucide-react'
@@ -32,6 +34,17 @@ type SearchResultsWithTypofix = SchemaSearchResults & {
   typofix_suggestions?: TypofixSuggestion[]
 }
 
+type SortMode = 'sources' | 'price-asc' | 'price-desc'
+
+type SearchResultProduct = {
+  product: Product
+  sourceType: SourceType
+  sourceTitle: string
+  sourceUrl: string
+  sourceLogoUrl: string
+  parsedPrice: number | null
+}
+
 function Home() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [searchParams, setSearchParams] = useState<{
@@ -40,6 +53,7 @@ function Home() {
     source_types: SourceType[] | null
     short: boolean
   } | null>(null)
+  const [sortMode, setSortMode] = useState<SortMode>('sources')
   const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS)
   const [extendedRunetSearch, setExtendedRunetSearch] = useState(false)
   const {
@@ -66,11 +80,34 @@ function Home() {
   const hasTypofixSuggestions = typofixSuggestions.length > 0
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
+  const allProducts: SearchResultProduct[] = visibleGroups.flatMap((group) =>
+    group.products.map((product) => ({
+      product,
+      sourceType: group.sourceType,
+      sourceTitle: group.title,
+      sourceUrl: group.sourceUrl,
+      sourceLogoUrl: group.logoUrl,
+      parsedPrice: parsePrice(product.price)
+    }))
+  )
+  const sortedProducts =
+    sortMode === 'sources'
+      ? []
+      : [...allProducts].sort((left, right) => {
+          if (left.parsedPrice === null && right.parsedPrice === null) return 0
+          if (left.parsedPrice === null) return 1
+          if (right.parsedPrice === null) return -1
+
+          return sortMode === 'price-asc'
+            ? left.parsedPrice - right.parsedPrice
+            : right.parsedPrice - left.parsedPrice
+        })
 
   const allPrices = visibleGroups.flatMap((group) =>
     group.products.map((p) => parsePrice(p.price)).filter((p): p is number => p !== null)
   )
-  const averagePrice = allPrices.length > 0 ? allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length : null
+  const averagePrice =
+    allPrices.length > 0 ? allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length : null
 
   const showSkeleton = isPending && Boolean(searchParams)
 
@@ -133,11 +170,7 @@ function Home() {
 
           <div className="flex flex-col gap-2">
             <span className="invisible text-sm font-medium">Search</span>
-            <Button
-              className="h-11 w-full gap-2 px-4 text-sm"
-              disabled={isPending}
-              type="submit"
-            >
+            <Button className="h-11 w-full gap-2 px-4 text-sm" disabled={isPending} type="submit">
               {isPending ? (
                 <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
               ) : (
@@ -193,7 +226,8 @@ function Home() {
                   <div className="group relative flex items-center">
                     <Info className="size-4 text-slate-400 hover:text-slate-600 cursor-help" />
                     <div className="pointer-events-none absolute right-0 top-full z-10 mt-1 w-64 opacity-0 transition-opacity group-hover:opacity-100 rounded-md bg-slate-800 px-3 py-2 text-xs text-white shadow-md">
-                      Средняя цена рассчитывается как сумма цен всех найденных товаров, делённая на их количество. Учтено товаров с известной ценой: {allPrices.length}
+                      Средняя цена рассчитывается как сумма цен всех найденных товаров, делённая на
+                      их количество. Учтено товаров с известной ценой: {allPrices.length}
                     </div>
                   </div>
                 </div>
@@ -204,6 +238,35 @@ function Home() {
             </div>
           </div>
 
+          {!showSkeleton && totalProducts > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                className="px-4"
+                onClick={() => setSortMode('sources')}
+                type="button"
+                variant={sortMode === 'sources' ? 'default' : 'outline'}
+              >
+                По источникам
+              </Button>
+              <Button
+                className="px-4"
+                onClick={() => setSortMode('price-asc')}
+                type="button"
+                variant={sortMode === 'price-asc' ? 'default' : 'outline'}
+              >
+                Цена: по возрастанию
+              </Button>
+              <Button
+                className="px-4"
+                onClick={() => setSortMode('price-desc')}
+                type="button"
+                variant={sortMode === 'price-desc' ? 'default' : 'outline'}
+              >
+                Цена: по убыванию
+              </Button>
+            </div>
+          ) : null}
+
           {error ? (
             <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               Не удалось выполнить поиск. Попробуйте ещё раз.
@@ -212,7 +275,7 @@ function Home() {
 
           {showSkeleton ? <ProductSourceSkeletonList /> : null}
 
-          {!showSkeleton
+          {!showSkeleton && sortMode === 'sources'
             ? visibleGroups.map((group) => (
                 <ProductSourceDetails
                   group={group}
@@ -227,6 +290,40 @@ function Home() {
                 />
               ))
             : null}
+
+          {!showSkeleton && sortMode !== 'sources' ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {sortedProducts.map((item, index) => (
+                <div
+                  className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+                  key={`${item.sourceType}-${item.product.productLink ?? item.product.title}-${index}`}
+                >
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <img
+                        alt=""
+                        className="size-9 shrink-0 rounded-md border border-slate-200 bg-white object-contain p-1"
+                        loading="lazy"
+                        src={item.sourceLogoUrl}
+                      />
+                      <span className="truncate text-sm font-semibold text-slate-900">
+                        {item.sourceTitle}
+                      </span>
+                    </div>
+                    <a
+                      className="shrink-0 text-sm font-medium text-slate-600 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                      href={item.sourceUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Источник
+                    </a>
+                  </div>
+                  <ProductCard className="rounded-none border-0" product={item.product} />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </section>
       </section>
     </main>
