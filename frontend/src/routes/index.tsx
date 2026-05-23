@@ -3,8 +3,9 @@ import { ProductSourceSkeletonList } from '@/components/ProductSourceSkeleton'
 import { RegionDropdown } from '@/components/RegionDropdown'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
+import { parsePrice } from '@/lib/utils'
 import { createFileRoute } from '@tanstack/react-router'
-import { LoaderCircle, Search } from 'lucide-react'
+import { Info, LoaderCircle, Search } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { $api } from '../api'
 import { SourceType, type SchemaSearchResults } from '../api/openapi.gen'
@@ -65,6 +66,12 @@ function Home() {
   const hasTypofixSuggestions = typofixSuggestions.length > 0
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
+  
+  const allPrices = visibleGroups.flatMap((group) => 
+    group.products.map((p) => parsePrice(p.price)).filter((p): p is number => p !== null)
+  )
+  const averagePrice = allPrices.length > 0 ? allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length : null
+
   const showSkeleton = isPending && Boolean(searchParams)
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -178,9 +185,22 @@ function Home() {
               <h2 className="text-xl font-semibold text-slate-950">Основные источники</h2>
               <p className="text-sm text-slate-600">Регион: {selectedRegion}</p>
             </div>
-            <p className="text-sm text-slate-500">
-              {isPending ? 'Идёт поиск...' : `Найдено товаров: ${totalProducts}`}
-            </p>
+            <div className="flex flex-col items-end gap-1">
+              {averagePrice !== null && !isPending && (
+                <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                  <span>Средняя цена: {Math.round(averagePrice).toLocaleString('ru-RU')} ₽</span>
+                  <div className="group relative flex items-center">
+                    <Info className="size-4 text-slate-400 hover:text-slate-600 cursor-help" />
+                    <div className="pointer-events-none absolute right-0 top-full z-10 mt-1 w-64 opacity-0 transition-opacity group-hover:opacity-100 rounded-md bg-slate-800 px-3 py-2 text-xs text-white shadow-md">
+                      Средняя цена рассчитывается как сумма цен всех найденных товаров, делённая на их количество. Учтено товаров с известной ценой: {allPrices.length}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <p className="text-sm text-slate-500">
+                {isPending ? 'Идёт поиск...' : `Найдено товаров: ${totalProducts}`}
+              </p>
+            </div>
           </div>
 
           {error ? (
