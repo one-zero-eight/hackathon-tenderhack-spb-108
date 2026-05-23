@@ -92,7 +92,7 @@ export function ProductSourceDetails({
         </span>
         <span className="flex items-center justify-between gap-3 self-stretch sm:shrink-0 sm:self-auto">
           <a
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-center text-sm font-medium text-slate-800 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+            className="cursor-pointer rounded-md border border-slate-300 bg-white px-3 py-1.5 text-center text-sm font-medium text-slate-800 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
             href={group.sourceUrl}
             onClick={(event) => event.stopPropagation()}
             rel="noreferrer"
@@ -120,7 +120,7 @@ export function ProductSourceDetails({
                     <div className="flex flex-col gap-3 p-4">
                       {product.productLink ? (
                         <a
-                          className="flex items-start gap-1.5 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                          className="cursor-pointer flex items-start gap-1.5 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                           href={product.productLink}
                           rel="noreferrer"
                           target="_blank"
@@ -155,7 +155,7 @@ export function ProductSourceDetails({
               {canPaginate && currentPage > 0 && (
                 <button
                   aria-label="Назад"
-                  className="absolute -left-3 top-[160px] flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-20 sm:-left-6"
+                  className="absolute -left-3 top-[160px] cursor-pointer flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-20 sm:-left-6"
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -170,7 +170,7 @@ export function ProductSourceDetails({
               {canPaginate && currentPage < pageCount - 1 && (
                 <button
                   aria-label="Вперёд"
-                  className="absolute -right-3 top-[160px] flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-20 sm:-right-6"
+                  className="absolute -right-3 top-[160px] cursor-pointer flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/10 z-20 sm:-right-6"
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
