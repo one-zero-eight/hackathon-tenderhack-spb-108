@@ -66,8 +66,8 @@ function Home() {
   const hasTypofixSuggestions = typofixSuggestions.length > 0
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
-  
-  const allPrices = visibleGroups.flatMap((group) => 
+
+  const allPrices = visibleGroups.flatMap((group) =>
     group.products.map((p) => parsePrice(p.price)).filter((p): p is number => p !== null)
   )
   const averagePrice = allPrices.length > 0 ? allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length : null
@@ -109,7 +109,7 @@ function Home() {
 
         <form
           aria-label="Фильтры каталога"
-          className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_320px_auto]"
+          className="grid gap-4 rounded-lg bg-white p-4 md:grid-cols-[minmax(0,1fr)_320px_260px]"
           onSubmit={handleSearchSubmit}
         >
           <label className="flex flex-col gap-2">
@@ -131,8 +131,21 @@ function Home() {
 
           <RegionDropdown onSelect={setSelectedRegion} selectedRegion={selectedRegion} />
 
-          <div className="flex flex-col justify-end gap-3">
-            <label className="flex cursor-pointer items-center justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <span className="invisible text-sm font-medium">Search</span>
+            <Button
+              className="h-11 w-full gap-2 px-4 text-sm"
+              disabled={isPending}
+              type="submit"
+            >
+              {isPending ? (
+                <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+              ) : (
+                <Search aria-hidden="true" className="size-4" />
+              )}
+              {isPending ? 'Ищем...' : 'Найти'}
+            </Button>
+            <label className="mt-1 flex cursor-pointer items-center justify-between gap-3">
               <span className="text-sm font-medium text-slate-700">
                 Расширенный поиск по Рунету
               </span>
@@ -153,18 +166,6 @@ function Home() {
                 />
               </span>
             </label>
-            <Button
-              className="h-11 w-full gap-2 px-4 text-sm md:min-w-32"
-              disabled={isPending}
-              type="submit"
-            >
-              {isPending ? (
-                <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-              ) : (
-                <Search aria-hidden="true" className="size-4" />
-              )}
-              {isPending ? 'Ищем...' : 'Найти'}
-            </Button>
           </div>
         </form>
 
