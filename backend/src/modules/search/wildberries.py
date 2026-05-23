@@ -75,64 +75,10 @@ return true;"""
 
 _WB_NM_ID_RE = re.compile(r"/catalog/(\d+)/")
 _WB_RICH_SPECS_COUNT = 10
-_WB_DRAWER_ROWS = '[class*="detailsDrawer"] [data-testid="product_additional_information"] th[class*="cellKey"]'
-
-_WB_EXPAND_SPECS_JS = """() => {
-  let clicked = false;
-  for (const el of document.querySelectorAll('button, a, span, div')) {
-    const text = (el.innerText || el.textContent || '').trim().toLowerCase();
-    if (!text || text.length > 40) continue;
-    if (
-      text.includes('показать все')
-      || text.includes('развернуть')
-      || text === 'ещё'
-      || text.includes('все характеристики')
-    ) {
-      el.click();
-      clicked = true;
-    }
-  }
-  return clicked;
-}"""
-
-_WB_SCROLL_SPECS_JS = """async () => {
-  const countRows = () => {
-    const section = document.querySelector('[class*="detailsDrawer"] [data-testid="product_additional_information"]');
-    return section ? section.querySelectorAll('th[class*="cellKey"]').length : 0;
-  };
-  const drawer = document.querySelector('[class*="detailsDrawer"]');
-  const scrollables = drawer
-    ? [...drawer.querySelectorAll('*')].filter((el) => {
-        const style = getComputedStyle(el);
-        return (
-          (style.overflowY === 'auto' || style.overflowY === 'scroll')
-          && el.scrollHeight > el.clientHeight + 20
-        );
-      })
-  : [];
-  const scrollEl = scrollables.at(-1)
-    || drawer?.querySelector('[class*="content"]')
-    || document.querySelector('[data-testid="product_additional_information"]')
-    || drawer
-    || document.documentElement;
-  let prev = 0;
-  let stable = 0;
-  for (let i = 0; i < 50; i++) {
-    scrollEl.scrollTop = scrollEl.scrollHeight;
-    await new Promise((r) => setTimeout(r, 150));
-    const n = countRows();
-    if (n > prev) {
-      prev = n;
-      stable = 0;
-    } else {
-      stable += 1;
-      if (stable >= 4) break;
-    }
-  }
-  return prev;
-}"""
-
-_DISMISS_BLOCKING_DRAWER_JS = f"() => {{ {_DISMISS_BLOCKING_DRAWER_STMTS} }}"
+_WB_DRAWER = '[class*="detailsDrawer"]'
+_WB_DRAWER_SPECS = f'{_WB_DRAWER} [data-testid="product_additional_information"]'
+_WB_DRAWER_ROWS = f'{_WB_DRAWER_SPECS} th[class*="cellKey"]'
+_WB_EXPAND_LABELS = ("Показать все", "Развернуть", "Ещё", "ещё", "Все характеристики")
 
 SITE = "wildberries"
 CHECK_CAPTCHA = "document.querySelector('#wait_msg') != null || document.querySelector('.support-title') != null"
@@ -773,13 +719,61 @@ async def _click_wb_specs_button(page) -> None:
         await btn.first.click(timeout=10_000, force=True)
 
 
-async def dismiss_wb_blocking_drawer(page) -> None:
-    dismissed = await page.evaluate(_DISMISS_BLOCKING_DRAWER_JS)
-    if dismissed:
+async def _expand_wb_specs_drawer(page) -> None:
+    drawer = page.locator(_WB_DRAWER)
+    for label in _WB_EXPAND_LABELS:
+        btn = drawer.get_by_text(label, exact=False)
+        if await btn.count() == 0:
+            continue
         try:
-            await page.wait_for_selector(".mo-drawer__overlay", state="hidden", timeout=3_000)
+            await btn.first.click(timeout=2_000)
         except Exception:
             pass
+
+
+async def _scroll_wb_specs_drawer(page) -> None:
+    rows = page.locator(_WB_DRAWER_ROWS)
+    scroll_el = page.locator(f'{_WB_DRAWER} [class*="content"]')
+    if await scroll_el.count() == 0:
+        scroll_el = page.locator(_WB_DRAWER)
+
+    prev = 0
+    stable = 0
+    target = scroll_el.first
+    for _ in range(50):
+        await target.evaluate("el => { el.scrollTop = el.scrollHeight; }")
+        await page.wait_for_timeout(150)
+        count = await rows.count()
+        if count > prev:
+            prev = count
+            stable = 0
+        else:
+            stable += 1
+            if stable >= 4:
+                break
+
+
+async def dismiss_wb_blocking_drawer(page) -> None:
+    if await page.locator(_WB_DRAWER).count() > 0:
+        return
+
+    overlay = page.locator(".mo-drawer__overlay")
+    if await overlay.count() == 0:
+        return
+
+    close = page.locator('[class*="closeButton"]').or_(page.locator('.mo-drawer__paper button[type="button"]'))
+    try:
+        if await close.count() > 0:
+            await close.first.click(timeout=3_000)
+        else:
+            await overlay.first.click(timeout=3_000, position={"x": 8, "y": 8})
+    except Exception:
+        pass
+
+    try:
+        await overlay.first.wait_for(state="hidden", timeout=3_000)
+    except Exception:
+        pass
 
 
 async def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, str]:
@@ -793,8 +787,8 @@ async def fetch_wb_detail_characteristics(page, product_link: str) -> dict[str, 
     await dismiss_wb_blocking_drawer(page)
     await _click_wb_specs_button(page)
     await page.locator(_WB_DRAWER_ROWS).first.wait_for(state="attached", timeout=15_000)
-    await page.evaluate(_WB_EXPAND_SPECS_JS)
-    await page.evaluate(_WB_SCROLL_SPECS_JS)
+    await _expand_wb_specs_drawer(page)
+    await _scroll_wb_specs_drawer(page)
     return await _extract_wb_drawer_specs(page)
 
 
@@ -906,11 +900,3 @@ async def run_wildberries_parser(
         results=results,
         timing=timing,
     ), typofix
-
-
-if __name__ == "__main__":
-    import sys
-
-    query = sys.argv[1] if len(sys.argv) > 1 else "tasty coffee в зернах"
-    results = run_wildberries_parser(query)
-    print(results.model_dump_json(ensure_ascii=False))
