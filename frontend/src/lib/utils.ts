@@ -1,3 +1,4 @@
+import { SourceType } from '@/api/openapi.gen'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -11,4 +12,14 @@ export function parsePrice(priceStr: string | null | undefined): number | null {
   const match = cleanStr.match(/\d+([.,]\d+)?/)
   if (!match) return null
   return parseFloat(match[0].replace(',', '.'))
+}
+
+export const MARKETPLACE_SOURCE_TYPES = [
+  SourceType.yandex_market,
+  SourceType.wildberries,
+  SourceType.ozon
+] as const
+
+export function sourceTypesForRunetSearch(extendedRunetSearch: boolean): SourceType[] | null {
+  return extendedRunetSearch ? null : [...MARKETPLACE_SOURCE_TYPES]
 }

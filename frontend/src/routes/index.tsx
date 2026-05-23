@@ -1,49 +1,19 @@
+import { $api } from '@/api'
+import { SourceType } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductSourceDetails } from '@/components/ProductSourceDetails'
 import { ProductSourceSkeletonList } from '@/components/ProductSourceSkeleton'
 import { RegionDropdown } from '@/components/RegionDropdown'
+import { Button } from '@/components/ui/button'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
-import type { Product } from '@/lib/types'
-import { parsePrice } from '@/lib/utils'
+import type { SearchResultProduct, SearchResultsWithTypofix, SortMode } from '@/lib/types'
+import { parsePrice, sourceTypesForRunetSearch } from '@/lib/utils'
 import { createFileRoute } from '@tanstack/react-router'
 import { Info, LoaderCircle, Search } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
-import { $api } from '../api'
-import { SourceType, type SchemaSearchResults } from '../api/openapi.gen'
-import { Button } from '../components/ui/button'
 
 export const Route = createFileRoute('/')({ component: Home })
-
-const MARKETPLACE_SOURCE_TYPES = [
-  SourceType.yandex_market,
-  SourceType.wildberries,
-  SourceType.ozon
-] as const
-
-function sourceTypesForRunetSearch(extendedRunetSearch: boolean): SourceType[] | null {
-  return extendedRunetSearch ? null : [...MARKETPLACE_SOURCE_TYPES]
-}
-
-type TypofixSuggestion = {
-  source: SourceType
-  suggestion: string
-}
-
-type SearchResultsWithTypofix = SchemaSearchResults & {
-  typofix_suggestions?: TypofixSuggestion[]
-}
-
-type SortMode = 'sources' | 'price-asc' | 'price-desc'
-
-type SearchResultProduct = {
-  product: Product
-  sourceType: SourceType
-  sourceTitle: string
-  sourceUrl: string
-  sourceLogoUrl: string
-  parsedPrice: number | null
-}
 
 function Home() {
   const searchInputRef = useRef<HTMLInputElement>(null)

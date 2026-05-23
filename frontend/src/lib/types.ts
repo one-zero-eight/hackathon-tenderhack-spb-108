@@ -1,4 +1,4 @@
-import type { SourceType } from '@/api/openapi.gen'
+import type { SchemaSearchResults, SourceType } from '@/api/openapi.gen'
 
 export type Product = {
   title: string
@@ -16,4 +16,24 @@ export type MarketplaceGroup = {
   logoUrl: string
   sourceUrl: string
   products: Product[]
+}
+
+export type TypofixSuggestion = {
+  source: SourceType
+  suggestion: string
+}
+
+export type SearchResultsWithTypofix = SchemaSearchResults & {
+  typofix_suggestions?: TypofixSuggestion[]
+}
+
+export type SortMode = 'sources' | 'price-asc' | 'price-desc'
+
+export type SearchResultProduct = {
+  product: Product
+  sourceType: SourceType
+  sourceTitle: string
+  sourceUrl: string
+  sourceLogoUrl: string
+  parsedPrice: number | null
 }
