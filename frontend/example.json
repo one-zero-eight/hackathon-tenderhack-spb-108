@@ -1,0 +1,557 @@
+{
+  "original_params": {
+    "query": "Lenovo ThinkBook 16 G6",
+    "region": null,
+    "source_types": null
+  },
+  "sources": [
+    {
+      "source_type": "yandex_market",
+      "source_url": "https://market.yandex.ru/search?text=Lenovo+ThinkBook+16+G6&lr=2&resale_goods=resale_new&cvredirect=1",
+      "source_title": "Яндекс Маркет",
+      "source_favicon_url": null,
+      "results": [
+        {
+          "name": "Ноутбук Lenovo ThinkBook 16 G6 ABP (21KKA0HFIN)",
+          "characteristics": {
+            "Артикул Маркета": "5202103813",
+            "Диагональ экрана": "16\"",
+            "Разрешение экрана": "1920x1200",
+            "Процессор": "AMD Ryzen 5 7430U",
+            "Оперативная память": "8 ГБ",
+            "Бренд": "Lenovo",
+            "Тип": "Полноразмерный ноутбук",
+            "Операционная система": "без ОС",
+            "Линейка процессора": "AMD Ryzen 5",
+            "Количество ядер процессора": "6",
+            "Тип памяти": "DDR4",
+            "Частота обновления экрана": "60",
+            "Тип покрытия экрана": "матовый",
+            "Тип матрицы экрана": "IPS",
+            "Стандарт Wi-Fi 802.11": "802.11ax",
+            "Версия Bluetooth": "5.3",
+            "Интерфейсы": "Ethernet - RJ-45, выход HDMI, 3.5 мм, USB 3.2, USB 4, USB Type-C",
+            "Видеокарта": "AMD Radeon",
+            "Тип видеокарты": "встроенная",
+            "Объем видеопамяти": "SMA",
+            "Общий объем накопителей SSD": "512",
+            "Оптический привод": "нет",
+            "Поддержка карт памяти": "SD",
+            "Время автономной работы": "9 ч",
+            "Подсветка клавиатуры": "да",
+            "Раскладка клавиатуры": "Русская раскладка",
+            "Разрешение веб-камеры": "1080p",
+            "Вес": "1.7 кг"
+          },
+          "product_link": "https://market.yandex.ru/card/noutbuk-lenovo-thinkbook-16-g6-abp-21kka0hfin/5202103813",
+          "price": "65370",
+          "image_link": "https://avatars.mds.yandex.net/get-mpic/18705470/2a0000019c9e64eafc99e73aeaf065d8d870/orig",
+          "rating": null,
+          "reviews": null
+        }
+      ]
+    },
+    {
+      "source_type": "wildberries",
+      "source_url": "https://www.wildberries.ru/catalog/0/search.aspx?page=1&search=Lenovo+ThinkBook+16+G6",
+      "source_title": "Wildberries",
+      "source_favicon_url": null,
+      "results": [
+        {
+          "name": "Lenovo Ноутбук для работы ThinkBook 16 G6 IRL 21KH0096RU",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/910281721/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211672.wbbasket.ru/vol9102/part910281/910281721/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH0036AK",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/336603885/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol3366/part336603/336603885/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH00X8EV",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/681793817/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol6817/part681793/681793817/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH005TEV i7 16 512GB SSD 16\" I…",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/424827752/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-117986.wbbasket.ru/vol4248/part424827/424827752/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук для учебы ThinkBook 16 G6 IRL 21KH0096RU",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/910338311/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211672.wbbasket.ru/vol9103/part910338/910338311/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук Thinkbook 16 G6 IRL 21KH00SMEV",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/336639447/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol3366/part336639/336639447/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH004EEV_16_PRO",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/723334687/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol7233/part723334/723334687/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук Thinkbook 16 G6 ABP Ryzen 5 7430U 16Gb SSD512Gb 16\"",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/347769812/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-357543.wbbasket.ru/vol3477/part347769/347769812/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH001ERU_32G",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/437943883/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol4379/part437943/437943883/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH005LEV_32",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/613597525/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-212032.wbbasket.ru/vol6135/part613597/613597525/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH00Q2UE_16G",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/837888722/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol8378/part837888/837888722/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL 21KH005SEV",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/764328046/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol7643/part764328/764328046/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук 16 IPS WUXGA (Core i5 13420H 16 512 SSD)",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/608562300/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-208782.wbbasket.ru/vol6085/part608562/608562300/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук TB 16 G6(21KH00SMEV) i5-13420H 16Gb 512Gb SSD",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/605571556/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-218804.wbbasket.ru/vol6055/part605571/605571556/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL i5,32 512ГБ, 16\", БезОС",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/725109739/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-212032.wbbasket.ru/vol7251/part725109/725109739/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 G6 IRL Core i5 13420H, 16\"",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/998107555/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-212032.wbbasket.ru/vol9981/part998107/998107555/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук для работы и учебы ThinkBook 16 G6 IRL",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/850453030/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211672.wbbasket.ru/vol8504/part850453/850453030/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook G6 16-IRL i5,16 512GB, 16\", Без ОС",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/768664922/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-212032.wbbasket.ru/vol7686/part768664/768664922/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Чехол для Lenovo ThinkBook 16 G6, черный",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1026698966/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10266/part1026698/1026698966/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Верхний чехол для Lenovo ThinkBook 16 G6 IRL",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1048736874/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10487/part1048736/1048736874/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Защитный чехол-корпус для (2024-2025) Lenovo ThinkBook 16 G6",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1054254511/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-382818.wbbasket.ru/vol10542/part1054254/1054254511/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук 16\" G6 IRL Intel Core i5 1335U DDR5 16ГБ SSD 512ГБ",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/702759665/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-212032.wbbasket.ru/vol7027/part702759/702759665/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук 16 IPS WUXGA (Core i5 1335U 32 512 SSD)",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/474573553/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-208782.wbbasket.ru/vol4745/part474573/474573553/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук 16 IPS WUXGA (Core i5 1340P 16 512 SSD)",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/816673315/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-208782.wbbasket.ru/vol8166/part816673/816673315/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 14 G6 IRL 21KG005QEV_16Win11P",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/486673452/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol4866/part486673/486673452/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 14 G6 IRL 21KG005QEV_16",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/486673437/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-211730.wbbasket.ru/vol4866/part486673/486673437/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Чехол для клавиатуры Lenovo ThinkBook 16",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1027230007/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10272/part1027230/1027230007/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Защитный матовый прозрачный чехол для Lenovo ThinkBook 16",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/857601482/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-382818.wbbasket.ru/vol8576/part857601/857601482/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук 14\" ThinkBook 14 G6 IRL [21KG005QEV] 8 512 Гб",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/726039706/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-371889.wbbasket.ru/vol7260/part726039/726039706/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 14 G6 IRL 14\" 13700H 16Gb 256Gb NoOS grey",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/867905269/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-218991.wbbasket.ru/vol8679/part867905/867905269/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук 16 IPS WUXGA (Core i3 1315U 16 512 SSD)",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/608562335/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-208782.wbbasket.ru/vol6085/part608562/608562335/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Ноутбук 14\" Intel Core i5 13420H 8ГБ SSD 512 ГБ DOS",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/914032649/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-212032.wbbasket.ru/vol9140/part914032/914032649/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Матовый противоударный PC чехол для Lenovo ThinkBook 16\"",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/885985082/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-382818.wbbasket.ru/vol8859/part885985/885985082/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Lenovo Аккумулятор для (L22B3PE0) 45Wh, 3910mAh, 11.52V",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/533075957/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-212032.wbbasket.ru/vol5330/part533075/533075957/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Кабель USB 3.0 для Lenovo ThinkBook 16 ARP8 G6 IRL",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1062100094/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10621/part1062100/1062100094/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Клавиатура Lenovo Thinkbook 16 G6 G7 Gray backlit",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1047674763/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10476/part1047674/1047674763/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Чехол для ноутбука Lenovo ThinkBook 16 G6+",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1063546096/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10635/part1063546/1063546096/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Клавиатура SSEA для Lenovo Thinkbook 16 G6",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1046619661/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10466/part1046619/1046619661/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Клавиатура Lenovo Thinkbook 16P G4 IRH 16p G5 IRX",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1042765203/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10427/part1042765/1042765203/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Клавиатура для Lenovo ThinkBook16+ 16p G4 G5 G6",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1034489997/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10344/part1034489/1034489997/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Кабель камеры для Lenovo ThinkBook 16 G6 IRL",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1034584844/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10345/part1034584/1034584844/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Новый 5CB1M48391 для ThinkBook 16 G6 IRL 16 G6 ABP",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1043474998/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10434/part1043474/1043474998/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Чехол для ноутбука Lenovo ThinkBook 16+",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1039589148/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10395/part1039589/1039589148/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        },
+        {
+          "name": "Чехол для ноутбука Lenovo ThinkBook 16 G6 G7",
+          "characteristics": {},
+          "product_link": "https://www.wildberries.ru/catalog/1061712256/detail.aspx",
+          "price": null,
+          "image_link": "https://basket-50185061.wbbasket.ru/vol10617/part1061712/1061712256/images/big/1.webp",
+          "rating": "0",
+          "reviews": "0"
+        }
+      ]
+    },
+    {
+      "source_type": "ozon",
+      "source_url": "https://www.ozon.ru/search/?text=Lenovo+ThinkBook+16+G6&from_global=true",
+      "source_title": "Ozon",
+      "source_favicon_url": null,
+      "results": [
+        {
+          "name": "Lenovo ThinkBook 16 G6 IRL Ноутбук 16\", Intel Core Ultra 5 125U, RAM 16 ГБ, SSD 512 ГБ, Intel Arc Graphics, Windows Pro, (21MS0045RU), серый, Русская раскладка",
+          "characteristics": {
+            "Обязательные программы предустановлены": "Не указано",
+            "Процессор": "Intel Core Ultra 5 125U",
+            "Общий объем SSD, ГБ": "512",
+            "Видеокарта": "Intel Arc Graphics",
+            "Операционная система": "Windows Pro"
+          },
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-16-g6-irl-noutbuk-16-intel-core-ultra-5-125u-ram-16-gb-ssd-512-gb-intel-3463205841/?at=pZtpJJPl5C9XoVwvU7P23rwu9qj1oLCVZRDGGcPNAKPW",
+          "price": "90248",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-7/8938362139.jpg",
+          "rating": "4.9",
+          "reviews": null
+        },
+        {
+          "name": "Lenovo Thinkbook 16 Gen 8 21SK0027GQ Ноутбук 16\", RAM 16 ГБ, SSD 512 ГБ, Без системы, (21SK0027GQ), серый",
+          "characteristics": {
+            "Обязательные программы предустановлены": "Не указано",
+            "Общий объем SSD, ГБ": "512",
+            "Операционная система": "Без системы",
+            "Диагональ экрана, дюймы": "16",
+            "Оперативная память": "16 ГБ"
+          },
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-16-gen-8-21sk0027gq-noutbuk-16-ram-16-gb-ssd-512-gb-bez-sistemy-21sk0027gq-seryy-2994843859/?at=GRt2PPoywH1w8k1zuN0AqOAsGDgWL9HB0gk63CEZ3GQN",
+          "price": "65889",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-r/8198228979.jpg",
+          "rating": null,
+          "reviews": null
+        },
+        {
+          "name": "Lenovo ThinkBook 16 G6 IRL Ноутбук 16\", Intel Core i5-1335U, RAM 16 ГБ, SSD 512 ГБ, Intel Iris Xe Graphics, Windows Pro, (21KH001QRU), серый, Русская раскладка",
+          "characteristics": {
+            "Обязательные программы предустановлены": "Не указано",
+            "Процессор": "Intel Core i5-1335U",
+            "Общий объем SSD, ГБ": "512",
+            "Видеокарта": "Intel Iris Xe Graphics",
+            "Операционная система": "Windows Pro"
+          },
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-16-g6-irl-noutbuk-16-intel-core-i5-1335u-ram-16-gb-ssd-512-gb-intel-iris-3463205836/?at=pZtpJJPl5C06GPkztJ7g95phY0PVAjslDNJlFmr1q0l",
+          "price": "87700",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-f/8938362075.jpg",
+          "rating": "4.9",
+          "reviews": null
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 2026 AMD R7 H260 24 ГБ + 1 ТБ Экран 16\" 2,5K Тонкие и легкие блокноты бесплатный подарок \"Русские наклейки +мышь+Коврик для мыши\" Ноутбук 16\", AMD Ryzen 7 H 260, RAM 24 ГБ, SSD 1024 ГБ, AMD Radeon 780M, Windows Home, светло-серый, Английская раскладка",
+          "characteristics": {},
+          "product_link": "https://www.ozon.ru/product/lenovo-noutbuk-thinkbook-16-2026-amd-r7-h260-24-gb-1-tb-ekran-16-2-5k-tonkie-i-legkie-bloknoty-3941357808/?at=79tn009PLTGl2X7Dc8r2NywHZQJ61WFMnl7EVIZ0VN2r",
+          "price": "64729",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-t/9797084813.jpg",
+          "rating": "4.8",
+          "reviews": "19 отзывов"
+        },
+        {
+          "name": "Lenovo Ноутбук ThinkBook 16 2026 AMD R7 H260 24 ГБ + 1 ТБ Экран 16\" 2,5K Тонкие и легкие блокноты бесплатный подарок \"Русские наклейки +мышь+Коврик для мыши\" Ноутбук 16\", AMD Ryzen 7 H 260, RAM 24 ГБ, SSD 1024 ГБ, AMD Radeon 780M, Windows Home, светло-серый, Английская раскладка",
+          "characteristics": {},
+          "product_link": "https://www.ozon.ru/product/lenovo-noutbuk-thinkbook-16-2026-amd-r7-h260-24-gb-1-tb-ekran-16-2-5k-tonkie-i-legkie-bloknoty-3931864392/?at=jYtZwwk6gTMjoQWMtzkXl6lt9MrxXMh0xLjk4IqrWZk5",
+          "price": "66166",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-s/9788219920.jpg",
+          "rating": "4.9",
+          "reviews": "1 132 отзыва"
+        },
+        {
+          "name": "Lenovo ThinkBook 14 G6 Ноутбук 14\", Intel Core i7-13700H, RAM 16 ГБ 256 ГБ, Intel Graphics, Без системы, (197528415130,0197528415130), серый, Русская раскладка",
+          "characteristics": {},
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-14-g6-noutbuk-14-intel-core-i7-13700h-ram-16-gb-256-gb-intel-graphics-bez-3592013624/?at=83tBAAxJ9hMjvklwS3pBqqMF4lLRRBuzLjG7xFwWLZJ7",
+          "price": "72354",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-p/9197698813.jpg",
+          "rating": null,
+          "reviews": null
+        },
+        {
+          "name": "Lenovo G7 ARP Ноутбук 16\", AMD Ryzen 7 7735HS, RAM 16 ГБ 512 ГБ, AMD Radeon 680M, Без системы, (199271332580,0199271332580), серебристый, Английская раскладка",
+          "characteristics": {},
+          "product_link": "https://www.ozon.ru/product/lenovo-g7-arp-noutbuk-16-amd-ryzen-7-7735hs-ram-16-gb-512-gb-amd-radeon-680m-bez-3591435984/?at=x6tPggKGZCNxEzrRHJgAzEysvZxA7lSqY4jYkc0YNWWz",
+          "price": "58448",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-3/9196981743.jpg",
+          "rating": "5.0",
+          "reviews": "1 отзыв"
+        },
+        {
+          "name": "Lenovo ThinkBook 16+ 08CD 2026 Ноутбук 16\", Intel Core Ultra X7 358H, RAM 32 ГБ, SSD 1024 ГБ, Intel Arc B390, Windows Home, белый, Английская раскладка",
+          "characteristics": {},
+          "product_link": "https://www.ozon.ru/product/lenovo-thinkbook-16-08cd-2026-noutbuk-16-intel-core-ultra-x7-358h-ram-32-gb-ssd-1024-gb-intel-arc-4291654605/?at=57twzzOnAcP4qJJztDmQqGQtA67Jq9UpVnQRhq4MmLy",
+          "price": "122380",
+          "image_link": "https://ir.ozone.ru/s3/multimedia-1-0/10440058392.jpg",
+          "rating": null,
+          "reviews": null
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,11 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronDown, Search } from "lucide-react";
 import { $api } from "../api";
-import type { SchemaSearchSource } from "../api/openapi.gen";
+import exampleSearchResultsRaw from "../../example.json?raw";
+import type {
+  SchemaSearchResults,
+  SchemaSearchSource,
+} from "../api/openapi.gen";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -22,7 +26,7 @@ type MarketplaceGroup = {
   products: Product[];
 };
 
-const OTHER_SOURCES_STEP = 10;
+const CHARACTERISTICS_PREVIEW_LIMIT = 5;
 const ALL_REGIONS = "Все регионы";
 
 const regions = [
@@ -118,313 +122,6 @@ const regions = [
   "Ярославская область",
 ];
 
-const marketplaceGroups: MarketplaceGroup[] = [
-  {
-    title: "Яндекс.Маркет",
-    logoUrl: "https://www.google.com/s2/favicons?domain=market.yandex.ru&sz=64",
-    products: [
-      {
-        title: "Ноутбук Lenovo IdeaPad Slim 3",
-        image:
-          "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          'Экран: 15.6", Full HD',
-          "Процессор: Intel Core i5",
-          "Оперативная память: 16 ГБ",
-        ],
-      },
-      {
-        title: "Монитор Samsung ViewFinity 27",
-        image:
-          "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          'Диагональ: 27"',
-          "Разрешение: 2560 x 1440",
-          "Частота обновления: 75 Гц",
-        ],
-      },
-      {
-        title: "МФУ HP LaserJet Pro",
-        image:
-          "https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Тип печати: лазерная",
-          "Формат: A4",
-          "Скорость: до 29 стр/мин",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Ozon",
-    logoUrl: "https://www.google.com/s2/favicons?domain=ozon.ru&sz=64",
-    products: [
-      {
-        title: "Кресло офисное Chairman Ergo",
-        image:
-          "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Материал: экокожа и текстиль",
-          "Механизм: качание",
-          "Нагрузка: до 120 кг",
-        ],
-      },
-      {
-        title: "Клавиатура Logitech MX Keys",
-        image:
-          "https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Тип: беспроводная",
-          "Подключение: Bluetooth",
-          "Подсветка: есть",
-        ],
-      },
-      {
-        title: "Веб-камера Full HD 1080p",
-        image:
-          "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Разрешение: 1920 x 1080",
-          "Микрофон: встроенный",
-          "Крепление: универсальное",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Wildberries",
-    logoUrl: "https://www.google.com/s2/favicons?domain=wildberries.ru&sz=64",
-    products: [
-      {
-        title: "Роутер TP-Link Archer AX23",
-        image:
-          "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Стандарт: Wi-Fi 6",
-          "Скорость: до 1800 Мбит/с",
-          "Диапазоны: 2.4 и 5 ГГц",
-        ],
-      },
-      {
-        title: "Наушники Sony WH-CH720N",
-        image:
-          "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Тип: полноразмерные",
-          "Шумоподавление: активное",
-          "Время работы: до 35 часов",
-        ],
-      },
-      {
-        title: "Портативный SSD Samsung T7",
-        image:
-          "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Объем: 1 ТБ",
-          "Интерфейс: USB 3.2",
-          "Скорость чтения: до 1050 МБ/с",
-        ],
-      },
-    ],
-  },
-];
-
-const otherSourceGroups: MarketplaceGroup[] = [
-  {
-    title: "Ситилинк",
-    logoUrl: "https://www.google.com/s2/favicons?domain=citilink.ru&sz=64",
-    products: [
-      {
-        title: "Системный блок iRU Office",
-        image:
-          "https://images.unsplash.com/photo-1593640495253-23196b27a87f?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Процессор: Intel Core i5",
-          "ОЗУ: 16 ГБ",
-          "Накопитель: SSD 512 ГБ",
-        ],
-      },
-    ],
-  },
-  {
-    title: "DNS",
-    logoUrl: "https://www.google.com/s2/favicons?domain=dns-shop.ru&sz=64",
-    products: [
-      {
-        title: "Коммутатор TP-Link TL-SG108",
-        image:
-          "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Порты: 8 x Gigabit Ethernet",
-          "Корпус: металлический",
-          "Питание: внешний адаптер",
-        ],
-      },
-    ],
-  },
-  {
-    title: "М.Видео",
-    logoUrl: "https://www.google.com/s2/favicons?domain=mvideo.ru&sz=64",
-    products: [
-      {
-        title: "Проектор Epson EB-FH52",
-        image:
-          "https://images.unsplash.com/photo-1601944179066-29786cb9d32a?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Разрешение: Full HD",
-          "Яркость: 4000 лм",
-          "Интерфейсы: HDMI, USB",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Эльдорадо",
-    logoUrl: "https://www.google.com/s2/favicons?domain=eldorado.ru&sz=64",
-    products: [
-      {
-        title: "Телевизор LG 55UR78006LK",
-        image:
-          "https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          'Диагональ: 55"',
-          "Разрешение: 4K UHD",
-          "Smart TV: есть",
-        ],
-      },
-    ],
-  },
-  {
-    title: "ВсеИнструменты.ру",
-    logoUrl:
-      "https://www.google.com/s2/favicons?domain=vseinstrumenti.ru&sz=64",
-    products: [
-      {
-        title: "Набор инструментов Gross 82 предмета",
-        image:
-          "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Количество предметов: 82",
-          "Материал: хром-ванадиевая сталь",
-          "Упаковка: пластиковый кейс",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Комус",
-    logoUrl: "https://www.google.com/s2/favicons?domain=komus.ru&sz=64",
-    products: [
-      {
-        title: "Бумага офисная Ballet Classic A4",
-        image:
-          "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Формат: A4",
-          "Плотность: 80 г/м2",
-          "Упаковка: 500 листов",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Леруа Мерлен",
-    logoUrl: "https://www.google.com/s2/favicons?domain=leroymerlin.ru&sz=64",
-    products: [
-      {
-        title: "Светильник светодиодный офисный",
-        image:
-          "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Мощность: 36 Вт",
-          "Температура: 4000 К",
-          "Монтаж: накладной",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Петрович",
-    logoUrl: "https://www.google.com/s2/favicons?domain=petrovich.ru&sz=64",
-    products: [
-      {
-        title: "Стеллаж металлический Практик",
-        image:
-          "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Полки: 5 шт.",
-          "Нагрузка на полку: до 100 кг",
-          "Материал: оцинкованная сталь",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Яндекс Лавка для бизнеса",
-    logoUrl: "https://www.google.com/s2/favicons?domain=lavka.yandex.ru&sz=64",
-    products: [
-      {
-        title: "Набор питьевой воды для офиса",
-        image:
-          "https://images.unsplash.com/photo-1559839914-17aae19cec71?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Объем: 0.5 л",
-          "Количество: 24 бутылки",
-          "Категория: напитки",
-        ],
-      },
-    ],
-  },
-  {
-    title: "СберМегаМаркет",
-    logoUrl: "https://www.google.com/s2/favicons?domain=megamarket.ru&sz=64",
-    products: [
-      {
-        title: "Кофемашина DeLonghi Magnifica",
-        image:
-          "https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Тип: автоматическая",
-          "Капучинатор: есть",
-          "Контейнер для зерен: 250 г",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Регард",
-    logoUrl: "https://www.google.com/s2/favicons?domain=regard.ru&sz=64",
-    products: [
-      {
-        title: "ИБП APC Back-UPS 950VA",
-        image:
-          "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Мощность: 950 ВА",
-          "Розетки: 6 шт.",
-          "Защита: от скачков напряжения",
-        ],
-      },
-    ],
-  },
-  {
-    title: "ОнлайнТрейд",
-    logoUrl: "https://www.google.com/s2/favicons?domain=onlinetrade.ru&sz=64",
-    products: [
-      {
-        title: "Док-станция Baseus USB-C",
-        image:
-          "https://images.unsplash.com/photo-1619953942547-233eab5a70d6?auto=format&fit=crop&w=900&q=80",
-        characteristics: [
-          "Порты: HDMI, USB-A, USB-C",
-          "Питание: Power Delivery",
-          "Материал: алюминий",
-        ],
-      },
-    ],
-  },
-];
-
 function RegionDropdown({
   selectedRegion,
   onSelect,
@@ -481,6 +178,47 @@ function RegionDropdown({
   );
 }
 
+function ProductCharacteristics({
+  characteristics,
+}: {
+  characteristics: string[];
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const visibleCharacteristics = showAll
+    ? characteristics
+    : characteristics.slice(0, CHARACTERISTICS_PREVIEW_LIMIT);
+  const hasHiddenCharacteristics =
+    characteristics.length > CHARACTERISTICS_PREVIEW_LIMIT;
+
+  if (characteristics.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <ul className="space-y-1 text-sm text-slate-600">
+        {visibleCharacteristics.map((characteristic) => (
+          <li
+            className="border-l border-slate-200 pl-3 leading-5"
+            key={characteristic}
+          >
+            {characteristic}
+          </li>
+        ))}
+      </ul>
+      {!showAll && hasHiddenCharacteristics ? (
+        <button
+          className="self-start text-sm font-medium text-slate-900 underline underline-offset-2 transition hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+          onClick={() => setShowAll(true)}
+          type="button"
+        >
+          Показать все
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
   return (
     <details
@@ -512,7 +250,7 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
             {group.products.map((product) => (
               <article
                 className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-                key={product.title}
+                key={`${product.title}-${product.productLink ?? ""}`}
               >
                 {product.image ? (
                   <img
@@ -529,7 +267,7 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
                 <div className="flex flex-col gap-3 p-4">
                   {product.productLink ? (
                     <a
-                      className="text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                      className="line-clamp-1 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                       href={product.productLink}
                       rel="noreferrer"
                       target="_blank"
@@ -537,7 +275,7 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
                       {product.title}
                     </a>
                   ) : (
-                    <h3 className="text-base font-semibold leading-6 text-slate-950">
+                    <h3 className="line-clamp-1 text-base font-semibold leading-6 text-slate-950">
                       {product.title}
                     </h3>
                   )}
@@ -549,23 +287,16 @@ function ProductSourceDetails({ group }: { group: MarketplaceGroup }) {
                   {product.rating || product.reviews ? (
                     <p className="text-sm text-slate-600">
                       {[
-                        product.rating ? `Рейтинг: ${product.rating}` : null,
+                        product.rating ? `${product.rating} ★` : null,
                         product.reviews,
                       ]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
                   ) : null}
-                  <ul className="space-y-1 text-sm text-slate-600">
-                    {product.characteristics.map((characteristic) => (
-                      <li
-                        className="border-l border-slate-200 pl-3 leading-5"
-                        key={characteristic}
-                      >
-                        {characteristic}
-                      </li>
-                    ))}
-                  </ul>
+                  <ProductCharacteristics
+                    characteristics={product.characteristics}
+                  />
                 </div>
               </article>
             ))}
@@ -600,6 +331,13 @@ function mapSearchSourceToGroup(source: SchemaSearchSource): MarketplaceGroup {
   };
 }
 
+const exampleSearchResults = JSON.parse(
+  exampleSearchResultsRaw,
+) as SchemaSearchResults;
+const marketplaceGroups = exampleSearchResults.sources.map(
+  mapSearchSourceToGroup,
+);
+
 function Home() {
   const [searchInput, setSearchInput] = useState("");
   const [searchParams, setSearchParams] = useState<{
@@ -607,8 +345,6 @@ function Home() {
     region: string | null;
   } | null>(null);
   const [selectedRegion, setSelectedRegion] = useState(ALL_REGIONS);
-  const [visibleOtherSources, setVisibleOtherSources] =
-    useState(OTHER_SOURCES_STEP);
   const {
     data: searchResults,
     error,
@@ -628,14 +364,8 @@ function Home() {
   );
   const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup);
   const visibleGroups = apiSourceGroups ?? marketplaceGroups;
-  const otherGroups = apiSourceGroups ? [] : otherSourceGroups;
 
-  const visibleOtherSourceGroups = otherGroups.slice(0, visibleOtherSources);
-  const hiddenOtherSourcesCount = Math.max(
-    otherGroups.length - visibleOtherSources,
-    0,
-  );
-  const totalProducts = [...visibleGroups, ...otherGroups].reduce(
+  const totalProducts = visibleGroups.reduce(
     (sum, group) => sum + group.products.length,
     0,
   );
@@ -716,30 +446,6 @@ function Home() {
           {visibleGroups.map((group) => (
             <ProductSourceDetails group={group} key={group.title} />
           ))}
-
-          {otherGroups.length > 0 ? (
-            <h2 className="pt-3 text-xl font-semibold text-slate-950">
-              Другие источники
-            </h2>
-          ) : null}
-
-          {visibleOtherSourceGroups.map((group) => (
-            <ProductSourceDetails group={group} key={group.title} />
-          ))}
-
-          {hiddenOtherSourcesCount > 0 ? (
-            <button
-              className="self-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              onClick={() =>
-                setVisibleOtherSources(
-                  (current) => current + OTHER_SOURCES_STEP,
-                )
-              }
-              type="button"
-            >
-              Показать ещё ({hiddenOtherSourcesCount} источников)
-            </button>
-          ) : null}
         </section>
       </section>
     </main>
