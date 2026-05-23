@@ -487,17 +487,20 @@ def _build_actions(
     )
     actions: list[dict[str, str]] = [
         {"type": "url", "data": search_url},
-        {"type": "wait", "data": "3000"},
+        {
+            "type": "waitFor",
+            "data": '[data-zone-name="productSnippet"], [data-apiary-widget-name="@search/Url"] noframes',
+            "timeout": "20000",
+        },
     ]
     if geo:
         actions.append(
             {
                 "type": "waitElement",
                 "data": yandex_sync_region_ui_script(geo),
-                "wait_for": "#hyperlocation-unified-dialog-anchor",
+                "wait_for": "",
             }
         )
-        actions.append({"type": "wait", "data": "1000"})
     actions.append({"type": "waitElement", "data": wait_script, "wait_for": ""})
     return actions
 

@@ -442,6 +442,10 @@ def ozon_map_viewport_body(geo: CityGeo, *, delta: float = 0.02) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
+def ozon_region_already_set_check(geo: CityGeo) -> str:
+    return _region_check_eval_body(ozon_region_already_set_script(geo), "ozonRegionAlreadySet")
+
+
 def ozon_region_already_set_script(geo: CityGeo) -> str:
     slug = json.dumps(geo.ozon_slug or "")
     pp = json.dumps(resolve_ozon_pp(geo))

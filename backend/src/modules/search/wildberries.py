@@ -171,12 +171,32 @@ _WAIT_FETCH_TEMPLATE = r"""async function runSearchFetch() {
     ? encodeURIComponent(correctedQuery)
     : "__QUERY_ENC__";
 
-  const notFound = document.querySelector('.content404') != null
-    || (document.querySelector('.searching-results__count') != null
-      && document.querySelector('.searching-results__count').textContent == '0 товаров найдено')
-    || (document.querySelector('.not-found-search__title') != null);
+  function hasProductCards() {
+    return !!(
+      document.querySelector('[data-nm-id]') ||
+      document.querySelector('.product-card__wrapper')
+    );
+  }
 
-  if (notFound) {
+  function isEmptySearchPage() {
+    if (hasProductCards()) {
+      return false;
+    }
+    if (document.querySelector('.content404')) {
+      return true;
+    }
+    const countEl = document.querySelector('.searching-results__count');
+    if (
+      countEl &&
+      !countEl.classList.contains('hide') &&
+      countEl.textContent.trim() === '0 товаров найдено'
+    ) {
+      return true;
+    }
+    return document.querySelector('.not-found-search__title') != null;
+  }
+
+  if (isEmptySearchPage()) {
     document.body = document.createElement("body");
     if (correctedQuery) {
       const typoPre = document.createElement('pre');
@@ -533,15 +553,19 @@ def _build_actions(
     )
     return [
         {"type": "url", "data": search_url},
-        {"type": "wait", "data": "2000"},
         {
             "type": "script",
             "data": _DISMISS_BLOCKING_DRAWER_STMTS,
             "expects_navigation": "false",
         },
+        {"type": "waitFor", "data": "#searchInput", "timeout": "20000"},
         {"type": "waitElement", "data": _WAIT_QUERY_ID, "wait_for": "pre#queryId"},
-        {"type": "wait", "data": "500"},
-        {"type": "waitElement", "data": fetch_script, "wait_for": ""},
+        {"type": "waitFor", "data": "[data-nm-id], .product-card__wrapper", "timeout": "15000"},
+        {
+            "type": "waitElement",
+            "data": fetch_script,
+            "wait_for": f"pre#{RESULT_PRE_ID}",
+        },
     ]
 
 

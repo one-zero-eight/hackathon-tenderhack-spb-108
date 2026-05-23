@@ -202,6 +202,9 @@ async def run_action(
         await page.goto(data, wait_until="domcontentloaded", timeout=60_000)
     elif action_type == "wait":
         await page.wait_for_timeout(int(data))
+    elif action_type == "waitFor":
+        timeout = int(action.get("timeout", "30000"))
+        await page.wait_for_selector(data, timeout=timeout, state="attached")
     elif action_type == "waitElement":
         await page.evaluate(f"async () => {{ {data} }}")
         if wait_for:
@@ -272,7 +275,18 @@ async def run_site_parser(
             )
 
     typofix_suggestion: str | None = None
-    for step, action in enumerate(action_list, start=1):
+    step = 0
+    action_index = 0
+    while action_index < len(action_list):
+        action = action_list[action_index]
+        if action["type"] == "skipIf":
+            check_body = action["data"]
+            skip_count = int(action.get("skip_count", "1"))
+            should_skip = await page.evaluate(f"() => {{ {check_body} }}")
+            action_index += 1 + (skip_count if should_skip else 0)
+            continue
+
+        step += 1
         logger.info("Action %d/%d: %s", step, len(action_list), action["type"])
         async with recorder.stage(f"search.{step}_{action['type']}"):
             await run_action(
@@ -289,10 +303,11 @@ async def run_site_parser(
                     parse_typofix(await page_content(page)),
                     original_query,
                 )
+        action_index += 1
 
     async with recorder.stage("parse_results"):
         html = await page_content(page)
-        save_html(out_dir, len(action_list) + 1, html)
+        save_html(out_dir, step + 1, html)
         products = parse_html(html)
         if parse_typofix is not None:
             typofix_suggestion = _merge_typofix_suggestion(

@@ -30,6 +30,7 @@ from .region_geo import (
     make_ozon_setup_page,
     ozon_confirm_region_script,
     ozon_geo_page_url,
+    ozon_region_already_set_check,
     ozon_set_region_script,
 )
 from .typofix import parse_ozon_typofix, queries_differ
@@ -213,11 +214,11 @@ def _search_page_actions(
 ) -> list[dict[str, str]]:
     return [
         {"type": "url", "data": _build_search_url(query)},
-        {"type": "wait", "data": "2000"},
+        {"type": "waitFor", "data": 'input[name="text"]', "timeout": "20000"},
         {
             "type": "waitElement",
             "data": _build_fetch_script(query, min_price=min_price, max_price=max_price),
-            "wait_for": "",
+            "wait_for": f"pre#{RESULT_PRE_ID}",
         },
     ]
 
@@ -233,10 +234,15 @@ def _build_actions(
     if geo and geo.ozon_slug and geo_page:
         return [
             {"type": "url", "data": _OZON_BOOTSTRAP_URL},
-            {"type": "wait", "data": "1000"},
+            {"type": "wait", "data": "500"},
             {"type": "waitElement", "data": ozon_set_region_script(geo), "wait_for": ""},
+            {
+                "type": "skipIf",
+                "data": ozon_region_already_set_check(geo),
+                "skip_count": "3",
+            },
             {"type": "url", "data": geo_page},
-            {"type": "wait", "data": "1500"},
+            {"type": "wait", "data": "800"},
             {"type": "waitElement", "data": ozon_confirm_region_script(geo), "wait_for": ""},
             *_search_page_actions(query, min_price=min_price, max_price=max_price),
         ]
