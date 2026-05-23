@@ -24,7 +24,7 @@ from .common import (
     run_site_parser,
 )
 from .details import enrich_product_characteristics, specs_from_raw
-from .region_geo import get_city_geo, make_yandex_setup_page, yandex_sync_region_ui_script
+from .region_geo import geo_for_marketplace_search, make_yandex_setup_page, yandex_sync_region_ui_script
 from .typofix import parse_yandex_market_typofix, queries_differ
 
 _YANDEX_DETAIL_SPECS_JS = """() => {
@@ -761,7 +761,7 @@ async def run_yandex_market_parser(
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> tuple[SearchSource, str | None]:
     """Run Yandex Market search and return parsed products."""
-    geo = get_city_geo(region)
+    geo = geo_for_marketplace_search(region)
 
     async def run_for_query(query: str):
         return await run_site_parser(

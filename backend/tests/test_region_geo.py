@@ -2,6 +2,7 @@ from src.modules.search.region_geo import (
     REGION_CAPITALS,
     CityGeo,
     discover_ozon_pp_in_listing,
+    geo_for_marketplace_search,
     get_city_geo,
     ozon_region_already_set_script,
     ozon_set_region_script,
@@ -34,6 +35,14 @@ def test_get_city_geo_kazan():
 def test_get_city_geo_none():
     assert get_city_geo(None) is None
     assert get_city_geo("") is None
+
+
+def test_geo_for_marketplace_search_defaults_to_moscow():
+    for region in (None, "", "   "):
+        geo = geo_for_marketplace_search(region)
+        assert geo is not None
+        assert geo.city == "Москва"
+        assert geo.wb_dest == "-535680"
 
 
 def test_ozon_slug_moscow():

@@ -219,10 +219,22 @@ def _city_geo_index() -> dict[str, CityGeo]:
     return index
 
 
+DEFAULT_SEARCH_CITY = "Москва"
+
+
 def get_city_geo(city: str | None) -> CityGeo | None:
     if not city or not city.strip():
         return None
     return _city_geo_index().get(normalize_city_name(city))
+
+
+def geo_for_marketplace_search(region: str | None) -> CityGeo | None:
+    """No region / «все регионы» → Moscow; unknown city name → Moscow as well."""
+    if region and region.strip():
+        geo = get_city_geo(region)
+        if geo is not None:
+            return geo
+    return get_city_geo(DEFAULT_SEARCH_CITY)
 
 
 @lru_cache(maxsize=1)

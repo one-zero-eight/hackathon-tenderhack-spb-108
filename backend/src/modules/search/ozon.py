@@ -26,7 +26,7 @@ from .common import (
 from .details import enrich_product_characteristics
 from .region_geo import (
     _OZON_BOOTSTRAP_URL,
-    get_city_geo,
+    geo_for_marketplace_search,
     make_ozon_setup_page,
     ozon_confirm_region_script,
     ozon_geo_page_url,
@@ -550,7 +550,7 @@ async def run_ozon_parser(
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> tuple[SearchSource, str | None]:
     """Run Ozon search and return parsed products."""
-    geo = get_city_geo(region)
+    geo = geo_for_marketplace_search(region)
 
     async def run_for_query(query: str):
         def actions() -> list[dict[str, str]]:

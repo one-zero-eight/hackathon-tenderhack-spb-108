@@ -27,7 +27,7 @@ from .common import (
     run_site_parser,
 )
 from .details import enrich_product_characteristics, parse_specs_table_html, specs_from_raw
-from .region_geo import get_city_geo, make_wb_setup_page
+from .region_geo import geo_for_marketplace_search, make_wb_setup_page
 from .typofix import parse_wildberries_typofix, queries_differ
 
 _WB_DETAIL_SPECS_JS = """() => {
@@ -122,7 +122,9 @@ async function waitForElement(timeout = 10000) {
 
 return await waitForElement();"""
 
-_WAIT_FETCH_TEMPLATE = r"""async function runSearchFetch() {
+_WAIT_FETCH_TEMPLATE = r"""__WB_DEST_PARAM_FN__
+
+async function runSearchFetch() {
   const originalQuery = __ORIGINAL_QUERY__;
   function normalizeQuery(text) {
     return (text || '').trim().replace(/\\s+/g, ' ').toLowerCase();
@@ -223,8 +225,8 @@ _WAIT_FETCH_TEMPLATE = r"""async function runSearchFetch() {
   const powToken = document.querySelector('#powToken')
     ? document.querySelector('#powToken').textContent
     : null;
-  const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&__DEST_PARAM__hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=" + queryEnc + "&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false";
-  const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?__DEST_PARAM__search=" + queryEnc;
+  const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&" + wbDestParam() + "hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=" + queryEnc + "&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false";
+  const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?" + wbDestParam() + "search=" + queryEnc;
 
   let headers;
   if (queryId && queryId.textContent != '' && powToken) {
@@ -535,6 +537,18 @@ def _dest_query(geo) -> str:
     return f"dest={geo.wb_dest}&" if geo else ""
 
 
+def _wb_dest_param_function(geo) -> str:
+    if geo:
+        body = f'return "dest={geo.wb_dest}&";'
+    else:
+        body = r"""try {
+  const m = document.cookie.match(/(?:^|;\s*)dest=(-?\d+)/);
+  if (m) return "dest=" + m[1] + "&";
+} catch (_) {}
+return "";"""
+    return f"function wbDestParam() {{\n{body}\n}}"
+
+
 def _build_search_url(query: str, *, geo=None) -> str:
     encoded = encode_query(query)
     dest = _dest_query(geo)
@@ -549,11 +563,10 @@ def _build_actions(
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> list[dict[str, str]]:
     search_url = _build_search_url(query, geo=geo)
-    dest_param = _dest_query(geo)
     fetch_script = (
-        _WAIT_FETCH_TEMPLATE.replace("__PRE_ID__", RESULT_PRE_ID)
+        _WAIT_FETCH_TEMPLATE.replace("__WB_DEST_PARAM_FN__", _wb_dest_param_function(geo))
+        .replace("__PRE_ID__", RESULT_PRE_ID)
         .replace("__TYPOFIX_PRE_ID__", TYPOFIX_PRE_ID)
-        .replace("__DEST_PARAM__", dest_param)
         .replace("__QUERY_ENC__", quote(query))
         .replace("__ORIGINAL_QUERY__", json.dumps(query))
         .replace("__PRICE_FILTER_JS__", _wb_price_filter_js(min_price, max_price))
@@ -803,6 +816,9 @@ async def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None
 
 
 def _product_from_wb(item: dict) -> SearchResult | None:
+    nm_id = item.get("id") or item.get("nmId")
+    if nm_id is None:
+        return None
     name = item.get("name")
     if not name:
         return None
@@ -815,8 +831,7 @@ def _product_from_wb(item: dict) -> SearchResult | None:
 
     rating = str(item["rating"]) if item.get("rating") is not None else None
     reviews = str(item["feedbacks"]) if item.get("feedbacks") is not None else None
-    nm_id = item.get("id") or item.get("nmId")
-    product_link = f"https://www.wildberries.ru/catalog/{nm_id}/detail.aspx" if nm_id is not None else None
+    product_link = f"https://www.wildberries.ru/catalog/{nm_id}/detail.aspx"
 
     return SearchResult(
         name=str(name).strip(),
@@ -846,6 +861,13 @@ def _parse_wb_payload(data: object) -> list[SearchResult]:
     return products
 
 
+def _wb_products_field(data: dict) -> list | None:
+    items = data.get("products")
+    if items is None and isinstance(data.get("data"), dict):
+        items = data["data"].get("products")
+    return items if isinstance(items, list) else None
+
+
 def parse_html(html: str) -> list[SearchResult]:
     raw = extract_pre_content(html)
     if raw:
@@ -857,9 +879,11 @@ def parse_html(html: str) -> list[SearchResult]:
             wb_products = _parse_wb_payload(data)
             if wb_products:
                 return wb_products
-        products = parse_api_payload(raw, product_keys=_PRODUCT_KEYS)
+            if _wb_products_field(data) is not None:
+                return []
+        products = parse_api_payload(raw, product_keys=("id", "nmId"))
         if products:
-            return products
+            return [p for p in products if p.product_link]
     return parse_result_pre(html, product_keys=_PRODUCT_KEYS)
 
 
@@ -872,7 +896,7 @@ async def run_wildberries_parser(
     max_price: int = DEFAULT_MAX_PRICE,
 ) -> tuple[SearchSource, str | None]:
     """Run Wildberries search and return parsed products."""
-    geo = get_city_geo(region)
+    geo = geo_for_marketplace_search(region)
 
     async def run_for_query(query: str):
         return await run_site_parser(
