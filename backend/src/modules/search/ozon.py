@@ -18,7 +18,9 @@ from .common import (
     append_product,
     build_price_filter,
     encode_query,
+    open_browser_page,
     page_content,
+    release_browser_page,
     run_site_parser,
     split_product_images,
 )
@@ -72,7 +74,73 @@ _OZON_DOM_UNIQUE_COUNT_JS = f"""() => {{
   return seen.size;
 }}"""
 
+_OZON_PREPARE_TILE_IMAGES_JS = """() => {
+  let touched = 0;
+  for (const tile of document.querySelectorAll('div.tile-root')) {
+    tile.scrollIntoView({ block: 'center', behavior: 'instant' });
+    for (const img of tile.querySelectorAll('img')) {
+      const pick = (raw) => {
+        if (!raw || raw.startsWith('data:')) return '';
+        let src = raw.startsWith('//') ? 'https:' + raw : raw;
+        if (!src.startsWith('http')) return '';
+        if (src.includes('ozon-graphics') || src.includes('ds_image_default')) return '';
+        if (src.includes('/multimedia') || src.includes('cdn1.ozon')) return src;
+        return '';
+      };
+      const candidates = [
+        img.getAttribute('data-src'),
+        img.currentSrc,
+        img.getAttribute('src'),
+      ];
+      const srcset = img.getAttribute('srcset');
+      if (srcset) {
+        for (const part of srcset.split(',')) {
+          candidates.push(part.trim().split(/\\s+/)[0]);
+        }
+      }
+      for (const raw of candidates) {
+        const src = pick(raw);
+        if (src) {
+          if (img.src !== src) img.src = src;
+          touched++;
+          break;
+        }
+      }
+    }
+  }
+  return touched;
+}"""
+
 _OZON_DOM_TILES_JS = f"""() => {{
+  const pickTileImage = (tile) => {{
+    const candidates = [];
+    const push = (raw) => {{
+      if (!raw || raw.startsWith('data:')) return;
+      let src = raw.startsWith('//') ? 'https:' + raw : raw;
+      if (!src.startsWith('http')) return;
+      candidates.push(src);
+    }};
+    for (const img of tile.querySelectorAll('img')) {{
+      push(img.getAttribute('data-src'));
+      push(img.currentSrc);
+      push(img.getAttribute('src'));
+      const srcset = img.getAttribute('srcset');
+      if (srcset) {{
+        for (const part of srcset.split(',')) {{
+          push(part.trim().split(/\\s+/)[0]);
+        }}
+      }}
+    }}
+    for (const src of candidates) {{
+      if (src.includes('ozon-graphics') || src.includes('ds_image_default')) continue;
+      if (src.includes('/multimedia')) return src;
+    }}
+    for (const src of candidates) {{
+      if (src.includes('ozon-graphics') || src.includes('ds_image_default')) continue;
+      if (src.includes('cdn1.ozon')) return src;
+    }}
+    return '';
+  }};
   const grids = [...document.querySelectorAll('{_TILE_GRID_SELECTOR}')];
   const out = [];
   const seen = new Set();
@@ -112,25 +180,32 @@ _OZON_DOM_TILES_JS = f"""() => {{
           }}
         }}
       }}
-      let image = '';
-      for (const img of tile.querySelectorAll('img')) {{
-        let src = img.getAttribute('data-src') || img.getAttribute('src') || '';
-        if (!src || src.startsWith('data:')) continue;
-        if (src.startsWith('//')) src = 'https:' + src;
-        if (
-          src.includes('multimedia')
-          || src.includes('ir.ozone.ru')
-          || src.includes('cdn1.ozon')
-        ) {{
-          image = src;
-          break;
-        }}
-      }}
+      const image = pickTileImage(tile);
       out.push({{ href, name, price, image }});
     }}
   }}
   return out;
 }}"""
+
+_OZON_PLACEHOLDER_IMAGE_RE = re.compile(
+    r"ozon-graphics|ds_image_default|/default[_-]?image",
+    re.IGNORECASE,
+)
+_OZON_DETAIL_IMAGE_WIDGET_HINTS = ("webGallery", "webProductMini", "webStickyProducts")
+_OZON_DETAIL_IMAGE_FILL_LIMIT = 20
+
+
+def _is_ozon_placeholder_image(url: str | None) -> bool:
+    if not url:
+        return True
+    return bool(_OZON_PLACEHOLDER_IMAGE_RE.search(url))
+
+
+def _ozon_product_image(url: str | None) -> str | None:
+    if isinstance(url, str) and url.startswith("http") and not _is_ozon_placeholder_image(url):
+        return url
+    return None
+
 
 _OZON_FETCH_PAGE_JS = """async (path) => {
   try {
@@ -187,13 +262,13 @@ def _products_from_dom_tiles(raw: object) -> list[SearchResult]:
             continue
         link = href if href.startswith("http") else urljoin(_OZON_BASE_URL, href)
         price = entry.get("price")
-        image = entry.get("image")
+        image = _ozon_product_image(entry.get("image") if isinstance(entry.get("image"), str) else None)
         products.append(
             SearchResult(
                 name=_decode_product_name(name.strip()),
                 product_link=link,
                 price=price if isinstance(price, str) and price else None,
-                image_link=image if isinstance(image, str) and image.startswith("http") else None,
+                image_link=image,
                 image_links=[],
             )
         )
@@ -207,11 +282,13 @@ def _merge_ozon_product(dst: SearchResult, src: SearchResult) -> None:
         dst.rating = src.rating
     if not dst.reviews and src.reviews:
         dst.reviews = src.reviews
-    if not dst.image_link and src.image_link:
-        dst.image_link = src.image_link
-        dst.image_links = list(src.image_links)
-    elif src.image_links and not dst.image_links:
-        dst.image_links = list(src.image_links)
+    src_image = _ozon_product_image(src.image_link)
+    dst_image = _ozon_product_image(dst.image_link)
+    if src_image and not dst_image:
+        dst.image_link = src_image
+        dst.image_links = [url for url in src.image_links if _ozon_product_image(url)]
+    elif src.image_links and not dst.image_links and dst_image:
+        dst.image_links = [url for url in src.image_links if _ozon_product_image(url)]
     if not dst.name.strip() and src.name.strip():
         dst.name = src.name
 
@@ -469,8 +546,9 @@ def _extract_tile_images(tile_image: object) -> list[str]:
         image = entry.get("image")
         if isinstance(image, dict):
             link = image.get("link")
-            if isinstance(link, str) and link.startswith("http"):
-                urls.append(link)
+            cleaned = _ozon_product_image(link if isinstance(link, str) else None)
+            if cleaned:
+                urls.append(cleaned)
     return urls
 
 
@@ -579,6 +657,54 @@ async def fetch_ozon_detail_characteristics(page, product_link: str) -> dict[str
     return merged
 
 
+def _parse_ozon_detail_images(data: dict) -> tuple[str | None, list[str]]:
+    urls: list[str] = []
+    states = data.get("widgetStates")
+    if not isinstance(states, dict):
+        return None, []
+    for state_id, raw_state in states.items():
+        if not isinstance(raw_state, str):
+            continue
+        if not any(hint in state_id for hint in _OZON_DETAIL_IMAGE_WIDGET_HINTS):
+            continue
+        try:
+            state = json.loads(raw_state)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(state, dict):
+            continue
+        for key in ("coverImage", "coverImageUrl"):
+            value = state.get(key)
+            cleaned = _ozon_product_image(value if isinstance(value, str) else None)
+            if cleaned:
+                urls.append(cleaned)
+        images = state.get("images")
+        if isinstance(images, list):
+            for entry in images:
+                if not isinstance(entry, dict):
+                    continue
+                src = entry.get("src")
+                cleaned = _ozon_product_image(src if isinstance(src, str) else None)
+                if cleaned:
+                    urls.append(cleaned)
+    return split_product_images(urls)
+
+
+async def _fill_ozon_product_image_from_detail(page, product: SearchResult) -> None:
+    if not product.product_link or _ozon_product_image(product.image_link):
+        return
+    path = urlparse(product.product_link).path
+    data = await _fetch_ozon_search_payload(page, path)
+    if not data:
+        return
+    image_link, image_links = _parse_ozon_detail_images(data)
+    if not image_link:
+        return
+    product.image_link = image_link
+    product.image_links = image_links
+    logger.info("Ozon detail image for %s: %s", product.name[:50], image_link[:80])
+
+
 async def _enrich_ozon_characteristics(page, products: list[SearchResult]) -> None:
     await enrich_product_characteristics(
         page,
@@ -587,6 +713,26 @@ async def _enrich_ozon_characteristics(page, products: list[SearchResult]) -> No
         check_captcha_expr=CHECK_CAPTCHA,
         site_name=SITE,
     )
+    missing = [p for p in products if p.product_link and not _ozon_product_image(p.image_link)]
+    if not missing:
+        return
+    batch = missing[:_OZON_DETAIL_IMAGE_FILL_LIMIT]
+
+    async def fill_one(product: SearchResult) -> None:
+        detail_page = await open_browser_page()
+        try:
+            await _fill_ozon_product_image_from_detail(detail_page, product)
+        finally:
+            await release_browser_page(detail_page)
+
+    logger.info("Ozon: fetching detail images for %d products without search thumbnails", len(batch))
+    results = await asyncio.gather(
+        *[fill_one(product) for product in batch],
+        return_exceptions=True,
+    )
+    for result in results:
+        if isinstance(result, BaseException):
+            logger.warning("Ozon detail image fetch failed: %s", result)
 
 
 def _parse_ozon_tile(item: object) -> SearchResult | None:
@@ -834,6 +980,8 @@ async def collect_ozon_products_from_page(
         next_path = _ozon_extract_next_page_path(extra) or _ozon_extract_next_page_path(payload)
 
     api_products = _parse_ozon_payload(payload)
+    await page.evaluate(_OZON_PREPARE_TILE_IMAGES_JS)
+    await page.wait_for_timeout(800)
     dom_products = await _collect_ozon_products_from_dom(page)
     products = _merge_ozon_product_lists(api_products, dom_products)
     logger.info(

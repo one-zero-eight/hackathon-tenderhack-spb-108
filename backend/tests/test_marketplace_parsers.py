@@ -429,6 +429,14 @@ class TestOzon:
         assert next_path.startswith("/")
         assert "page=2" in next_path
 
+    def test_ozon_placeholder_image_is_rejected(self):
+        from src.modules.search.ozon import _is_ozon_placeholder_image, _ozon_product_image
+
+        placeholder = "https://ir.ozone.ru/s3/ozon-graphics/ds_image_default_image_1698747459974.png"
+        assert _is_ozon_placeholder_image(placeholder)
+        assert _ozon_product_image(placeholder) is None
+        assert _ozon_product_image("https://ir.ozone.ru/s3/multimedia-1-a/123.jpg")
+
     def test_merge_ozon_product_fills_missing_image_from_dom(self):
         from src.modules.search.ozon import _merge_ozon_product_lists
         from src.modules.search.schemas import SearchResult
@@ -448,6 +456,35 @@ class TestOzon:
         assert len(merged) == 1
         assert merged[0].image_link == dom_product.image_link
         assert merged[0].image_links == dom_product.image_links
+
+    def test_parse_detail_images_from_api_fixture(self):
+        from pathlib import Path
+
+        from src.modules.search.ozon import _parse_ozon_detail_images
+
+        data = json.loads(
+            (Path(__file__).resolve().parents[1] / "tests/example_htmls/ozon_detail_short_api.json").read_text()
+        )
+        image_link, image_links = _parse_ozon_detail_images(data)
+        assert image_link and "multimedia" in image_link
+        assert image_links
+
+    def test_merge_ozon_product_ignores_placeholder_dom_image(self):
+        from src.modules.search.ozon import _merge_ozon_product_lists
+        from src.modules.search.schemas import SearchResult
+
+        api_product = SearchResult(
+            name="Apple iPhone 17",
+            product_link="https://www.ozon.ru/product/apple-iphone-17-4278168605/",
+            price="57526",
+        )
+        dom_product = SearchResult(
+            name="Apple iPhone 17",
+            product_link="https://www.ozon.ru/product/apple-iphone-17-4278168605/",
+            image_link="https://ir.ozone.ru/s3/ozon-graphics/ds_image_default_image_1698747459974.png",
+        )
+        merged = _merge_ozon_product_lists([api_product], [dom_product])
+        assert merged[0].image_link is None
 
     def test_search_api_response(self):
         html = example_html("ozon_search_api.html")

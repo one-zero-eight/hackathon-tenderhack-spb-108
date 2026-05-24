@@ -6,8 +6,9 @@ from src.config import settings
 from src.logging_ import logger
 from src.modules.search.schemas import SearchResult, SearchSource
 
-RERANKER_MODEL_ID = "BAAI/bge-reranker-v2-m3"
-RELEVANCE_THRESHOLD = 0.5
+RERANKER_MODEL_ID = "DiTy/cross-encoder-russian-msmarco"
+RERANK_ACTIVATION_FN = "identity"
+RELEVANCE_THRESHOLD = -5.251
 RERANK_QUERY_PREFIX = "купить "
 
 
@@ -82,6 +83,7 @@ async def rerank_search_source(source: SearchSource, query: str) -> SearchSource
                 reranker_model_id=RERANKER_MODEL_ID,
                 query=rerank_query,
                 docs=docs,
+                activation_fn=RERANK_ACTIVATION_FN,
             )
         )
     except Exception:

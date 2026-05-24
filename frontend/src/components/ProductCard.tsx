@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { Info, SquareArrowOutUpRight } from 'lucide-react'
 
 const CHARACTERISTICS_PREVIEW_LIMIT = 5
-const RELEVANCE_THRESHOLD = 0.5
+const RELEVANCE_THRESHOLD = -5.251
 
 function formatRerankScore(score: number | null | undefined): string {
   if (score === null || score === undefined) return 'неизвестна'
@@ -28,7 +28,7 @@ function IrrelevanceInfoBadge({ score }: { score: number | null | undefined }) {
         <p className="font-medium">Товар помечен как нерелевантный</p>
         <p className="mt-1 text-white/90">
           После получения результатов с маркетплейса мы прогоняем их через модель реранжирования{' '}
-          <span className="whitespace-nowrap">BAAI/bge-reranker-v2-m3</span>. Она сравнивает ваш
+          <span className="whitespace-nowrap">DiTy/cross-encoder-russian-msmarco</span>. Она сравнивает ваш
           запрос в форме «купить …» с названием каждого товара и выставляет
           оценку релевантности.
         </p>
