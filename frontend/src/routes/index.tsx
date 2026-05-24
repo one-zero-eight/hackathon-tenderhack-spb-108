@@ -6,13 +6,14 @@ import { RegionDropdown } from '@/components/RegionDropdown'
 import { SpellcheckSearchInput } from '@/components/SpellcheckSearchInput'
 import { TypofixNotice } from '@/components/TypofixNotice'
 import { Button } from '@/components/ui/button'
+import { formatSearchResultsYaml } from '@/lib/formatSearchResultsYaml'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
 import type { SearchResultProduct, SortMode } from '@/lib/types'
 import { useSearchJob } from '@/lib/useSearchJob'
 import { parsePrice, plannedSourceTypes, sourceTypesForRunetSearch, compareByParseReadiness, getSearchSourceReadyAt } from '@/lib/utils'
 import { createFileRoute } from '@tanstack/react-router'
-import { Info, LoaderCircle, Search } from 'lucide-react'
+import { Check, Copy, Info, LoaderCircle, Search } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 type HomeSearch = {
@@ -69,6 +70,7 @@ function Home() {
   const [sortMode, setSortMode] = useState<SortMode>('sources')
   const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS)
   const [extendedRunetSearch, setExtendedRunetSearch] = useState(false)
+  const [isYamlCopied, setIsYamlCopied] = useState(false)
   const { jobInfo, startSearch, isSearching, error } = useSearchJob({ jobId, setJobId })
   const apiSourceGroups = jobInfo?.sources.map(mapSearchSourceToGroup)
   const visibleGroups = apiSourceGroups ?? []
@@ -272,6 +274,16 @@ function Home() {
     runSearch(originalQuery, { spellcheck: false })
   }
 
+  const handleCopyYaml = async () => {
+    try {
+      await navigator.clipboard.writeText(formatSearchResultsYaml(originalQuery, readyGroups))
+      setIsYamlCopied(true)
+      window.setTimeout(() => setIsYamlCopied(false), 2000)
+    } catch {
+      // Ignore clipboard errors.
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -377,6 +389,19 @@ function Home() {
 
           {totalProducts > 0 ? (
             <div className="flex flex-wrap gap-2">
+              <Button
+                className="gap-2 px-4"
+                onClick={() => void handleCopyYaml()}
+                type="button"
+                variant="outline"
+              >
+                {isYamlCopied ? (
+                  <Check aria-hidden="true" className="size-4" />
+                ) : (
+                  <Copy aria-hidden="true" className="size-4" />
+                )}
+                {isYamlCopied ? 'Скопировано' : 'Скопировать YAML'}
+              </Button>
               <Button
                 className="px-4"
                 onClick={() => setSortMode('sources')}
