@@ -1,7 +1,7 @@
 import { SourceType } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
 import type { MarketplaceGroup } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, getMedian, parsePrice } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, SquareArrowOutUpRight } from 'lucide-react'
 import { useState } from 'react'
 
@@ -107,16 +107,12 @@ export function ProductSourceDetails({
   const canPaginate = pageCount > 1
   const isLastPage = currentPage >= pageCount - 1
   const theme = getMarketplaceTheme(group.sourceType)
-
-  const minPrice = group.products.reduce(
-    (min, product) => {
-      if (!product.price) return min
-      const price = Number.parseInt(product.price.replace(/\D/g, ''), 10)
-      if (Number.isNaN(price)) return min
-      return min === null ? price : Math.min(min, price)
-    },
-    null as number | null
-  )
+  const relevantProducts = group.products.filter((product) => product.relevant !== false)
+  const prices = relevantProducts
+    .map((product) => parsePrice(product.price))
+    .filter((price): price is number => price !== null)
+  const minPrice = prices.length > 0 ? Math.min(...prices) : null
+  const medianPrice = group.sourceType !== SourceType.runet ? getMedian(prices) : null
 
   if (!isParsing && group.products.length === 0) {
     return null
@@ -144,6 +140,16 @@ export function ProductSourceDetails({
               {minPrice !== null && (
                 <span className={cn('text-sm font-medium', theme.metaClassName)}>
                   от {minPrice.toLocaleString('ru-RU')} ₽
+                </span>
+              )}
+              {minPrice !== null && medianPrice !== null ? (
+                <span aria-hidden="true" className={cn('text-sm font-medium', theme.metaClassName)}>
+                  ·
+                </span>
+              ) : null}
+              {medianPrice !== null && (
+                <span className={cn('text-sm font-medium', theme.metaClassName)}>
+                  медиана {Math.round(medianPrice).toLocaleString('ru-RU')} ₽
                 </span>
               )}
               {queryResultLabel ? (
