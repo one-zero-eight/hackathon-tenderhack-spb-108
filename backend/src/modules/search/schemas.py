@@ -84,6 +84,8 @@ class SearchSource(BaseModel):
 
     results: list[SearchResult]
     timing: SourceTiming | None = None
+    is_parsing: bool = False
+    "True while the source is discovered but products are still being extracted."
 
 
 class TypofixSuggestion(BaseModel):

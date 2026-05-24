@@ -24,26 +24,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/search/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Search
-         * @description Search for products.
-         */
-        post: operations["search_search_search_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/search/test-search": {
         parameters: {
             query?: never;
@@ -74,10 +54,78 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Parse From Url
+         * Parse From Url Endpoint
          * @description Fetch a page by URL, extract catalog markdown, and parse products.
          */
-        post: operations["parse_from_url_search_test_parse_from_url_post"];
+        post: operations["parse_from_url_endpoint_search_test_parse_from_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search/jobs/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Job */
+        post: operations["start_job_search_jobs_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Job Endpoint */
+        get: operations["get_job_endpoint_search_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Job Endpoint */
+        post: operations["cancel_job_endpoint_search_jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search/jobs/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get All Jobs Endpoint */
+        get: operations["get_all_jobs_endpoint_search_jobs__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -93,6 +141,25 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** JobInfo */
+        JobInfo: {
+            /** Job Id */
+            job_id: number;
+            job_status: components["schemas"]["JobStatus"];
+            original_params: components["schemas"]["SearchParams"];
+            /** Typofix Suggestions */
+            typofix_suggestions?: components["schemas"]["TypofixSuggestion"][];
+            /** Sources */
+            sources: components["schemas"]["SearchSource"][];
+            /** Sources Statuses */
+            sources_statuses: components["schemas"]["SourceStatus"][];
+            timing?: components["schemas"]["RequestTiming"] | null;
+        };
+        /**
+         * JobStatus
+         * @enum {string}
+         */
+        JobStatus: JobStatus;
         /** ProductTiming */
         ProductTiming: {
             /** Duration Ms */
@@ -160,7 +227,7 @@ export interface components {
              * Relevant
              * @default true
              */
-            relevant?: boolean;
+            relevant: boolean;
             timing?: components["schemas"]["ProductTiming"] | null;
         };
         /** SearchResults */
@@ -185,11 +252,21 @@ export interface components {
             results: components["schemas"]["SearchResult"][];
             timing?: components["schemas"]["SourceTiming"] | null;
             /**
+             * Is Parsing
+             * @default false
+             */
+            is_parsing: boolean;
+            /**
              * Results Count
              * @description Number of products found for this source.
              */
             readonly results_count: number;
         };
+        /**
+         * SourceStatus
+         * @enum {string}
+         */
+        SourceStatus: SourceStatus;
         /** SourceTiming */
         SourceTiming: {
             /** Duration Ms */
@@ -263,6 +340,7 @@ export interface components {
     pathItems: never;
 }
 export type SchemaHttpValidationError = components['schemas']['HTTPValidationError'];
+export type SchemaJobInfo = components['schemas']['JobInfo'];
 export type SchemaProductTiming = components['schemas']['ProductTiming'];
 export type SchemaRequestTiming = components['schemas']['RequestTiming'];
 export type SchemaSearchParams = components['schemas']['SearchParams'];
@@ -310,39 +388,6 @@ export interface operations {
             };
         };
     };
-    search_search_search_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SearchParams"];
-            };
-        };
-        responses: {
-            /** @description Found products */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchResults"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     test_search_search_test_search_post: {
         parameters: {
             query: {
@@ -374,7 +419,7 @@ export interface operations {
             };
         };
     };
-    parse_from_url_search_test_parse_from_url_post: {
+    parse_from_url_endpoint_search_test_parse_from_url_post: {
         parameters: {
             query: {
                 url: string;
@@ -405,6 +450,129 @@ export interface operations {
             };
         };
     };
+    start_job_search_jobs_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchParams"];
+            };
+        };
+        responses: {
+            /** @description Started job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_endpoint_search_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_job_endpoint_search_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Canceled job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_all_jobs_endpoint_search_jobs__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All jobs information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"][];
+                };
+            };
+        };
+    };
+}
+export enum JobStatus {
+    PENDING = "PENDING",
+    FINISHED = "FINISHED"
+}
+export enum SourceStatus {
+    PENDING = "PENDING",
+    FINISHED = "FINISHED"
 }
 export enum SourceType {
     yandex_market = "yandex_market",

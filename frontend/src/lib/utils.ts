@@ -1,4 +1,4 @@
-import { SourceType, SpellcheckLanguage, type SchemaSearchResult } from '@/api/openapi.gen'
+import { SourceType, SpellcheckLanguage, type SchemaSearchResult, type SchemaSearchSource } from '@/api/openapi.gen'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -35,8 +35,47 @@ export const MARKETPLACE_SOURCE_TYPES = [
   SourceType.ozon
 ] as const
 
+export const ALL_SOURCE_TYPES = [
+  SourceType.yandex_market,
+  SourceType.wildberries,
+  SourceType.ozon,
+  SourceType.runet
+] as const
+
 export function sourceTypesForRunetSearch(extendedRunetSearch: boolean): SourceType[] | null {
   return extendedRunetSearch ? null : [...MARKETPLACE_SOURCE_TYPES]
+}
+
+export function plannedSourceTypes(sourceTypes: SourceType[] | null | undefined): SourceType[] {
+  return sourceTypes?.length ? [...sourceTypes] : [...ALL_SOURCE_TYPES]
+}
+
+export function getSearchSourceReadyAt(
+  source: Pick<SchemaSearchSource, 'timing'> | undefined,
+  fallbackOrder = Number.MAX_SAFE_INTEGER - 1
+): number {
+  const endedAt = source?.timing?.ended_at
+  if (endedAt) {
+    const timestamp = Date.parse(endedAt)
+    if (!Number.isNaN(timestamp)) return timestamp
+  }
+
+  return fallbackOrder
+}
+
+export function compareByParseReadiness(
+  left: { isReady: boolean; readyAt: number; tieBreaker: number },
+  right: { isReady: boolean; readyAt: number; tieBreaker: number }
+): number {
+  if (left.isReady !== right.isReady) {
+    return left.isReady ? -1 : 1
+  }
+
+  if (left.isReady && right.isReady && left.readyAt !== right.readyAt) {
+    return left.readyAt - right.readyAt
+  }
+
+  return left.tieBreaker - right.tieBreaker
 }
 
 export type WordRange = {

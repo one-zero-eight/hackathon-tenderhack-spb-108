@@ -47,6 +47,18 @@ export function getMarketplaceTheme(sourceType: SourceType) {
           'border-slate-300 bg-white/90 text-slate-800 hover:bg-white focus:ring-slate-900/10',
         countClassName: 'border-slate-200 bg-white/70 text-slate-700'
       }
+    case SourceType.runet:
+      const runetGradient = 'linear-gradient(135deg, rgb(34 197 94 / 80%), rgb(14 165 233 / 80%))'
+      return {
+        summaryGradient: runetGradient,
+        summaryStyle: { backgroundImage: runetGradient },
+        titleClassName: 'text-slate-950',
+        metaClassName: 'text-slate-900',
+        queryClassName: 'text-slate-700',
+        buttonClassName:
+          'border-slate-300 bg-white/90 text-slate-800 hover:bg-white focus:ring-slate-900/10',
+        countClassName: 'border-slate-200 bg-white/70 text-slate-700'
+      }
     default:
       return {
         summaryGradient: null,
@@ -78,10 +90,12 @@ function SeeMoreMarketplaceCard({ href }: { href: string }) {
 
 export function ProductSourceDetails({
   group,
-  queryResultLabel
+  queryResultLabel,
+  isParsing = group.isParsing
 }: {
   group: MarketplaceGroup
   queryResultLabel?: string | null
+  isParsing?: boolean
 }) {
   const [page, setPage] = useState(0)
   const pageCount = Math.ceil(group.products.length / PRODUCTS_PER_PAGE)
@@ -103,6 +117,10 @@ export function ProductSourceDetails({
     },
     null as number | null
   )
+
+  if (!isParsing && group.products.length === 0) {
+    return null
+  }
 
   return (
     <details
@@ -133,6 +151,11 @@ export function ProductSourceDetails({
                   {queryResultLabel}
                 </span>
               ) : null}
+              {isParsing ? (
+                <span className={cn('text-xs font-medium', theme.queryClassName)}>
+                  Парсим страницу...
+                </span>
+              ) : null}
             </span>
           </span>
         </span>
@@ -161,7 +184,24 @@ export function ProductSourceDetails({
       </summary>
 
       <div className="border-t border-slate-200 p-4">
-        {group.products.length > 0 ? (
+        {isParsing ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div
+                aria-hidden="true"
+                className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                key={index}
+              >
+                <div className="h-44 animate-pulse bg-slate-200" />
+                <div className="flex flex-col gap-3 p-4">
+                  <div className="h-5 w-4/5 animate-pulse rounded-md bg-slate-200" />
+                  <div className="h-4 w-1/3 animate-pulse rounded-md bg-slate-200" />
+                  <div className="h-4 w-1/2 animate-pulse rounded-md bg-slate-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
           <div className="flex flex-col gap-4">
             <div className="relative">
               <div className="grid min-h-[500px] gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -205,10 +245,6 @@ export function ProductSourceDetails({
               )}
             </div>
           </div>
-        ) : (
-          <p className="rounded-md bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-            Ничего не найдено по текущему запросу.
-          </p>
         )}
       </div>
     </details>

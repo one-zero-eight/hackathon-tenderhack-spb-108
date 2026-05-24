@@ -2,7 +2,8 @@
 
 import asyncio
 import os
-from typing import Any
+from typing import Protocol
+from urllib.parse import urlparse
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -10,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from src.config import settings
 from src.logging_ import logger
 from src.modules.search.parse_from_url import parse_url
-from src.modules.search.schemas import SearchParams, SearchResults, SearchSource
+from src.modules.search.schemas import SearchParams, SearchResults, SearchSource, SourceType
 from src.modules.search.timing import TimingRecorder
 
 
@@ -28,6 +29,12 @@ class WhoogleSearchRedirect(WhoogleAdapterError):
     def __init__(self, redirect_url: str) -> None:
         self.redirect_url = redirect_url
         super().__init__(redirect_url)
+
+
+class RunetProgress(Protocol):
+    async def on_discovered(self, sources: list[SearchSource]) -> None: ...
+
+    async def on_parsed(self, source: SearchSource) -> None: ...
 
 
 class WhoogleAdapterSettings(BaseModel):
@@ -90,7 +97,7 @@ class WhoogleSearchAdapter:
     def __enter__(self) -> "WhoogleSearchAdapter":
         return self
 
-    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+    def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
 
     def close(self) -> None:
@@ -195,11 +202,24 @@ def search_top_urls(query: str, limit: int = 5) -> list[str]:
     return list(title_map.values())
 
 
+def placeholder_from_url(url: str) -> SearchSource:
+    host = urlparse(url).netloc or url
+    return SearchSource(
+        source_type=SourceType.runet,
+        source_url=url,
+        source_title=host,
+        source_favicon_url=f"https://www.google.com/s2/favicons?domain={host}&sz=64",
+        results=[],
+        is_parsing=True,
+    )
+
+
 async def run_runet_parser(
     query: str,
     *,
     limit: int = 5,
     region: str | None = None,
+    progress: RunetProgress | None = None,
 ) -> tuple[list[SearchSource], None]:
     recorder = TimingRecorder.start()
 
@@ -216,15 +236,33 @@ async def run_runet_parser(
     if not urls:
         return [], None
 
-    async with recorder.stage("parse_sources"):
-        parse_results = await asyncio.gather(*(parse_url(url) for url in urls))
+    discovered = [placeholder_from_url(url) for url in urls]
+    if progress is not None:
+        await progress.on_discovered(discovered)
 
-    sources = [source for result in parse_results for source in result.sources if source.results]
-    source_timing = recorder.to_source_timing()
-    for source in sources:
+    async def parse_one(url: str) -> SearchSource:
+        try:
+            result = await parse_url(url)
+            source = result.sources[0] if result.sources else placeholder_from_url(url)
+        except Exception:
+            logger.error("Failed to parse runet URL %s", url, exc_info=True)
+            source = placeholder_from_url(url)
+        source = source.model_copy(update={"is_parsing": False, "source_type": SourceType.runet})
+        source_timing = recorder.to_source_timing()
         source.timing = source_timing
-    logger.info("Parsed %d runet sources (%d products total)", len(sources), sum(len(s.results) for s in sources))
-    return sources, None
+        if progress is not None:
+            await progress.on_parsed(source)
+        return source
+
+    async with recorder.stage("parse_sources"):
+        sources = await asyncio.gather(*(parse_one(url) for url in urls))
+
+    logger.info(
+        "Parsed %d runet sources (%d products total)",
+        len(sources),
+        sum(len(source.results) for source in sources),
+    )
+    return list(sources), None
 
 
 async def run_search(query: str, *, limit: int = 5) -> SearchResults:

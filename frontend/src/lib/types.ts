@@ -6,6 +6,7 @@ export type MarketplaceGroup = {
   logoUrl: string
   sourceUrl: string
   products: SchemaSearchResult[]
+  isParsing: boolean
 }
 
 export type TypofixSuggestion = {

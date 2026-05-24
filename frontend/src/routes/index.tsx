@@ -1,24 +1,63 @@
-import { $api } from '@/api'
-import { SourceType } from '@/api/openapi.gen'
+import { SourceType, SourceStatus } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductSourceDetails, getMarketplaceTheme } from '@/components/ProductSourceDetails'
-import { ProductSourceSkeletonList } from '@/components/ProductSourceSkeleton'
+import { ProductSourceSkeleton } from '@/components/ProductSourceSkeleton'
 import { RegionDropdown } from '@/components/RegionDropdown'
 import { SpellcheckSearchInput } from '@/components/SpellcheckSearchInput'
 import { TypofixNotice } from '@/components/TypofixNotice'
 import { Button } from '@/components/ui/button'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
-import type { SearchResultProduct, SearchResultsWithTypofix, SortMode } from '@/lib/types'
-import { parsePrice, sourceTypesForRunetSearch } from '@/lib/utils'
+import type { SearchResultProduct, SortMode } from '@/lib/types'
+import { useSearchJob } from '@/lib/useSearchJob'
+import { parsePrice, plannedSourceTypes, sourceTypesForRunetSearch, compareByParseReadiness, getSearchSourceReadyAt } from '@/lib/utils'
 import { createFileRoute } from '@tanstack/react-router'
 import { Info, LoaderCircle, Search } from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
-export const Route = createFileRoute('/')({ component: Home })
+type HomeSearch = {
+  jobId?: number
+}
+
+function parseJobId(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined
+  const jobId = Number(value)
+  if (!Number.isInteger(jobId) || jobId <= 0) return undefined
+  return jobId
+}
+
+function regionNameByCapital(capital: string | null | undefined): RegionName {
+  if (!capital) return ALL_REGIONS
+  const match = Object.entries(regionCapitalByName).find(([, name]) => name === capital)
+  return (match?.[0] as RegionName | undefined) ?? ALL_REGIONS
+}
+
+export const Route = createFileRoute('/')({
+  validateSearch: (search: Record<string, unknown>): HomeSearch => {
+    const jobId = parseJobId(search.jobId)
+    return jobId === undefined ? {} : { jobId }
+  },
+  component: Home
+})
 
 function Home() {
+  const { jobId } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const setJobId = (nextJobId: number | undefined) => {
+    void navigate({
+      search: (prev) => {
+        if (nextJobId === undefined) {
+          const { jobId: _jobId, ...rest } = prev
+          return rest
+        }
+        return { ...prev, jobId: nextJobId }
+      },
+      replace: true
+    })
+  }
+
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const hydratedJobIdRef = useRef<number | undefined>(undefined)
   const [query, setQuery] = useState('')
   const [searchParams, setSearchParams] = useState<{
     query: string
@@ -30,16 +69,10 @@ function Home() {
   const [sortMode, setSortMode] = useState<SortMode>('sources')
   const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS)
   const [extendedRunetSearch, setExtendedRunetSearch] = useState(false)
-  const {
-    mutate,
-    data: searchResults,
-    error,
-    isPending
-  } = $api.useMutation('post', '/search/search')
-  const apiSourceGroups = searchResults?.sources.map(mapSearchSourceToGroup)
+  const { jobInfo, startSearch, isSearching, error } = useSearchJob({ jobId, setJobId })
+  const apiSourceGroups = jobInfo?.sources.map(mapSearchSourceToGroup)
   const visibleGroups = apiSourceGroups ?? []
-  const typofixSuggestions =
-    (searchResults as SearchResultsWithTypofix | undefined)?.typofix_suggestions ?? []
+  const typofixSuggestions = jobInfo?.typofix_suggestions ?? []
   const typofixSuggestionBySource = new Map(
     typofixSuggestions.map(({ source, suggestion }) => [source, suggestion] as const)
   )
@@ -48,7 +81,7 @@ function Home() {
     typofixSuggestions[0]?.suggestion ??
     null
   const originalQuery =
-    searchResults?.original_params.query ?? searchParams?.query ?? query.trim() ?? ''
+    jobInfo?.original_params.query ?? searchParams?.query ?? query.trim() ?? ''
   const executedSearchQuery = correctedQuery ?? originalQuery
   const hasTypofixSuggestions =
     Boolean(correctedQuery) && correctedQuery !== originalQuery
@@ -58,8 +91,95 @@ function Home() {
     return `Результат запроса по «${sourceQuery}»`
   }
 
-  const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
-  const allProducts: SearchResultProduct[] = visibleGroups.flatMap((group) =>
+  const plannedSources = plannedSourceTypes(
+    searchParams?.source_types ?? jobInfo?.original_params.source_types
+  )
+  const marketplaceSourceTypes = plannedSources.filter(
+    (sourceType) => sourceType !== SourceType.runet
+  )
+  const runetGroups = visibleGroups.filter((group) => group.sourceType === SourceType.runet)
+  const sortedMarketplaceSourceTypes = [...marketplaceSourceTypes].sort((leftType, rightType) => {
+    const leftPlanIndex = plannedSources.indexOf(leftType)
+    const rightPlanIndex = plannedSources.indexOf(rightType)
+    const leftStatus =
+      leftPlanIndex === -1 ? undefined : jobInfo?.sources_statuses[leftPlanIndex]
+    const rightStatus =
+      rightPlanIndex === -1 ? undefined : jobInfo?.sources_statuses[rightPlanIndex]
+    const leftGroups = visibleGroups.filter((group) => group.sourceType === leftType)
+    const rightGroups = visibleGroups.filter((group) => group.sourceType === rightType)
+    const leftPending =
+      isSearching &&
+      (leftStatus === undefined || leftStatus === SourceStatus.PENDING) &&
+      leftGroups.length === 0
+    const rightPending =
+      isSearching &&
+      (rightStatus === undefined || rightStatus === SourceStatus.PENDING) &&
+      rightGroups.length === 0
+    const leftSource = jobInfo?.sources.find((source) => source.source_type === leftType)
+    const rightSource = jobInfo?.sources.find((source) => source.source_type === rightType)
+    const leftSourceOrder =
+      jobInfo?.sources.findIndex((source) => source.source_type === leftType) ?? -1
+    const rightSourceOrder =
+      jobInfo?.sources.findIndex((source) => source.source_type === rightType) ?? -1
+
+    return compareByParseReadiness(
+      {
+        isReady: !leftPending,
+        readyAt: getSearchSourceReadyAt(
+          leftSource,
+          leftSourceOrder >= 0 ? leftSourceOrder : Number.MAX_SAFE_INTEGER - 1
+        ),
+        tieBreaker: leftPlanIndex >= 0 ? leftPlanIndex : 0
+      },
+      {
+        isReady: !rightPending,
+        readyAt: getSearchSourceReadyAt(
+          rightSource,
+          rightSourceOrder >= 0 ? rightSourceOrder : Number.MAX_SAFE_INTEGER - 1
+        ),
+        tieBreaker: rightPlanIndex >= 0 ? rightPlanIndex : 0
+      }
+    )
+  })
+  const visibleRunetGroups = runetGroups
+    .filter((group) => group.isParsing || group.products.length > 0)
+    .sort((left, right) => {
+      const leftSource = jobInfo?.sources.find((source) => source.source_url === left.sourceUrl)
+      const rightSource = jobInfo?.sources.find((source) => source.source_url === right.sourceUrl)
+      const leftSourceOrder =
+        jobInfo?.sources.findIndex((source) => source.source_url === left.sourceUrl) ?? -1
+      const rightSourceOrder =
+        jobInfo?.sources.findIndex((source) => source.source_url === right.sourceUrl) ?? -1
+
+      return compareByParseReadiness(
+        {
+          isReady: !left.isParsing,
+          readyAt: getSearchSourceReadyAt(
+            leftSource,
+            leftSourceOrder >= 0 ? leftSourceOrder : Number.MAX_SAFE_INTEGER - 1
+          ),
+          tieBreaker: leftSourceOrder >= 0 ? leftSourceOrder : 0
+        },
+        {
+          isReady: !right.isParsing,
+          readyAt: getSearchSourceReadyAt(
+            rightSource,
+            rightSourceOrder >= 0 ? rightSourceOrder : Number.MAX_SAFE_INTEGER - 1
+          ),
+          tieBreaker: rightSourceOrder >= 0 ? rightSourceOrder : 0
+        }
+      )
+    })
+  const runetPlanIndex = plannedSources.indexOf(SourceType.runet)
+  const isRunetSearchPlanned = runetPlanIndex !== -1
+  const isRunetSourcePending =
+    isRunetSearchPlanned &&
+    isSearching &&
+    jobInfo?.sources_statuses[runetPlanIndex] === SourceStatus.PENDING
+  const readyGroups = visibleGroups.filter((group) => !group.isParsing)
+
+  const totalProducts = readyGroups.reduce((sum, group) => sum + group.products.length, 0)
+  const allProducts: SearchResultProduct[] = readyGroups.flatMap((group) =>
     group.products.map((product) => ({
       product,
       sourceType: group.sourceType,
@@ -85,13 +205,34 @@ function Home() {
             : right.parsedPrice - left.parsedPrice
         })
 
-  const allPrices = visibleGroups.flatMap((group) =>
+  const allPrices = readyGroups.flatMap((group) =>
     group.products.map((p) => parsePrice(p.price)).filter((p): p is number => p !== null)
   )
   const averagePrice =
     allPrices.length > 0 ? allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length : null
 
-  const showSkeleton = isPending && Boolean(searchParams)
+  useEffect(() => {
+    if (jobId === undefined) {
+      hydratedJobIdRef.current = undefined
+    }
+  }, [jobId])
+
+  useEffect(() => {
+    if (!jobInfo || jobInfo.job_id === hydratedJobIdRef.current) return
+
+    hydratedJobIdRef.current = jobInfo.job_id
+    const params = jobInfo.original_params
+    setQuery(params.query)
+    setSelectedRegion(regionNameByCapital(params.region))
+    setExtendedRunetSearch(params.source_types === null)
+    setSearchParams({
+      query: params.query,
+      region: params.region ?? null,
+      source_types: params.source_types ?? null,
+      short: params.short,
+      spellcheck: params.spellcheck
+    })
+  }, [jobInfo])
 
   const runSearch = (
     nextQuery: string,
@@ -108,14 +249,12 @@ function Home() {
       short: false,
       spellcheck
     })
-    mutate({
-      body: {
-        query: nextQuery,
-        region,
-        source_types,
-        short: false,
-        spellcheck
-      }
+    startSearch({
+      query: nextQuery,
+      region,
+      source_types,
+      short: false,
+      spellcheck
     })
   }
 
@@ -154,7 +293,7 @@ function Home() {
               Строка поиска
             </label>
             <SpellcheckSearchInput
-              disabled={isPending}
+              disabled={isSearching}
               id="search-query"
               inputRef={searchInputRef}
               onCaretChange={() => {}}
@@ -162,7 +301,7 @@ function Home() {
               placeholder="Введите товар или характеристику"
               value={query}
             />
-            {hasTypofixSuggestions && correctedQuery && !isPending ? (
+            {hasTypofixSuggestions && correctedQuery && !isSearching ? (
               <TypofixNotice
                 correctedQuery={correctedQuery}
                 onRevert={handleRevertTypofix}
@@ -175,13 +314,13 @@ function Home() {
 
           <div className="flex flex-col gap-2">
             <span className="invisible text-sm font-medium">Search</span>
-            <Button className="h-11 w-full gap-2 px-4 text-sm" disabled={isPending} type="submit">
-              {isPending ? (
+            <Button className="h-11 w-full gap-2 px-4 text-sm" disabled={isSearching} type="submit">
+              {isSearching ? (
                 <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
               ) : (
                 <Search aria-hidden="true" className="size-4" />
               )}
-              {isPending ? 'Ищем...' : 'Найти'}
+              {isSearching ? 'Ищем...' : 'Найти'}
             </Button>
             <label className="mt-1 flex cursor-pointer items-center justify-between gap-3">
               <span className="text-sm font-medium text-slate-700">
@@ -208,7 +347,7 @@ function Home() {
         </form>
 
         <section
-          aria-busy={isPending}
+          aria-busy={isSearching}
           aria-label="Источники товаров"
           className="flex flex-col gap-4"
         >
@@ -218,7 +357,7 @@ function Home() {
               <p className="text-sm text-slate-600">Регион: {selectedRegion}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
-              {averagePrice !== null && !isPending && (
+              {averagePrice !== null && !isSearching && (
                 <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                   <span>Средняя цена: {Math.round(averagePrice).toLocaleString('ru-RU')} ₽</span>
                   <div className="group relative flex items-center">
@@ -231,12 +370,12 @@ function Home() {
                 </div>
               )}
               <p className="text-sm text-slate-500">
-                {isPending ? 'Идёт поиск...' : `Найдено товаров: ${totalProducts}`}
+                {isSearching ? 'Идёт поиск...' : `Найдено товаров: ${totalProducts}`}
               </p>
             </div>
           </div>
 
-          {!showSkeleton && totalProducts > 0 ? (
+          {totalProducts > 0 ? (
             <div className="flex flex-wrap gap-2">
               <Button
                 className="px-4"
@@ -271,19 +410,57 @@ function Home() {
             </p>
           ) : null}
 
-          {showSkeleton ? <ProductSourceSkeletonList /> : null}
+          {sortMode === 'sources' && (searchParams || jobId !== undefined) ? (
+            <>
+              {sortedMarketplaceSourceTypes.flatMap((sourceType) => {
+                const planIndex = plannedSources.indexOf(sourceType)
+                const sourceStatus =
+                  planIndex === -1 ? undefined : jobInfo?.sources_statuses[planIndex]
+                const groups = visibleGroups.filter((group) => group.sourceType === sourceType)
+                const isMarketplacePending =
+                  isSearching &&
+                  (sourceStatus === undefined || sourceStatus === SourceStatus.PENDING) &&
+                  groups.length === 0
 
-          {!showSkeleton && sortMode === 'sources'
-            ? visibleGroups.map((group) => (
-                <ProductSourceDetails
-                  group={group}
-                  key={group.title}
-                  queryResultLabel={getSourceQueryLabel(group.sourceType)}
-                />
-              ))
-            : null}
+                if (isMarketplacePending) {
+                  return [<ProductSourceSkeleton key={sourceType} />]
+                }
 
-          {!showSkeleton && sortMode !== 'sources' ? (
+                if (groups.length === 0) return []
+
+                return groups
+                  .filter((group) => group.isParsing || group.products.length > 0)
+                  .map((group) => (
+                  <ProductSourceDetails
+                    group={group}
+                    key={`${group.sourceType}-${group.title}`}
+                    queryResultLabel={getSourceQueryLabel(group.sourceType)}
+                  />
+                ))
+              })}
+
+              {isRunetSourcePending || visibleRunetGroups.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-semibold text-slate-950">Рунет</h3>
+                  {visibleRunetGroups.length === 0 && isRunetSourcePending ? (
+                    <ProductSourceSkeleton />
+                  ) : null}
+                  {visibleRunetGroups.map((group) => (
+                    <ProductSourceDetails
+                      group={group}
+                      isParsing={group.isParsing}
+                      key={`runet-${group.sourceUrl}`}
+                      queryResultLabel={
+                        group.isParsing ? null : getSourceQueryLabel(SourceType.runet)
+                      }
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
+          {sortMode !== 'sources' ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {sortedProducts.map((item, index) => (
                 <div

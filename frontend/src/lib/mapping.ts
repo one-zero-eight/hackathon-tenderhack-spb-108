@@ -10,6 +10,7 @@ export function mapSearchSourceToGroup(source: SchemaSearchSource): MarketplaceG
       source.source_favicon_url ??
       `https://www.google.com/s2/favicons?domain=${source.source_url}&sz=64`,
     sourceUrl: source.source_url,
-    products: sortProductsByRelevance(source.results)
+    products: sortProductsByRelevance(source.results),
+    isParsing: source.is_parsing ?? false
   }
 }
