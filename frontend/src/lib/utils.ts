@@ -15,15 +15,18 @@ export function parsePrice(priceStr: string | null | undefined): number | null {
 }
 
 export function sortProductsByRelevance(products: SchemaSearchResult[]): SchemaSearchResult[] {
-  return [...products].sort((left, right) => {
-    if (left.relevant !== right.relevant) {
-      return left.relevant ? -1 : 1
-    }
+  const relevant: SchemaSearchResult[] = []
+  const irrelevant: SchemaSearchResult[] = []
 
-    const leftScore = left.rerank_score ?? Number.NEGATIVE_INFINITY
-    const rightScore = right.rerank_score ?? Number.NEGATIVE_INFINITY
-    return rightScore - leftScore
-  })
+  for (const product of products) {
+    if (product.relevant === false) {
+      irrelevant.push(product)
+    } else {
+      relevant.push(product)
+    }
+  }
+
+  return [...relevant, ...irrelevant]
 }
 
 export const MARKETPLACE_SOURCE_TYPES = [

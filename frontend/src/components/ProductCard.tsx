@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { Info, SquareArrowOutUpRight } from 'lucide-react'
 
 const CHARACTERISTICS_PREVIEW_LIMIT = 5
-const RELEVANCE_RELATIVE_MARGIN = 2
+const RELEVANCE_THRESHOLD = 0.5
 
 function formatRerankScore(score: number | null | undefined): string {
   if (score === null || score === undefined) return 'неизвестна'
@@ -29,13 +29,12 @@ function IrrelevanceInfoBadge({ score }: { score: number | null | undefined }) {
         <p className="mt-1 text-white/90">
           После получения результатов с маркетплейса мы прогоняем их через модель реранжирования{' '}
           <span className="whitespace-nowrap">BAAI/bge-reranker-v2-m3</span>. Она сравнивает ваш
-          запрос в форме «купить …» с названием и характеристиками каждого товара и выставляет
+          запрос в форме «купить …» с названием каждого товара и выставляет
           оценку релевантности.
         </p>
         <p className="mt-2 text-white/90">
-          Товар считается релевантным, если его оценка не ниже лучшего результата этого источника
-          более чем на {RELEVANCE_RELATIVE_MARGIN.toString().replace('.', ',')} пункта. Оценка
-          этого товара:{' '}
+          Товар считается релевантным, если его оценка не ниже{' '}
+          {RELEVANCE_THRESHOLD.toString().replace('.', ',')}. Оценка этого товара:{' '}
           <span className="font-medium text-white">{formatRerankScore(score)}</span>.
         </p>
       </div>

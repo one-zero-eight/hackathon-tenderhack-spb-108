@@ -113,9 +113,15 @@ _OZON_DOM_TILES_JS = f"""() => {{
         }}
       }}
       let image = '';
-      for (const img of tile.querySelectorAll('img[src]')) {{
-        const src = img.getAttribute('src') || '';
-        if (src.includes('multimedia') || src.includes('cdn1.ozon')) {{
+      for (const img of tile.querySelectorAll('img')) {{
+        let src = img.getAttribute('data-src') || img.getAttribute('src') || '';
+        if (!src || src.startsWith('data:')) continue;
+        if (src.startsWith('//')) src = 'https:' + src;
+        if (
+          src.includes('multimedia')
+          || src.includes('ir.ozone.ru')
+          || src.includes('cdn1.ozon')
+        ) {{
           image = src;
           break;
         }}
@@ -194,6 +200,22 @@ def _products_from_dom_tiles(raw: object) -> list[SearchResult]:
     return products
 
 
+def _merge_ozon_product(dst: SearchResult, src: SearchResult) -> None:
+    if not dst.price and src.price:
+        dst.price = src.price
+    if not dst.rating and src.rating:
+        dst.rating = src.rating
+    if not dst.reviews and src.reviews:
+        dst.reviews = src.reviews
+    if not dst.image_link and src.image_link:
+        dst.image_link = src.image_link
+        dst.image_links = list(src.image_links)
+    elif src.image_links and not dst.image_links:
+        dst.image_links = list(src.image_links)
+    if not dst.name.strip() and src.name.strip():
+        dst.name = src.name
+
+
 def _merge_ozon_product_lists(
     primary: list[SearchResult],
     extra: list[SearchResult],
@@ -205,8 +227,10 @@ def _merge_ozon_product_lists(
         key = _ozon_product_key(product.product_link)
         if not key:
             continue
-        if key not in merged or (not merged[key].price and product.price):
+        if key not in merged:
             merged[key] = product
+        else:
+            _merge_ozon_product(merged[key], product)
     items = list(merged.values())
     return items[:limit] if limit and limit > 0 else items
 

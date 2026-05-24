@@ -4,7 +4,7 @@ import asyncio
 import html as html_module
 import json
 import re
-from urllib.parse import quote_plus
+from urllib.parse import parse_qs, quote_plus, urlparse
 
 from src.logging_ import logger
 from src.modules.search.schemas import SearchSource
@@ -339,7 +339,38 @@ _SNIPPET_SPEC_SKIP_PREFIXES = (
     "в корзину",
     "послезавтра",
     "купили",
+    "смартфон",
+    "ноутбук",
 )
+_SNIPPET_SPEC_JUNK_RE = re.compile(
+    r"[{}[\]]|window\.|apiary|mount_cpm|showUrl|targetId|ShowDaemon",
+    re.IGNORECASE,
+)
+_SNIPPET_SPEC_JUNK_NAME_RE = re.compile(r"^[a-z_]+$")
+_YANDEX_SNIPPET_SPECS_JS = """(root) => {
+  const out = [];
+  const seen = new Set();
+  const skipName = /^(рейтинг|оценок|купили|пвз|пэй|по клику|в корзину|послезавтра|смартфон|ноутбук|iphone)/i;
+  const isBad = (s) => /[{}[\\]]|window\\.|apiary|mount_cpm|showUrl|targetId|ShowDaemon/i.test(s);
+  for (const el of root.querySelectorAll("*")) {
+    if (el.closest("script,noframes,noscript,style")) continue;
+    if (el.childElementCount === 0 || el.childElementCount > 4) continue;
+    const text = (el.innerText || "").replace(/\\s+/g, " ").trim();
+    if (!text.includes(":") || text.length > 80 || text.length < 4) continue;
+    const match = text.match(/^(.{2,50}?):\\s*(.+)$/);
+    if (!match) continue;
+    const name = match[1].trim();
+    const value = match[2].trim();
+    if (!name || !value || skipName.test(name)) continue;
+    if (isBad(name) || isBad(value)) continue;
+    if (name.includes("₽") || value.includes("₽")) continue;
+    const key = name + "\\0" + value;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push([name, value]);
+  }
+  return out;
+}"""
 _PRICE_SELECTORS = (
     '[data-auto="snippet-price-current"]',
     '[data-auto="snippet-price"]',
@@ -592,6 +623,15 @@ async def _read_snippet_title(snippet) -> str | None:
     return None
 
 
+def _is_junk_snippet_spec(name: str, value: str) -> bool:
+    if _SNIPPET_SPEC_JUNK_RE.search(name) or _SNIPPET_SPEC_JUNK_RE.search(value):
+        return True
+    if _SNIPPET_SPEC_JUNK_NAME_RE.match(name):
+        return True
+    lowered = name.casefold()
+    return any(lowered.startswith(prefix) for prefix in _SNIPPET_SPEC_SKIP_PREFIXES)
+
+
 def _parse_snippet_spec_lines(text: str) -> dict[str, str]:
     specs: dict[str, str] = {}
     for line in text.splitlines():
@@ -604,14 +644,30 @@ def _parse_snippet_spec_lines(text: str) -> dict[str, str]:
         name, _, value = normalized.partition(":")
         name = name.strip()
         value = value.strip()
-        if name and value:
-            append_characteristic(specs, name, value)
+        if not name or not value or _is_junk_snippet_spec(name, value):
+            continue
+        append_characteristic(specs, name, value)
+    return specs
+
+
+def _parse_snippet_spec_pairs(pairs: list) -> dict[str, str]:
+    specs: dict[str, str] = {}
+    if not isinstance(pairs, list):
+        return specs
+    for item in pairs:
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            continue
+        name = normalize_display_text(html_module.unescape(str(item[0]).strip()))
+        value = normalize_display_text(html_module.unescape(str(item[1]).strip()))
+        if not name or not value or _is_junk_snippet_spec(name, value):
+            continue
+        append_characteristic(specs, name, value)
     return specs
 
 
 async def _read_snippet_characteristics(snippet) -> dict[str, str]:
-    text = await snippet.inner_text()
-    return _parse_snippet_spec_lines(text)
+    evaluated = await snippet.evaluate(_YANDEX_SNIPPET_SPECS_JS)
+    return _parse_snippet_spec_pairs(evaluated)
 
 
 async def _read_snippet_price(snippet) -> str | None:
@@ -659,8 +715,25 @@ async def _scroll_yandex_search_results(page) -> int:
     return count if isinstance(count, int) else await _organic_snippet_count(page)
 
 
-def _is_sponsored_product_link(product_link: str) -> bool:
-    return "sponsored=1" in product_link
+def _yandex_product_link_from(product_link: str) -> str | None:
+    values = parse_qs(urlparse(product_link).query).get("from")
+    if not values:
+        return None
+    return values[0]
+
+
+def _should_skip_yandex_product_link(product_link: str) -> bool:
+    from_param = _yandex_product_link_from(product_link)
+    if from_param == "search":
+        return False
+    if from_param == "premiumOffers":
+        return True
+    logger.warning(
+        "Yandex Market product link has unexpected from=%r: %s",
+        from_param,
+        product_link,
+    )
+    return False
 
 
 async def _iter_organic_snippet_locators(page):
@@ -697,7 +770,7 @@ async def collect_products_from_page(page) -> list[SearchResult]:
             if not href:
                 continue
             product_link = normalize_product_url(href, _YANDEX_BASE_URL)
-            if _is_sponsored_product_link(product_link):
+            if _should_skip_yandex_product_link(product_link):
                 continue
             key = _yandex_product_key(product_link)
             if not key:

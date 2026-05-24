@@ -47,6 +47,16 @@ class TestYandexMarket:
         assert specs["Диагональ экрана"] == '16"'
         assert specs["Процессор"] == "AMD Ryzen 7 8845H"
         assert "Рейтинг" not in "".join(specs)
+        assert "detail" not in specs
+
+    def test_parse_snippet_spec_lines_rejects_script_junk(self):
+        from src.modules.search.yandex_market import _parse_snippet_spec_lines
+
+        text = (
+            'detail: data\n})({"event":"mount_cpm_node_event","data":{"showUrl":["/abc:2"]}}\nДиагональ экрана: 6.1"\n'
+        )
+        specs = _parse_snippet_spec_lines(text)
+        assert specs == {"Диагональ экрана": '6.1"'}
 
     def test_dedupe_merges_nested_snippets_by_card_id(self):
         link = "https://market.yandex.ru/card/foo/5225693002"
@@ -68,6 +78,12 @@ class TestYandexMarket:
         assert len(merged) == 1
         assert "Lenovo" in merged[0].name
         assert merged[0].price == "80737"
+
+    def test_yandex_link_from_filter(self):
+        from src.modules.search.yandex_market import _should_skip_yandex_product_link
+
+        assert not _should_skip_yandex_product_link("https://market.yandex.ru/card/foo/1?from=search")
+        assert _should_skip_yandex_product_link("https://market.yandex.ru/card/foo/2?from=premiumOffers")
 
     def test_product_card_specs(self):
         specs = parse_yandex_detail_html(example_html("16_*ин.html"))
@@ -116,13 +132,15 @@ class TestYandexMarket:
         if not html_path.is_file():
             pytest.skip("step_05.html capture missing")
         products = parse_yandex_html(html_path.read_text())
-        assert 8 <= len(products) <= 24
-        for product in products[:5]:
-            assert product.image_link and "get-mpic" in product.image_link
+        assert len(products) == 24
+        with_images = [product for product in products if product.image_link]
+        assert len(with_images) >= 5
+        for product in with_images[:5]:
+            assert "get-mpic" in product.image_link
             assert product.image_link.endswith("/orig")
             assert product.image_link not in product.image_links
             assert "get-marketcms" not in product.image_link
-        assert products[3].image_link != products[0].image_link
+        assert with_images[3].image_link != with_images[0].image_link
 
     @pytest.mark.asyncio
     async def test_collect_organic_only_on_sponsored_fixture(self):
@@ -270,6 +288,36 @@ class TestWildberries:
             "https://basket-39.wbbasket.ru/vol9037/part903747/903747859/images/big/1.webp"
         )
 
+    def test_high_vol_nm_uses_basket_41(self):
+        from src.modules.search.wildberries import _wb_image_url_for_index
+
+        assert _wb_image_url_for_index(1030690898, 1) == (
+            "https://basket-41.wbbasket.ru/vol10306/part1030690/1030690898/images/big/1.webp"
+        )
+
+    def test_card_image_from_html_overrides_basket_table(self):
+        from src.modules.search.wildberries import _product_from_wb
+
+        item = {"id": 1030690898, "name": "iPhone", "pics": 3}
+        card_images = {
+            "1030690898": ("https://basket-41.wbbasket.ru/vol10306/part1030690/1030690898/images/c516x688/1.webp"),
+        }
+        product = _product_from_wb(item, card_images=card_images)
+        assert product is not None
+        assert product.image_link.endswith("/images/big/1.webp")
+        assert "basket-41" in product.image_link
+        assert product.image_links[0].endswith("/images/big/2.webp")
+
+    def test_scrape_card_images_from_search_html(self):
+        from src.modules.search.wildberries import scrape_wb_card_images_from_html
+
+        html = example_html(
+            "ОПЕЧАТКА Интернет‑магазин Wildberries_ широкий ассортимент товаров - скидки каждый день!.html"
+        )
+        images = scrape_wb_card_images_from_html(html)
+        assert images["178801948"].startswith("https://basket-12.wbbasket.ru/")
+        assert "/images/c516x688/1.webp" in images["178801948"]
+
     def test_search_url_respects_spellcheck_flag(self):
         from src.modules.search.wildberries import _build_search_url
 
@@ -380,6 +428,26 @@ class TestOzon:
         assert next_path
         assert next_path.startswith("/")
         assert "page=2" in next_path
+
+    def test_merge_ozon_product_fills_missing_image_from_dom(self):
+        from src.modules.search.ozon import _merge_ozon_product_lists
+        from src.modules.search.schemas import SearchResult
+
+        api_product = SearchResult(
+            name="Apple iPhone 15",
+            product_link="https://www.ozon.ru/product/apple-iphone-15-123/",
+            price="50000",
+        )
+        dom_product = SearchResult(
+            name="Apple iPhone 15",
+            product_link="https://www.ozon.ru/product/apple-iphone-15-123/",
+            image_link="https://ir.ozone.ru/s3/multimedia-1-a/123.jpg",
+            image_links=["https://ir.ozone.ru/s3/multimedia-1-b/124.jpg"],
+        )
+        merged = _merge_ozon_product_lists([api_product], [dom_product])
+        assert len(merged) == 1
+        assert merged[0].image_link == dom_product.image_link
+        assert merged[0].image_links == dom_product.image_links
 
     def test_search_api_response(self):
         html = example_html("ozon_search_api.html")

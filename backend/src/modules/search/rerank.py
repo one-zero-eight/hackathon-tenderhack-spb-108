@@ -7,7 +7,7 @@ from src.logging_ import logger
 from src.modules.search.schemas import SearchResult, SearchSource
 
 RERANKER_MODEL_ID = "BAAI/bge-reranker-v2-m3"
-RELEVANCE_RELATIVE_MARGIN = 2.0
+RELEVANCE_THRESHOLD = 0.5
 RERANK_QUERY_PREFIX = "купить "
 
 
@@ -42,14 +42,7 @@ async def close_rerank_client() -> None:
 
 
 def product_to_doc(result: SearchResult) -> str:
-    parts = [result.name]
-    if result.characteristics:
-        parts.extend(f"{key}: {value}" for key, value in result.characteristics.items())
-    return ", ".join(parts)
-
-
-def relevance_threshold(scores: list[float]) -> float:
-    return max(scores) - RELEVANCE_RELATIVE_MARGIN
+    return result.name
 
 
 def apply_rerank_scores(results: list[SearchResult], scores: list[float]) -> list[SearchResult]:
@@ -61,10 +54,9 @@ def apply_rerank_scores(results: list[SearchResult], scores: list[float]) -> lis
         )
         return results
 
-    threshold = relevance_threshold(scores)
     reranked: list[SearchResult] = []
     for result, score in zip(results, scores, strict=True):
-        relevant = score >= threshold
+        relevant = score >= RELEVANCE_THRESHOLD
         reranked.append(
             result.model_copy(
                 update={

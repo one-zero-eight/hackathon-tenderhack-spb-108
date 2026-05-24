@@ -207,6 +207,26 @@ async function runSearchFetch() {
     return document.querySelector('.not-found-search__title') != null;
   }
 
+  function scrapeCardImages() {
+    const map = {};
+    for (const card of document.querySelectorAll(".product-card[data-nm-id]")) {
+      const nmId = card.getAttribute("data-nm-id");
+      const img = card.querySelector('img[data-src-pb], img[src*="wbbasket"]');
+      let url =
+        img?.getAttribute("data-src-pb")
+        || img?.getAttribute("src")
+        || img?.getAttribute("data-src")
+        || "";
+      if (url.startsWith("//")) {
+        url = "https:" + url;
+      }
+      if (nmId && url.includes("wbbasket")) {
+        map[nmId] = url;
+      }
+    }
+    return map;
+  }
+
   if (isEmptySearchPage()) {
     document.body = document.createElement("body");
     if (correctedQuery) {
@@ -252,6 +272,15 @@ async function runSearchFetch() {
       "credentials": "include"
     });
     const data = await response.text();
+    const cardImages = scrapeCardImages();
+    let payload = data;
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === "object") {
+        parsed.__cardImages = cardImages;
+        payload = JSON.stringify(parsed);
+      }
+    } catch (_) {}
     document.body = document.createElement("body");
     if (correctedQuery) {
       const typoPre = document.createElement('pre');
@@ -261,7 +290,7 @@ async function runSearchFetch() {
     }
     const g = document.createElement('pre');
     g.setAttribute("id", "__PRE_ID__");
-    g.innerText = data;
+    g.innerText = payload;
     document.body.append(g);
     return true;
   } catch (error) {
@@ -319,11 +348,8 @@ _WB_BASKET_VOL_LIMITS = (
     8309,
     8621,
     9244,
-    9245,
-    9557,
-    9869,
-    10181,
-    10493,
+    9704,
+    10506,
     10805,
     11117,
     11429,
@@ -626,11 +652,41 @@ def _wb_price_kopecks(item: dict) -> int | None:
     return min(prices) if prices else None
 
 
-def _wb_image_url_for_index(nm_id: int, index: int) -> str:
+_WB_IMAGE_SIZE_RE = re.compile(r"/images/[^/]+/")
+_WB_CARD_IMAGE_RE = re.compile(
+    r'data-nm-id="(\d+)"[\s\S]*?(?:data-src-pb|src|data-src)="(https://[^"]+wbbasket\.ru/[^"]+)"',
+    re.IGNORECASE,
+)
+
+
+def _wb_image_url_for_index(nm_id: int, index: int, *, host: str | None = None) -> str:
     vol = nm_id // 100_000
     part = nm_id // 1_000
-    host = _wb_basket_host(vol)
-    return f"https://basket-{host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/{index}.webp"
+    basket_host = host or _wb_basket_host(vol)
+    return f"https://basket-{basket_host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/images/big/{index}.webp"
+
+
+def _wb_big_image_url_from_card(card_url: str, index: int) -> str:
+    base = _WB_IMAGE_SIZE_RE.sub("/images/big/", card_url, count=1)
+    return re.sub(r"/\d+\.webp(?:\?.*)?$", f"/{index}.webp", base, flags=re.IGNORECASE)
+
+
+def _wb_card_images_from_payload(data: dict) -> dict[str, str]:
+    raw = data.get("__cardImages")
+    if not isinstance(raw, dict):
+        return {}
+    images: dict[str, str] = {}
+    for key, value in raw.items():
+        if isinstance(value, str) and value.startswith("http") and "wbbasket" in value:
+            images[str(key)] = value
+    return images
+
+
+def scrape_wb_card_images_from_html(html: str) -> dict[str, str]:
+    images: dict[str, str] = {}
+    for nm_id, url in _WB_CARD_IMAGE_RE.findall(html):
+        images[nm_id] = url
+    return images
 
 
 def _wb_image_count(product: dict) -> int:
@@ -642,12 +698,22 @@ def _wb_image_count(product: dict) -> int:
     return 1
 
 
-def _wb_product_images(product: dict) -> tuple[str | None, list[str]]:
+def _wb_product_images(
+    product: dict,
+    *,
+    card_images: dict[str, str] | None = None,
+) -> tuple[str | None, list[str]]:
     nm_id = product.get("id") or product.get("nmId")
     if not nm_id:
         return None, []
     nm_id = int(nm_id)
-    urls = [_wb_image_url_for_index(nm_id, index) for index in range(1, _wb_image_count(product) + 1)]
+    card_url = (card_images or {}).get(str(nm_id))
+    if card_url:
+        count = _wb_image_count(product)
+        urls = [_wb_big_image_url_from_card(card_url, index) for index in range(1, count + 1)]
+        return urls[0], urls[1:]
+    count = _wb_image_count(product)
+    urls = [_wb_image_url_for_index(nm_id, index) for index in range(1, count + 1)]
     if not urls:
         return None, []
     return urls[0], urls[1:]
@@ -674,9 +740,30 @@ def _wb_specs_rich_enough(specs: dict[str, str]) -> bool:
 
 
 def _load_basket_card_json(nm_id: int) -> dict[str, str]:
-    url = _wb_basket_card_json_url(nm_id)
-    with urllib.request.urlopen(url, timeout=5) as response:
-        return parse_wb_card_options(json.loads(response.read().decode()))
+    vol = nm_id // 100_000
+    part = nm_id // 1_000
+    start = int(_wb_basket_host(vol))
+    last_error: urllib.error.HTTPError | None = None
+    for host_num in range(max(1, start - 3), min(50, start + 2)):
+        host = f"{host_num:02d}"
+        url = f"https://basket-{host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/info/ru/card.json"
+        try:
+            with urllib.request.urlopen(url, timeout=5) as response:
+                return parse_wb_card_options(json.loads(response.read().decode()))
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                last_error = exc
+                continue
+            raise
+    if last_error is not None:
+        raise last_error
+    raise urllib.error.HTTPError(
+        f"basket-*://vol{vol}/part{part}/{nm_id}/info/ru/card.json",
+        404,
+        "Not Found",
+        None,
+        None,
+    )
 
 
 async def _fetch_wb_basket_card_specs(nm_id: int) -> tuple[dict[str, str], bool]:
@@ -731,13 +818,6 @@ def parse_wb_card_options(data: object) -> dict[str, str]:
     if isinstance(product, dict):
         _wb_append_product_options(specs, product)
     return specs
-
-
-def _wb_basket_card_json_url(nm_id: int) -> str:
-    vol = nm_id // 100_000
-    part = nm_id // 1_000
-    host = _wb_basket_host(vol)
-    return f"https://basket-{host}.wbbasket.ru/vol{vol}/part{part}/{nm_id}/info/ru/card.json"
 
 
 async def _extract_wb_drawer_specs(page) -> dict[str, str]:
@@ -843,7 +923,7 @@ async def _enrich_wb_characteristics(page, products: list[SearchResult]) -> None
     )
 
 
-def _product_from_wb(item: dict) -> SearchResult | None:
+def _product_from_wb(item: dict, *, card_images: dict[str, str] | None = None) -> SearchResult | None:
     nm_id = item.get("id") or item.get("nmId")
     if nm_id is None:
         return None
@@ -861,7 +941,7 @@ def _product_from_wb(item: dict) -> SearchResult | None:
     reviews = str(item["feedbacks"]) if item.get("feedbacks") is not None else None
     product_link = f"https://www.wildberries.ru/catalog/{nm_id}/detail.aspx"
 
-    image_link, image_links = _wb_product_images(item)
+    image_link, image_links = _wb_product_images(item, card_images=card_images)
     return SearchResult(
         name=str(name).strip(),
         product_link=product_link,
@@ -873,10 +953,13 @@ def _product_from_wb(item: dict) -> SearchResult | None:
     )
 
 
-def _parse_wb_payload(data: object) -> list[SearchResult]:
+def _parse_wb_payload(data: object, *, card_images: dict[str, str] | None = None) -> list[SearchResult]:
     products: list[SearchResult] = []
     if not isinstance(data, dict):
         return products
+
+    images = dict(card_images or {})
+    images.update(_wb_card_images_from_payload(data))
 
     items = data.get("products")
     if items is None and isinstance(data.get("data"), dict):
@@ -887,7 +970,7 @@ def _parse_wb_payload(data: object) -> list[SearchResult]:
 
     for item in items:
         if isinstance(item, dict):
-            append_product(products, _product_from_wb(item))
+            append_product(products, _product_from_wb(item, card_images=images))
     return products
 
 
@@ -899,6 +982,7 @@ def _wb_products_field(data: dict) -> list | None:
 
 
 def parse_html(html: str) -> list[SearchResult]:
+    dom_card_images = scrape_wb_card_images_from_html(html)
     raw = extract_pre_content(html)
     if raw:
         try:
@@ -906,7 +990,7 @@ def parse_html(html: str) -> list[SearchResult]:
         except json.JSONDecodeError:
             data = None
         if isinstance(data, dict):
-            wb_products = _parse_wb_payload(data)
+            wb_products = _parse_wb_payload(data, card_images=dom_card_images)
             if wb_products:
                 return wb_products
             if _wb_products_field(data) is not None:
