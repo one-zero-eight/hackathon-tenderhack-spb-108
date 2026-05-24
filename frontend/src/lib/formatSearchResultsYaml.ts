@@ -41,7 +41,11 @@ function formatProduct(
   indent: number
 ): string[] {
   const pad = '  '.repeat(indent)
-  const lines = [`${pad}- название: ${yamlScalar(product.name)}`, ...formatCharacteristics(product.characteristics, indent + 1)]
+  const lines = [
+    `${pad}- название: ${yamlScalar(product.name)}`,
+    `${pad}  релевантность: 0`,
+    ...formatCharacteristics(product.characteristics, indent + 1)
+  ]
 
   lines.push(`${pad}  метка_ссылки: ${yamlScalar(`Ссылка на ${linkLabel} ${index + 1}`)}`)
   if (product.product_link) {
