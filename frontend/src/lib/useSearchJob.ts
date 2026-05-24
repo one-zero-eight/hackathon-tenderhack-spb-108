@@ -96,6 +96,6 @@ export function useSearchJob({ jobId, setJobId }: UseSearchJobOptions) {
     jobInfo: jobId !== undefined && jobInfo?.job_id === jobId ? jobInfo : undefined,
     startSearch,
     isSearching,
-    error: startError ?? pollError
+    error: jobId !== undefined ? (startError ?? pollError) : undefined
   }
 }
