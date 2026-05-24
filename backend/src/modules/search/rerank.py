@@ -6,9 +6,8 @@ from src.config import settings
 from src.logging_ import logger
 from src.modules.search.schemas import SearchResult, SearchSource
 
-RERANKER_MODEL_ID = "DiTy/cross-encoder-russian-msmarco"
-RERANK_ACTIVATION_FN = "identity"
-RELEVANCE_THRESHOLD = -5.251
+RERANKER_MODEL_ID = "Qwen/Qwen3-Reranker-0.6B"
+RELEVANCE_THRESHOLD = 1.6
 RERANK_QUERY_PREFIX = "купить "
 
 
@@ -83,7 +82,6 @@ async def rerank_search_source(source: SearchSource, query: str) -> SearchSource
                 reranker_model_id=RERANKER_MODEL_ID,
                 query=rerank_query,
                 docs=docs,
-                activation_fn=RERANK_ACTIVATION_FN,
             )
         )
     except Exception:

@@ -1,4 +1,4 @@
-"""Threshold sweep for production reranker using build_rerank_query."""
+"""Threshold sweep for Qwen3-Reranker (logit / default activation_fn)."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def sweep_thresholds(name: str, labeled: list[tuple[bool, float]], thresholds: n
     best_f1 = -1.0
     best_threshold = 0.0
     for threshold in thresholds:
-        precision, recall, f1, accuracy = metrics(labeled, threshold)
+        precision, recall, f1, accuracy = metrics(labeled, float(threshold))
         print(f"{threshold:10.3f} {precision:10.3f} {recall:10.3f} {f1:10.3f} {accuracy:10.3f}")
         if f1 > best_f1:
             best_f1 = f1
@@ -90,28 +90,34 @@ def sweep_thresholds(name: str, labeled: list[tuple[bool, float]], thresholds: n
 
 def main() -> None:
     labeled: list[tuple[bool, float]] = []
-    case_scores: list[tuple[str, str, list[str], list[str], list[float]]] = []
+    all_scores: list[float] = []
 
     for case in RERANK_LABELED_CASES:
         labels = [label for label, _ in case.items]
         docs = [doc for _, doc in case.items]
         scores = rerank_scores(case.query, docs)
         print_case(case.name, case.query, labels, docs, scores)
-        case_scores.append((case.name, case.query, labels, docs, scores))
+        all_scores.extend(scores)
         for label, score in zip(labels, scores, strict=True):
             if label in ("+", "-"):
                 labeled.append((label == "+", score))
 
-    thresholds = np.linspace(0.0, 1.0, 201)
-    best_t, best_f1 = sweep_thresholds("absolute threshold sweep", labeled, thresholds)
+    low = min(all_scores) - 1.0
+    high = max(all_scores) + 1.0
+    thresholds = np.linspace(low, high, 201)
+    best_t, best_f1 = sweep_thresholds("logit threshold sweep", labeled, thresholds)
+
+    # also search [0,1] for comparison (wrong for logits but informative)
+    best_01 = sweep_thresholds("comparison sweep [0,1] (not recommended for logits)", labeled, np.linspace(0, 1, 201))
 
     print(f"\n{'=' * 88}")
     print("SUMMARY")
     print(f"- Model: {RERANKER_MODEL_ID}")
+    print("- Activation: default (logit)")
     print(f"- Labeled items: {len(labeled)} across {len(RERANK_LABELED_CASES)} cases")
-    all_scores = [score for _, _, _, _, scores in case_scores for score in scores]
     print(f"- Score range: {min(all_scores):.3f} .. {max(all_scores):.3f}")
-    print(f"- Best absolute threshold: {best_t:.3f} (F1={best_f1:.3f})")
+    print(f"- Best logit threshold: {best_t:.3f} (F1={best_f1:.3f})")
+    print(f"- Best [0,1] threshold: {best_01[0]:.3f} (F1={best_01[1]:.3f})")
 
 
 if __name__ == "__main__":

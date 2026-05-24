@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { Info, SquareArrowOutUpRight } from 'lucide-react'
 
 const CHARACTERISTICS_PREVIEW_LIMIT = 5
-const RELEVANCE_THRESHOLD = -5.251
+const RELEVANCE_THRESHOLD = 1.6
 
 function formatRerankScore(score: number | null | undefined): string {
   if (score === null || score === undefined) return 'неизвестна'
@@ -28,12 +28,12 @@ function IrrelevanceInfoBadge({ score }: { score: number | null | undefined }) {
         <p className="font-medium">Товар помечен как нерелевантный</p>
         <p className="mt-1 text-white/90">
           После получения результатов с маркетплейса мы прогоняем их через модель реранжирования{' '}
-          <span className="whitespace-nowrap">DiTy/cross-encoder-russian-msmarco</span>. Она сравнивает ваш
-          запрос в форме «купить …» с названием каждого товара и выставляет
-          оценку релевантности.
+          <span className="whitespace-nowrap">Qwen/Qwen3-Reranker-0.6B</span>. Она сравнивает ваш
+          запрос в форме «купить …» с названием каждого товара и выставляет logit-оценку
+          релевантности (может быть отрицательной, это не процент).
         </p>
         <p className="mt-2 text-white/90">
-          Товар считается релевантным, если его оценка не ниже{' '}
+          Товар считается релевантным, если logit не ниже{' '}
           {RELEVANCE_THRESHOLD.toString().replace('.', ',')}. Оценка этого товара:{' '}
           <span className="font-medium text-white">{formatRerankScore(score)}</span>.
         </p>

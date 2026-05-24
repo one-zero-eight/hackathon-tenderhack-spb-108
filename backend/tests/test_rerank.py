@@ -24,17 +24,17 @@ def test_product_to_doc_uses_name_only() -> None:
 
 
 def test_relevance_threshold_value() -> None:
-    assert RELEVANCE_THRESHOLD == -5.251
+    assert RELEVANCE_THRESHOLD == 1.6
 
 
 @pytest.mark.parametrize(
     ("score", "expected"),
     [
-        (-5.25, True),
-        (-5.251, True),
-        (-5.252, False),
-        (2.0, True),
-        (-10.0, False),
+        (1.7, True),
+        (1.6, True),
+        (1.59, False),
+        (5.0, True),
+        (-2.0, False),
     ],
 )
 def test_threshold_boundary(score: float, expected: bool) -> None:
@@ -88,11 +88,11 @@ def test_score_snapshots_at_production_threshold(snapshot) -> None:
 
 def test_apply_rerank_scores_marks_all_above_threshold_relevant() -> None:
     results = [SearchResult(name="a"), SearchResult(name="b")]
-    reranked = apply_rerank_scores(results, [0.5, 0.2])
+    reranked = apply_rerank_scores(results, [2.0, 1.7])
     assert all(item.relevant for item in reranked)
 
 
 def test_apply_rerank_scores_marks_all_below_threshold_irrelevant() -> None:
     results = [SearchResult(name="a"), SearchResult(name="b")]
-    reranked = apply_rerank_scores(results, [-6.0, -6.5])
+    reranked = apply_rerank_scores(results, [0.5, 1.0])
     assert not any(item.relevant for item in reranked)
