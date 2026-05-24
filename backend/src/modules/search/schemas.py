@@ -24,6 +24,8 @@ class SearchParams(BaseModel):
     "Source types to search in. None means all sources, [] means all sources"
     short: bool = False
     "Short search. Used for dev purposes, it will return only 4 results from each source."
+    spellcheck: bool = True
+    "When false, marketplaces search the exact query without auto-correction."
 
 
 class StageTiming(BaseModel):
@@ -63,6 +65,8 @@ class SearchResult(BaseModel):
     image_links: list[str] = Field(default_factory=list)
     rating: str | None = None
     reviews: str | None = None
+    rerank_score: float | None = None
+    relevant: bool = True
     timing: ProductTiming | None = None
 
 

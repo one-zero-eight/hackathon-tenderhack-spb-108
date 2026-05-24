@@ -1,43 +1,35 @@
-import { $api, apiFetch } from '@/api'
+import { $api } from '@/api'
 import { SourceType } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductSourceDetails, getMarketplaceTheme } from '@/components/ProductSourceDetails'
 import { ProductSourceSkeletonList } from '@/components/ProductSourceSkeleton'
 import { RegionDropdown } from '@/components/RegionDropdown'
+import { SpellcheckSearchInput } from '@/components/SpellcheckSearchInput'
+import { TypofixNotice } from '@/components/TypofixNotice'
 import { Button } from '@/components/ui/button'
 import { mapSearchSourceToGroup } from '@/lib/mapping'
 import { ALL_REGIONS, regionCapitalByName, type RegionName } from '@/lib/regions'
 import type { SearchResultProduct, SearchResultsWithTypofix, SortMode } from '@/lib/types'
-import {
-  detectSpellcheckLanguage,
-  getWordAtCaret,
-  parsePrice,
-  sourceTypesForRunetSearch
-} from '@/lib/utils'
+import { parsePrice, sourceTypesForRunetSearch } from '@/lib/utils'
 import { createFileRoute } from '@tanstack/react-router'
 import { Info, LoaderCircle, Search } from 'lucide-react'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-
-const SPELLCHECK_DEBOUNCE_MS = 50
+import { useRef, useState, type FormEvent } from 'react'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
-  const [caretPosition, setCaretPosition] = useState(0)
   const [searchParams, setSearchParams] = useState<{
     query: string
     region: string | null
     source_types: SourceType[] | null
     short: boolean
+    spellcheck: boolean
   } | null>(null)
   const [sortMode, setSortMode] = useState<SortMode>('sources')
   const [selectedRegion, setSelectedRegion] = useState<RegionName>(ALL_REGIONS)
   const [extendedRunetSearch, setExtendedRunetSearch] = useState(false)
-  const [spellcheckSuggestions, setSpellcheckSuggestions] = useState<string[]>([])
-  const [spellcheckWord, setSpellcheckWord] = useState<string | null>(null)
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const {
     mutate,
     data: searchResults,
@@ -48,26 +40,23 @@ function Home() {
   const visibleGroups = apiSourceGroups ?? []
   const typofixSuggestions =
     (searchResults as SearchResultsWithTypofix | undefined)?.typofix_suggestions ?? []
-  const uniqueTypofixSuggestions = [
-    ...new Set(typofixSuggestions.map(({ suggestion }) => suggestion))
-  ]
   const typofixSuggestionBySource = new Map(
     typofixSuggestions.map(({ source, suggestion }) => [source, suggestion] as const)
   )
-  const activeWordRange = getWordAtCaret(query, caretPosition)
-  const activeSpellcheckWord =
-    activeWordRange && activeWordRange.word.length > 2 ? activeWordRange.word : null
-  const activeSpellcheckLanguage = activeSpellcheckWord
-    ? detectSpellcheckLanguage(activeSpellcheckWord)
-    : null
-  const showSpellcheckSuggestions =
-    isSearchFocused &&
-    Boolean(activeWordRange) &&
-    activeWordRange?.word === spellcheckWord &&
-    spellcheckSuggestions.length > 0
+  const correctedQuery =
+    typofixSuggestionBySource.get(SourceType.ozon) ??
+    typofixSuggestions[0]?.suggestion ??
+    null
   const originalQuery =
     searchResults?.original_params.query ?? searchParams?.query ?? query.trim() ?? ''
-  const hasTypofixSuggestions = typofixSuggestions.length > 0
+  const executedSearchQuery = correctedQuery ?? originalQuery
+  const hasTypofixSuggestions =
+    Boolean(correctedQuery) && correctedQuery !== originalQuery
+
+  const getSourceQueryLabel = (sourceType: SourceType) => {
+    const sourceQuery = typofixSuggestionBySource.get(sourceType) ?? executedSearchQuery
+    return `Результат запроса по «${sourceQuery}»`
+  }
 
   const totalProducts = visibleGroups.reduce((sum, group) => sum + group.products.length, 0)
   const allProducts: SearchResultProduct[] = visibleGroups.flatMap((group) =>
@@ -84,6 +73,9 @@ function Home() {
     sortMode === 'sources'
       ? []
       : [...allProducts].sort((left, right) => {
+          if (left.product.relevant !== right.product.relevant) {
+            return left.product.relevant === false ? 1 : -1
+          }
           if (left.parsedPrice === null && right.parsedPrice === null) return 0
           if (left.parsedPrice === null) return 1
           if (right.parsedPrice === null) return -1
@@ -101,64 +93,29 @@ function Home() {
 
   const showSkeleton = isPending && Boolean(searchParams)
 
-  useEffect(() => {
-    if (!isSearchFocused || !activeSpellcheckWord || !activeSpellcheckLanguage) {
-      setSpellcheckSuggestions([])
-      setSpellcheckWord(null)
-      return
-    }
+  const runSearch = (
+    nextQuery: string,
+    options: { spellcheck?: boolean } = {}
+  ) => {
+    const spellcheck = options.spellcheck ?? true
+    const region = selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion]
+    const source_types = sourceTypesForRunetSearch(extendedRunetSearch)
 
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(async () => {
-      const { data, error } = await apiFetch.POST('/search/spellcheck', {
-        body: {
-          word: activeSpellcheckWord,
-          language: activeSpellcheckLanguage
-        },
-        signal: controller.signal
-      })
-
-      if (controller.signal.aborted) return
-
-      if (error || !data) {
-        setSpellcheckSuggestions([])
-        setSpellcheckWord(null)
-        return
+    setSearchParams({
+      query: nextQuery,
+      region,
+      source_types,
+      short: false,
+      spellcheck
+    })
+    mutate({
+      body: {
+        query: nextQuery,
+        region,
+        source_types,
+        short: false,
+        spellcheck
       }
-
-      setSpellcheckSuggestions(data.suggestions ?? [])
-      setSpellcheckWord(data.word)
-    }, SPELLCHECK_DEBOUNCE_MS)
-
-    return () => {
-      controller.abort()
-      window.clearTimeout(timeoutId)
-    }
-  }, [activeSpellcheckLanguage, activeSpellcheckWord, isSearchFocused])
-
-  const syncCaretPosition = (input: HTMLInputElement) => {
-    setCaretPosition(input.selectionStart ?? input.value.length)
-  }
-
-  const handleApplySpellcheckSuggestion = (suggestion: string) => {
-    if (!activeWordRange) return
-
-    const nextQuery = `${query.slice(0, activeWordRange.start)}${suggestion}${query.slice(
-      activeWordRange.end
-    )}`
-    const nextCaretPosition = activeWordRange.start + suggestion.length
-
-    setQuery(nextQuery)
-    setCaretPosition(nextCaretPosition)
-    setSpellcheckSuggestions([])
-    setSpellcheckWord(null)
-
-    window.requestAnimationFrame(() => {
-      const input = searchInputRef.current
-      if (!input) return
-
-      input.focus()
-      input.setSelectionRange(nextCaretPosition, nextCaretPosition)
     })
   }
 
@@ -168,20 +125,12 @@ function Home() {
 
     if (!trimmedQuery) return
 
-    setSearchParams({
-      query: trimmedQuery,
-      region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
-      source_types: sourceTypesForRunetSearch(extendedRunetSearch),
-      short: false
-    })
-    mutate({
-      body: {
-        query: trimmedQuery,
-        region: selectedRegion === ALL_REGIONS ? null : regionCapitalByName[selectedRegion],
-        source_types: sourceTypesForRunetSearch(extendedRunetSearch),
-        short: false
-      }
-    })
+    runSearch(trimmedQuery)
+  }
+
+  const handleRevertTypofix = () => {
+    setQuery(originalQuery)
+    runSearch(originalQuery, { spellcheck: false })
   }
 
   return (
@@ -200,50 +149,27 @@ function Home() {
           className="grid gap-4 rounded-lg bg-white p-4 md:grid-cols-[minmax(0,1fr)_320px_260px]"
           onSubmit={handleSearchSubmit}
         >
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-700">Строка поиска</span>
-            <span className="relative">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400"
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-700" htmlFor="search-query">
+              Строка поиска
+            </label>
+            <SpellcheckSearchInput
+              disabled={isPending}
+              id="search-query"
+              inputRef={searchInputRef}
+              onCaretChange={() => {}}
+              onChange={setQuery}
+              placeholder="Введите товар или характеристику"
+              value={query}
+            />
+            {hasTypofixSuggestions && correctedQuery && !isPending ? (
+              <TypofixNotice
+                correctedQuery={correctedQuery}
+                onRevert={handleRevertTypofix}
+                originalQuery={originalQuery}
               />
-              <input
-                className="h-11 w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
-                onBlur={() => setIsSearchFocused(false)}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  syncCaretPosition(event.target)
-                }}
-                onClick={(event) => syncCaretPosition(event.currentTarget)}
-                onFocus={(event) => {
-                  setIsSearchFocused(true)
-                  syncCaretPosition(event.currentTarget)
-                }}
-                onKeyUp={(event) => syncCaretPosition(event.currentTarget)}
-                onSelect={(event) => syncCaretPosition(event.currentTarget)}
-                placeholder="Введите товар или характеристику"
-                ref={searchInputRef}
-                required
-                type="search"
-                value={query}
-              />
-              {showSpellcheckSuggestions ? (
-                <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-[0_18px_50px_-20px_rgba(15,23,42,0.35)]">
-                  {spellcheckSuggestions.map((suggestion) => (
-                    <button
-                      className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
-                      key={suggestion}
-                      onClick={() => handleApplySpellcheckSuggestion(suggestion)}
-                      onMouseDown={(event) => event.preventDefault()}
-                      type="button"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </span>
-          </label>
+            ) : null}
+          </div>
 
           <RegionDropdown onSelect={setSelectedRegion} selectedRegion={selectedRegion} />
 
@@ -280,13 +206,6 @@ function Home() {
             </label>
           </div>
         </form>
-
-        {hasTypofixSuggestions ? (
-          <p className="text-sm text-slate-600">
-            Возможно, вы имели в виду{' '}
-            {uniqueTypofixSuggestions.map((suggestion) => `"${suggestion}"`).join(', ')}
-          </p>
-        ) : null}
 
         <section
           aria-busy={isPending}
@@ -359,13 +278,7 @@ function Home() {
                 <ProductSourceDetails
                   group={group}
                   key={group.title}
-                  queryResultLabel={
-                    hasTypofixSuggestions
-                      ? `Результат запроса по "${
-                          typofixSuggestionBySource.get(group.sourceType) ?? originalQuery
-                        }"`
-                      : null
-                  }
+                  queryResultLabel={getSourceQueryLabel(group.sourceType)}
                 />
               ))
             : null}

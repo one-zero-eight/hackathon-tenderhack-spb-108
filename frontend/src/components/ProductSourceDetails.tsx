@@ -2,7 +2,7 @@ import { SourceType } from '@/api/openapi.gen'
 import { ProductCard } from '@/components/ProductCard'
 import type { MarketplaceGroup } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, SquareArrowOutUpRight } from 'lucide-react'
 import { useState } from 'react'
 
 const PRODUCTS_PER_PAGE = 3
@@ -61,6 +61,21 @@ export function getMarketplaceTheme(sourceType: SourceType) {
   }
 }
 
+function SeeMoreMarketplaceCard({ href }: { href: string }) {
+  return (
+    <a
+      className="flex min-h-[500px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+      href={href}
+      rel="noreferrer"
+      target="_blank"
+    >
+      <SquareArrowOutUpRight aria-hidden="true" className="size-8 text-slate-400" />
+      <span className="text-base font-semibold text-slate-900">Посмотреть ещё</span>
+      <span className="text-sm text-slate-500">Открыть все результаты на маркетплейсе</span>
+    </a>
+  )
+}
+
 export function ProductSourceDetails({
   group,
   queryResultLabel
@@ -76,6 +91,7 @@ export function ProductSourceDetails({
     (currentPage + 1) * PRODUCTS_PER_PAGE
   )
   const canPaginate = pageCount > 1
+  const isLastPage = currentPage >= pageCount - 1
   const theme = getMarketplaceTheme(group.sourceType)
 
   const minPrice = group.products.reduce(
@@ -155,6 +171,7 @@ export function ProductSourceDetails({
                     product={product}
                   />
                 ))}
+                {isLastPage ? <SeeMoreMarketplaceCard href={group.sourceUrl} /> : null}
               </div>
 
               {canPaginate && currentPage > 0 && (

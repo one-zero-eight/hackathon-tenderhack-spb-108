@@ -1,8 +1,47 @@
 import type { SchemaSearchResult } from '@/api/openapi.gen'
 import { ProductImage } from '@/components/ProductImage'
-import { SquareArrowOutUpRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Info, SquareArrowOutUpRight } from 'lucide-react'
 
 const CHARACTERISTICS_PREVIEW_LIMIT = 5
+const RELEVANCE_RELATIVE_MARGIN = 2
+
+function formatRerankScore(score: number | null | undefined): string {
+  if (score === null || score === undefined) return 'неизвестна'
+  return score.toFixed(2).replace('.', ',')
+}
+
+function IrrelevanceInfoBadge({ score }: { score: number | null | undefined }) {
+  return (
+    <div className="group/irrelevance absolute right-2 top-2 z-20">
+      <button
+        aria-label="Почему товар помечен как нерелевантный"
+        className="flex size-7 cursor-help items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm transition hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+        type="button"
+      >
+        <Info aria-hidden="true" className="size-4" />
+      </button>
+      <div
+        className="pointer-events-none absolute right-0 top-full z-30 mt-2 w-72 rounded-md bg-slate-800 px-3 py-2 text-xs leading-5 text-white opacity-0 shadow-md transition-opacity group-hover/irrelevance:opacity-100 group-focus-within/irrelevance:opacity-100"
+        role="tooltip"
+      >
+        <p className="font-medium">Товар помечен как нерелевантный</p>
+        <p className="mt-1 text-white/90">
+          После получения результатов с маркетплейса мы прогоняем их через модель реранжирования{' '}
+          <span className="whitespace-nowrap">BAAI/bge-reranker-v2-m3</span>. Она сравнивает ваш
+          запрос в форме «купить …» с названием и характеристиками каждого товара и выставляет
+          оценку релевантности.
+        </p>
+        <p className="mt-2 text-white/90">
+          Товар считается релевантным, если его оценка не ниже лучшего результата этого источника
+          более чем на {RELEVANCE_RELATIVE_MARGIN.toString().replace('.', ',')} пункта. Оценка
+          этого товара:{' '}
+          <span className="font-medium text-white">{formatRerankScore(score)}</span>.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 export function ProductCharacteristics({
   characteristics
@@ -55,14 +94,31 @@ export function ProductCard({
   product: SchemaSearchResult
   className?: string
 }) {
+  const isIrrelevant = product.relevant === false
+
   return (
-    <article className={`overflow-hidden rounded-lg border border-slate-200 bg-white ${className}`}>
-      <ProductImage
-        alt={product.name}
-        gallerySrcs={product.image_links ?? []}
-        primarySrc={product.image_link ?? null}
-      />
-      <div className="flex flex-col gap-3 p-4">
+    <article
+      className={cn('relative overflow-visible rounded-lg border border-slate-200 bg-white', className)}
+    >
+      {isIrrelevant ? <IrrelevanceInfoBadge score={product.rerank_score} /> : null}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-2 right-2 z-20 select-all font-mono text-[10px] leading-none text-transparent"
+      >
+        {product.rerank_score?.toFixed(4) ?? '—'}
+      </span>
+      <div
+        className={cn(
+          'overflow-hidden rounded-lg',
+          isIrrelevant && 'opacity-55 saturate-50 blur-[0.4px]'
+        )}
+      >
+        <ProductImage
+          alt={product.name}
+          gallerySrcs={product.image_links ?? []}
+          primarySrc={product.image_link ?? null}
+        />
+        <div className="flex flex-col gap-3 p-4">
         {product.product_link ? (
           <a
             className="cursor-pointer flex items-start gap-1.5 text-base font-semibold leading-6 text-slate-950 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
@@ -92,6 +148,7 @@ export function ProductCard({
           </p>
         ) : null}
         <ProductCharacteristics characteristics={product.characteristics} />
+        </div>
       </div>
     </article>
   )

@@ -28,6 +28,8 @@ class Settings(SettingBaseModel):
     "Base URL of the Whoogle search instance (e.g. http://127.0.0.1:5000)"
     languagetool_base_url: str = "http://127.0.0.1:8010"
     "Base URL of the LanguageTool instance used for spellcheck (e.g. http://127.0.0.1:8010)"
+    meow_embed_base_url: str = "https://api.innohassle.ru/meow-embed"
+    "Base URL of the Meow Embed reranking service"
 
     @classmethod
     def from_yaml(cls, path: Path) -> "Settings":

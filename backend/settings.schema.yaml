@@ -40,5 +40,10 @@ properties:
     description: Base URL of the LanguageTool instance used for spellcheck (e.g. http://127.0.0.1:8010)
     title: Languagetool Base Url
     type: string
+  meow_embed_base_url:
+    default: https://api.innohassle.ru/meow-embed
+    description: Base URL of the Meow Embed reranking service
+    title: Meow Embed Base Url
+    type: string
 title: Settings
 type: object

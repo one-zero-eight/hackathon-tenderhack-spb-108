@@ -217,6 +217,7 @@ async function fetchWithRetry() {
 return await fetchWithRetry();"""
 
 _YANDEX_BASE_URL = "https://market.yandex.ru"
+_YANDEX_NO_CORRECTION_RS = "eJwzkv7EKMHBKLDwEKsEg8bzbh6NVUdYNRqPs2r0HGUFAHv1CSY%2C"
 _CARD_PATH_RE = re.compile(r"/card/[a-z0-9][a-z0-9-]*/\d+")
 _YANDEX_COLLECT_GALLERY_MPIC_JS = """(root) => {
   const urls = [];
@@ -745,12 +746,15 @@ def _build_search_url(
     geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> str:
     encoded = quote_plus(user_input)
     min_filter = build_price_filter("&pricefrom=[minPrice]", min_price=min_price, max_price=max_price)
     max_filter = build_price_filter("&priceto=[maxPrice]", min_price=min_price, max_price=max_price)
     lr = f"&lr={geo.yandex_lr}" if geo else ""
-    return f"https://market.yandex.ru/search?text={encoded}{lr}&cvredirect=1{min_filter}{max_filter}"
+    if spellcheck:
+        return f"https://market.yandex.ru/search?text={encoded}{lr}&cvredirect=1{min_filter}{max_filter}"
+    return f"https://market.yandex.ru/search?text={encoded}{lr}&rs={_YANDEX_NO_CORRECTION_RS}{min_filter}{max_filter}"
 
 
 def _build_actions(
@@ -759,8 +763,15 @@ def _build_actions(
     geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> list[dict[str, str]]:
-    search_url = _build_search_url(user_input, geo=geo, min_price=min_price, max_price=max_price)
+    search_url = _build_search_url(
+        user_input,
+        geo=geo,
+        min_price=min_price,
+        max_price=max_price,
+        spellcheck=spellcheck,
+    )
     wait_script = (
         _WAIT_ELEMENT_TEMPLATE.replace("__SEARCH_TEXT__", json.dumps(user_input))
         .replace("__MIN_PRICE__", str(min_price))
@@ -868,6 +879,7 @@ async def run_yandex_market_parser(
     region: str | None = None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> tuple[SearchSource, str | None]:
     """Run Yandex Market search and return parsed products."""
     geo = geo_for_marketplace_search(region)
@@ -876,9 +888,17 @@ async def run_yandex_market_parser(
         return await run_site_parser(
             context,
             site_name=SITE,
-            actions=_build_actions(query, geo=geo, min_price=min_price, max_price=max_price),
+            actions=_build_actions(
+                query,
+                geo=geo,
+                min_price=min_price,
+                max_price=max_price,
+                spellcheck=spellcheck,
+            ),
             parse_html=lambda _: [],
-            parse_typofix=lambda html: parse_yandex_market_typofix(html, original=user_input),
+            parse_typofix=(
+                (lambda html: parse_yandex_market_typofix(html, original=user_input)) if spellcheck else None
+            ),
             original_query=user_input,
             check_captcha_expr=CHECK_CAPTCHA,
             headless_env=HEADLESS_ENV,
@@ -890,10 +910,16 @@ async def run_yandex_market_parser(
 
     results, timing, typofix = await run_for_query(user_input)
 
-    search_query = typofix if typofix and queries_differ(user_input, typofix) else user_input
+    search_query = typofix if spellcheck and typofix and queries_differ(user_input, typofix) else user_input
     return SearchSource(
         source_type="yandex_market",
-        source_url=_build_search_url(search_query, geo=geo, min_price=min_price, max_price=max_price),
+        source_url=_build_search_url(
+            search_query,
+            geo=geo,
+            min_price=min_price,
+            max_price=max_price,
+            spellcheck=spellcheck,
+        ),
         source_title="Яндекс Маркет",
         source_favicon_url=None,
         results=results,

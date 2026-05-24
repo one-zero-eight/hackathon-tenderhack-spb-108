@@ -128,6 +128,11 @@ export interface components {
              * @default false
              */
             short: boolean;
+            /**
+             * Spellcheck
+             * @default true
+             */
+            spellcheck: boolean;
         };
         /** SearchResult */
         SearchResult: {
@@ -149,6 +154,13 @@ export interface components {
             rating?: string | null;
             /** Reviews */
             reviews?: string | null;
+            /** Rerank Score */
+            rerank_score?: number | null;
+            /**
+             * Relevant
+             * @default true
+             */
+            relevant?: boolean;
             timing?: components["schemas"]["ProductTiming"] | null;
         };
         /** SearchResults */

@@ -162,16 +162,18 @@ async function runSearchFetch() {
     );
   }
 
-  let correctedQuery = readCorrectedQuery();
+  let correctedQuery = __ALLOW_CORRECTION__ ? readCorrectedQuery() : null;
   if (!correctedQuery) {
     for (let attempt = 0; attempt < 8; attempt++) {
       if (pageReady()) {
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 200));
-      correctedQuery = readCorrectedQuery();
-      if (correctedQuery) {
-        break;
+      if (__ALLOW_CORRECTION__) {
+        correctedQuery = readCorrectedQuery();
+        if (correctedQuery) {
+          break;
+        }
       }
     }
   }
@@ -225,8 +227,8 @@ async function runSearchFetch() {
   const powToken = document.querySelector('#powToken')
     ? document.querySelector('#powToken').textContent
     : null;
-  const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&" + wbDestParam() + "hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=" + queryEnc + "&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false";
-  const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?" + wbDestParam() + "search=" + queryEnc;
+  const apiUrl = "https://www.wildberries.ru/__internal/u-search/exactmatch/ru/common/v18/search?ab_testing=false&appType=1&curr=rub&" + wbDestParam() + "hide_dtype=11&inheritFilters=false&lang=ru&page=1" + priceFilter + "&query=" + queryEnc + "&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=__SUPPRESS_SPELLCHECK__";
+  const referrer = "https://www.wildberries.ru/catalog/0/search.aspx?" + wbDestParam() + "search=" + queryEnc + "__REFERRER_SUFFIX__";
 
   let headers;
   if (queryId && queryId.textContent != '' && powToken) {
@@ -549,10 +551,11 @@ return "";"""
     return f"function wbDestParam() {{\n{body}\n}}"
 
 
-def _build_search_url(query: str, *, geo=None) -> str:
+def _build_search_url(query: str, *, geo=None, spellcheck: bool = True) -> str:
     encoded = encode_query(query)
     dest = _dest_query(geo)
-    return f"https://www.wildberries.ru/catalog/0/search.aspx?page=1&{dest}search={encoded}"
+    correction = "" if spellcheck else "&nocorrection=1"
+    return f"https://www.wildberries.ru/catalog/0/search.aspx?page=1&{dest}search={encoded}{correction}"
 
 
 def _build_actions(
@@ -561,8 +564,9 @@ def _build_actions(
     geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> list[dict[str, str]]:
-    search_url = _build_search_url(query, geo=geo)
+    search_url = _build_search_url(query, geo=geo, spellcheck=spellcheck)
     fetch_script = (
         _WAIT_FETCH_TEMPLATE.replace("__WB_DEST_PARAM_FN__", _wb_dest_param_function(geo))
         .replace("__PRE_ID__", RESULT_PRE_ID)
@@ -570,6 +574,9 @@ def _build_actions(
         .replace("__QUERY_ENC__", quote(query))
         .replace("__ORIGINAL_QUERY__", json.dumps(query))
         .replace("__PRICE_FILTER_JS__", _wb_price_filter_js(min_price, max_price))
+        .replace("__ALLOW_CORRECTION__", "true" if spellcheck else "false")
+        .replace("__SUPPRESS_SPELLCHECK__", "false" if spellcheck else "true")
+        .replace("__REFERRER_SUFFIX__", "" if spellcheck else "&nocorrection=1")
     )
     return [
         {"type": "url", "data": search_url},
@@ -917,6 +924,7 @@ async def run_wildberries_parser(
     region: str | None = None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> tuple[SearchSource, str | None]:
     """Run Wildberries search and return parsed products."""
     geo = geo_for_marketplace_search(region)
@@ -925,9 +933,15 @@ async def run_wildberries_parser(
         return await run_site_parser(
             context,
             site_name=SITE,
-            actions=_build_actions(query, geo=geo, min_price=min_price, max_price=max_price),
+            actions=_build_actions(
+                query,
+                geo=geo,
+                min_price=min_price,
+                max_price=max_price,
+                spellcheck=spellcheck,
+            ),
             parse_html=parse_html,
-            parse_typofix=lambda html: parse_wildberries_typofix(html, original=user_input),
+            parse_typofix=((lambda html: parse_wildberries_typofix(html, original=user_input)) if spellcheck else None),
             original_query=user_input,
             check_captcha_expr=CHECK_CAPTCHA,
             headless_env=HEADLESS_ENV,
@@ -935,13 +949,12 @@ async def run_wildberries_parser(
             setup_page=make_wb_setup_page(geo) if geo else None,
         )
 
-    # Query is usually already corrected via routes (Ozon typofix); fetch script applies spellcheck once.
     results, timing, typofix = await run_for_query(user_input)
 
-    search_query = typofix if typofix and queries_differ(user_input, typofix) else user_input
+    search_query = typofix if spellcheck and typofix and queries_differ(user_input, typofix) else user_input
     return SearchSource(
         source_type="wildberries",
-        source_url=_build_search_url(search_query, geo=geo),
+        source_url=_build_search_url(search_query, geo=geo, spellcheck=spellcheck),
         source_title="Wildberries",
         source_favicon_url=None,
         results=results,

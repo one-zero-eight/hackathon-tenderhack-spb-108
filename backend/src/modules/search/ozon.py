@@ -32,7 +32,7 @@ from .region_geo import (
     ozon_region_already_set_check,
     ozon_set_region_script,
 )
-from .typofix import parse_ozon_typofix, queries_differ
+from .typofix import is_plausible_typofix, parse_ozon_typofix, queries_differ
 
 SITE = "ozon"
 CHECK_CAPTCHA = (
@@ -230,6 +230,7 @@ def _ozon_search_page_path(
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> str:
     price_part = build_price_filter(
         "&currency_price=[minPrice].000%3B[maxPrice].000",
@@ -238,8 +239,9 @@ def _ozon_search_page_path(
     )
     if not price_part:
         price_part = "&currency_price=0.000%3B9999999.000"
+    deny_category = "false" if spellcheck else "true"
     return (
-        f"/search/?deny_category_prediction=false&force_spell=true"
+        f"/search/?deny_category_prediction={deny_category}&force_spell=true"
         f"&text={encode_query(query)}&from_global=true{price_part}&page_changed=true"
     )
 
@@ -249,8 +251,12 @@ def _ozon_api_path(
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> str:
-    return quote(_ozon_search_page_path(query, min_price=min_price, max_price=max_price), safe="")
+    return quote(
+        _ozon_search_page_path(query, min_price=min_price, max_price=max_price, spellcheck=spellcheck),
+        safe="",
+    )
 
 
 def _search_api_url(
@@ -258,8 +264,9 @@ def _search_api_url(
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> str:
-    api_path = _ozon_api_path(query, min_price=min_price, max_price=max_price)
+    api_path = _ozon_api_path(query, min_price=min_price, max_price=max_price, spellcheck=spellcheck)
     return f"https://www.ozon.ru/api/entrypoint-api.bx/page/json/v2?url={api_path}"
 
 
@@ -268,9 +275,15 @@ def _build_search_url(
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> str:
     encoded = encode_query(query)
     price_part = _ozon_price_path_part(min_price=min_price, max_price=max_price)
+    if not spellcheck:
+        return (
+            f"https://www.ozon.ru/search/?deny_category_prediction=true&force_spell=true"
+            f"&text={encoded}&from_global=true{price_part}&page_changed=true"
+        )
     return f"https://www.ozon.ru/search/?text={encoded}&from_global=true{price_part}&page_changed=true"
 
 
@@ -294,11 +307,17 @@ def _search_page_actions(
     *,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> list[dict[str, str]]:
     return [
         {
             "type": "url",
-            "data": _build_search_url(query, min_price=min_price, max_price=max_price),
+            "data": _build_search_url(
+                query,
+                min_price=min_price,
+                max_price=max_price,
+                spellcheck=spellcheck,
+            ),
         },
         {"type": "waitFor", "data": 'input[name="text"]', "timeout": "20000"},
         {
@@ -315,6 +334,7 @@ def _build_actions(
     geo=None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> list[dict[str, str]]:
     geo_page = ozon_geo_page_url(geo) if geo else None
     if geo and geo.ozon_slug and geo_page:
@@ -330,9 +350,19 @@ def _build_actions(
             {"type": "url", "data": geo_page},
             {"type": "wait", "data": "800"},
             {"type": "waitElement", "data": ozon_confirm_region_script(geo), "wait_for": ""},
-            *_search_page_actions(query, min_price=min_price, max_price=max_price),
+            *_search_page_actions(
+                query,
+                min_price=min_price,
+                max_price=max_price,
+                spellcheck=spellcheck,
+            ),
         ]
-    return _search_page_actions(query, min_price=min_price, max_price=max_price)
+    return _search_page_actions(
+        query,
+        min_price=min_price,
+        max_price=max_price,
+        spellcheck=spellcheck,
+    )
 
 
 def _parse_widget_states(data: dict, products: list[SearchResult]) -> None:
@@ -732,6 +762,7 @@ async def collect_ozon_products_from_page(
     search_query: str,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> list[SearchResult]:
     await _scroll_ozon_search_results(page)
     dom_unique, grid_count = await _wait_for_ozon_search_ready(page)
@@ -742,13 +773,23 @@ async def collect_ozon_products_from_page(
         grid_count,
     )
 
-    query = (await _read_ozon_search_query(page)) or search_query.strip()
+    query = search_query.strip()
     if not query:
         logger.warning("Ozon: empty search query")
         return []
 
-    page_path = await _ozon_current_page_path(page)
-    api_path = page_path or _ozon_search_page_path(query, min_price=min_price, max_price=max_price)
+    if spellcheck:
+        query = (await _read_ozon_search_query(page)) or query
+        page_path = await _ozon_current_page_path(page)
+    else:
+        page_path = None
+
+    api_path = page_path or _ozon_search_page_path(
+        query,
+        min_price=min_price,
+        max_price=max_price,
+        spellcheck=spellcheck,
+    )
     payload = await _fetch_ozon_search_payload(page, api_path)
     if not payload:
         logger.warning("Ozon: search API returned no payload")
@@ -797,20 +838,38 @@ async def run_ozon_parser(
     region: str | None = None,
     min_price: int = DEFAULT_MIN_PRICE,
     max_price: int = DEFAULT_MAX_PRICE,
+    spellcheck: bool = True,
 ) -> tuple[SearchSource, str | None]:
     """Run Ozon search and return parsed products."""
     geo = geo_for_marketplace_search(region)
+    page_corrected_query: list[str | None] = [None]
 
     async def run_for_query(query: str):
-        def actions() -> list[dict[str, str]]:
-            return _build_actions(query, geo=geo, min_price=min_price, max_price=max_price)
-
         async def collect_from_page(page):
-            return await collect_ozon_products_from_page(
+            products = await collect_ozon_products_from_page(
                 page,
                 search_query=query,
                 min_price=min_price,
                 max_price=max_price,
+                spellcheck=spellcheck,
+            )
+            if spellcheck:
+                page_query = await _read_ozon_search_query(page)
+                if (
+                    page_query
+                    and queries_differ(user_input, page_query)
+                    and is_plausible_typofix(user_input, page_query)
+                ):
+                    page_corrected_query[0] = page_query
+            return products
+
+        def actions() -> list[dict[str, str]]:
+            return _build_actions(
+                query,
+                geo=geo,
+                min_price=min_price,
+                max_price=max_price,
+                spellcheck=spellcheck,
             )
 
         return await run_site_parser(
@@ -818,7 +877,7 @@ async def run_ozon_parser(
             site_name=SITE,
             actions=actions,
             parse_html=parse_html,
-            parse_typofix=lambda html: parse_ozon_typofix(html, original=user_input),
+            parse_typofix=((lambda html: parse_ozon_typofix(html, original=user_input)) if spellcheck else None),
             original_query=user_input,
             check_captcha_expr=CHECK_CAPTCHA,
             headless_env=HEADLESS_ENV,
@@ -829,13 +888,22 @@ async def run_ozon_parser(
 
     results, timing, typofix = await run_for_query(user_input)
 
-    search_query = typofix if typofix and queries_differ(user_input, typofix) else user_input
+    if (
+        spellcheck
+        and not typofix
+        and page_corrected_query[0]
+        and is_plausible_typofix(user_input, page_corrected_query[0])
+    ):
+        typofix = page_corrected_query[0]
+
+    search_query = typofix if spellcheck and typofix and queries_differ(user_input, typofix) else user_input
     return SearchSource(
         source_type="ozon",
         source_url=_build_search_url(
             search_query,
             min_price=min_price,
             max_price=max_price,
+            spellcheck=spellcheck,
         ),
         source_title="Ozon",
         source_favicon_url=None,

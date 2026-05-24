@@ -1,4 +1,4 @@
-import { SourceType, SpellcheckLanguage } from '@/api/openapi.gen'
+import { SourceType, SpellcheckLanguage, type SchemaSearchResult } from '@/api/openapi.gen'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -12,6 +12,18 @@ export function parsePrice(priceStr: string | null | undefined): number | null {
   const match = cleanStr.match(/\d+([.,]\d+)?/)
   if (!match) return null
   return parseFloat(match[0].replace(',', '.'))
+}
+
+export function sortProductsByRelevance(products: SchemaSearchResult[]): SchemaSearchResult[] {
+  return [...products].sort((left, right) => {
+    if (left.relevant !== right.relevant) {
+      return left.relevant ? -1 : 1
+    }
+
+    const leftScore = left.rerank_score ?? Number.NEGATIVE_INFINITY
+    const rightScore = right.rerank_score ?? Number.NEGATIVE_INFINITY
+    return rightScore - leftScore
+  })
 }
 
 export const MARKETPLACE_SOURCE_TYPES = [
@@ -28,6 +40,77 @@ export type WordRange = {
   word: string
   start: number
   end: number
+}
+
+export type QueryPart =
+  | { type: 'space'; value: string; start: number }
+  | { type: 'word'; value: string; index: number; start: number; end: number }
+
+export function splitQueryParts(text: string): QueryPart[] {
+  const parts: QueryPart[] = []
+  let wordIndex = 0
+  let offset = 0
+
+  for (const segment of text.split(/(\s+)/)) {
+    if (!segment) continue
+    if (/^\s+$/.test(segment)) {
+      parts.push({ type: 'space', value: segment, start: offset })
+      offset += segment.length
+      continue
+    }
+    parts.push({
+      type: 'word',
+      value: segment,
+      index: wordIndex,
+      start: offset,
+      end: offset + segment.length
+    })
+    wordIndex += 1
+    offset += segment.length
+  }
+
+  return parts
+}
+
+export function getChangedWordIndexes(original: string, corrected: string): Set<number> {
+  const originalWords = original.trim().split(/\s+/)
+  const correctedWords = corrected.trim().split(/\s+/)
+  const changed = new Set<number>()
+  const maxLength = Math.max(originalWords.length, correctedWords.length)
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const left = originalWords[index] ?? ''
+    const right = correctedWords[index] ?? ''
+    if (left.toLowerCase() !== right.toLowerCase()) {
+      changed.add(index)
+    }
+  }
+
+  return changed
+}
+
+export function getSpellcheckableWords(text: string): WordRange[] {
+  const words: WordRange[] = []
+  let offset = 0
+
+  for (const part of text.split(/(\s+)/)) {
+    if (!part || /^\s+$/.test(part)) {
+      offset += part.length
+      continue
+    }
+
+    if (part.length > 2 && detectSpellcheckLanguage(part)) {
+      words.push({
+        word: part,
+        start: offset,
+        end: offset + part.length
+      })
+    }
+
+    offset += part.length
+  }
+
+  return words
 }
 
 export function getWordAtCaret(text: string, caretPosition: number): WordRange | null {

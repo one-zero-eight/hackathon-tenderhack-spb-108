@@ -76,6 +76,18 @@ class TestYandexMarket:
         assert specs.get("Бренд") == "Lenovo"
         assert "Диагональ экрана" in specs
 
+    def test_search_url_respects_spellcheck_flag(self):
+        from src.modules.search.yandex_market import _YANDEX_NO_CORRECTION_RS, _build_search_url
+
+        query = "телефон ihone"
+        with_correction = _build_search_url(query, spellcheck=True)
+        assert "cvredirect=1" in with_correction
+        assert "rs=" not in with_correction
+
+        no_correction = _build_search_url(query, spellcheck=False)
+        assert "cvredirect=1" not in no_correction
+        assert f"rs={_YANDEX_NO_CORRECTION_RS}" in no_correction
+
     @pytest.mark.asyncio
     async def test_collect_products_from_page_fixture(self):
         from playwright.async_api import async_playwright
@@ -258,8 +270,15 @@ class TestWildberries:
             "https://basket-39.wbbasket.ru/vol9037/part903747/903747859/images/big/1.webp"
         )
 
+    def test_search_url_respects_spellcheck_flag(self):
+        from src.modules.search.wildberries import _build_search_url
 
-class TestTypofix:
+        query = "телефон ihone"
+        assert "nocorrection=1" not in _build_search_url(query, spellcheck=True)
+        no_correction = _build_search_url(query, spellcheck=False)
+        assert "nocorrection=1" in no_correction
+        assert "ihone" in no_correction
+
     def test_ozon_ihone_example(self):
         html = example_html("ОПЕЧАТКА телефон ihone - купить на OZON.html")
         assert parse_ozon_typofix(html) == "телефон iphone"
@@ -330,8 +349,26 @@ class TestOzon:
         raw = _ozon_search_page_path("Ноутбук Lenovo ThinkBook 16")
         assert raw.startswith("/search/")
         assert raw == _ozon_search_page_path("Ноутбук Lenovo ThinkBook 16")
+        assert "force_spell=true" in raw
         encoded = _ozon_api_path("Ноутбук Lenovo ThinkBook 16")
         assert encoded.startswith("%2Fsearch%2F")
+
+    def test_ozon_search_page_path_respects_spellcheck_flag(self):
+        from src.modules.search.ozon import _build_search_url, _ozon_search_page_path
+
+        no_correction = _ozon_search_page_path("телефон ihone", spellcheck=False)
+        assert "deny_category_prediction=true" in no_correction
+        assert "force_spell=true" in no_correction
+        assert "force_spell=false" not in no_correction
+
+        with_correction = _ozon_search_page_path("телефон ihone", spellcheck=True)
+        assert "deny_category_prediction=false" in with_correction
+        assert "force_spell=true" in with_correction
+
+        assert "force_spell" not in _build_search_url("телефон ihone", spellcheck=True)
+        no_correction_url = _build_search_url("телефон ihone", spellcheck=False)
+        assert "deny_category_prediction=true" in no_correction_url
+        assert "force_spell=true" in no_correction_url
 
     def test_extract_next_page_path_from_search_api(self):
         from src.modules.search.ozon import _ozon_extract_next_page_path

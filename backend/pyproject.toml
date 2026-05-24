@@ -22,6 +22,7 @@ dependencies = [
     "cloakbrowser>=0.3.30",
     "pydefuddle>=0.1.0",
     "ollama>=0.6.2",
+    "meow-embed[client]",
 ]
 
 [dependency-groups]
@@ -48,3 +49,6 @@ line-length = 120
 lint.extend-select = ["I", "UP", "PL"]
 lint.extend-ignore = ["PLC0415", "PLR"]
 target-version = "py313"
+
+[tool.uv.sources]
+meow-embed = { url = "https://github.com/dantetemplar/meow-embed/archive/refs/heads/main.zip" }
