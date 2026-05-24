@@ -737,7 +737,7 @@ wheels = [
 name = "meow-embed"
 version = "0.1.2"
 source = { url = "https://github.com/dantetemplar/meow-embed/archive/refs/heads/main.zip" }
-sdist = { hash = "sha256:a46eaff133c561be050386bdc6130cafbce25104594e2dee2e094f7a4cf699a4" }
+sdist = { hash = "sha256:5ca577accabe7436492b5c8838f0ed0f27dcf667b08b1d895f276ca15fe1604b" }
 
 [package.optional-dependencies]
 client = [
@@ -748,6 +748,8 @@ client = [
 
 [package.metadata]
 requires-dist = [
+    { name = "einops", marker = "extra == 'all'", specifier = ">=0.8.0" },
+    { name = "einops", marker = "extra == 'server'", specifier = ">=0.8.0" },
     { name = "fastapi", marker = "extra == 'all'", specifier = ">=0.135.2" },
     { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.135.2" },
     { name = "flagembedding", marker = "extra == 'all'", git = "https://github.com/dantetemplar/fork-FlagEmbedding.git?rev=refs%2Fheads%2Ffix%2Freranker-transformers-v5-tokenizer-compat" },
