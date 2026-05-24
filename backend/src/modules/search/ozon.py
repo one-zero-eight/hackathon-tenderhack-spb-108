@@ -1068,6 +1068,9 @@ async def run_ozon_parser(
     ):
         typofix = page_corrected_query[0]
 
+    if not results:
+        typofix = None
+
     search_query = typofix if spellcheck and typofix and queries_differ(user_input, typofix) else user_input
     return SearchSource(
         source_type="ozon",

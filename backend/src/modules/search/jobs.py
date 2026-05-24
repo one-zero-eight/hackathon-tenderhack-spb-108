@@ -217,6 +217,7 @@ async def _run_job_search(record: _JobRecord) -> None:
                 await _mark_source_finished(record, [SourceType.ozon])
                 if (
                     ozon_typofix
+                    and ozon_source.results
                     and queries_differ(original_query, ozon_typofix)
                     and is_plausible_typofix(original_query, ozon_typofix)
                 ):
